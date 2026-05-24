@@ -1,6 +1,6 @@
 {
   "name": "buildflow-dev",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Adaptive AI-powered development orchestration. Works with Claude Code, Gemini CLI, Codex CLI, Cursor, and more.",
   "keywords": [
     "ai",
