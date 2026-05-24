@@ -1,5 +1,6 @@
 export { run as init }    from './commands/init.js'
 export { run as install } from './commands/install.js'
 export { run as audit }   from './commands/audit.js'
+export { run as fix }     from './commands/fix.js'
 export { run as status }  from './commands/status.js'
 export { run as update }  from './commands/update.js'

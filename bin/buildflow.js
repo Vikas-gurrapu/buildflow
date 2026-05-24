@@ -11,6 +11,7 @@ const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'))
 const loadInit    = () => import('../src/commands/init.js')
 const loadInstall = () => import('../src/commands/install.js')
 const loadAudit   = () => import('../src/commands/audit.js')
+const loadFix     = () => import('../src/commands/fix.js')
 const loadStatus  = () => import('../src/commands/status.js')
 const loadUpdate  = () => import('../src/commands/update.js')
 
@@ -51,6 +52,15 @@ program
   .option('-r, --report', 'Show latest report')
   .action(async (opts) => {
     const { run } = await loadAudit()
+    await run(opts)
+  })
+
+program
+  .command('fix')
+  .description('Scan for issues and fix them interactively')
+  .option('-t, --target <path>', 'Scan specific file or directory')
+  .action(async (opts) => {
+    const { run } = await loadFix()
     await run(opts)
   })
 
