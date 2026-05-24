@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import ora from 'ora'
-import { prompt } from 'enquirer'
+import enquirer from 'enquirer'
 import which from 'which'
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'fs'
 import { join, dirname } from 'path'
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url'
 import { execSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const { prompt } = enquirer
 
 const TOOLS = {
 
@@ -419,6 +420,13 @@ export async function run(opts = {}) {
     toolsToInstall = Object.keys(TOOLS)
   } else if (opts.tool) {
     toolsToInstall = [opts.tool]
+  } else if (opts.yes) {
+    toolsToInstall = detectedList.map(([id]) => id)
+
+    if (toolsToInstall.length === 0) {
+      console.log(chalk.yellow('\n  No AI tools detected automatically. Skipping tool installation.\n'))
+      return
+    }
   } else {
     const choices = Object.entries(TOOLS).map(([id, tool]) => ({
       name: id,
@@ -447,6 +455,8 @@ export async function run(opts = {}) {
   if (opts.global) {
     scope = 'global'
   } else if (opts.local) {
+    scope = 'local'
+  } else if (opts.yes) {
     scope = 'local'
   } else {
     const { installScope } = await prompt({
