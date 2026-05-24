@@ -1,10 +1,12 @@
 import chalk from 'chalk'
 import ora from 'ora'
-import { prompt } from 'enquirer'
+import enquirer from 'enquirer'
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { execSync } from 'child_process'
 import { run as runInstall } from './install.js'
+
+const { prompt } = enquirer
 
 function detectProjectInfo() {
   const cwd = process.cwd()
