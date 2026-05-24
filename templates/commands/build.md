@@ -90,6 +90,64 @@ This profile is passed to every Builder as part of their context packet.
 
 ---
 
+## Step 2b: Detect Build Toolchain (runs once before any wave)
+
+Before the first wave, identify what static analysis and build tools are available.
+
+### Detection checklist:
+
+**JavaScript / TypeScript:**
+```bash
+# Check package.json scripts for build toolchain commands
+cat package.json | python3 -c "import sys,json; s=json.load(sys.stdin).get('scripts',{}); [print(k,':',v) for k,v in s.items() if any(x in k for x in ['build','lint','type','check','tsc'])]"
+# Check for TypeScript config
+ls tsconfig.json tsconfig.*.json 2>/dev/null
+# Check for linter config
+ls .eslintrc.* .eslintrc .prettierrc* biome.json 2>/dev/null
+```
+
+**Python:**
+```bash
+cat pyproject.toml setup.cfg 2>/dev/null | grep -E "mypy|flake8|pylint|ruff|black|isort"
+ls mypy.ini .mypy.ini setup.cfg 2>/dev/null
+```
+
+**Go:**
+```bash
+which golangci-lint 2>/dev/null
+ls .golangci.yml .golangci.yaml 2>/dev/null
+```
+
+**Rust:**
+```bash
+# clippy is built-in to cargo
+grep -E "clippy" Cargo.toml 2>/dev/null
+```
+
+### Build Toolchain Profile:
+```
+Build Toolchain Profile
+───────────────────────
+Type-check cmd:  tsc --noEmit / mypy . / go vet ./... / cargo check
+Lint cmd:        eslint src/ / ruff check . / golangci-lint run / cargo clippy
+Build cmd:       npm run build / python -m build / go build ./... / cargo build
+Bundle tool:     vite / webpack / esbuild / rollup / N/A
+Bundle baseline: [size in KB from last build, or "no baseline yet"]
+Has tsconfig:    YES / NO
+Has lint config: YES / NO
+```
+
+| Result | Action |
+|--------|--------|
+| Type-check found | Run before each wave commit — type errors BLOCK the commit |
+| Lint found | Run before each wave commit — warnings non-blocking, errors BLOCK |
+| Build cmd found | Run before ship — compile failure BLOCKS |
+| None found | Warn once: "⚠ No build toolchain detected. Type safety and lint checks skipped." Log to `security/DEBT.md`. |
+
+This profile is passed to every wave alongside the Test Framework Profile.
+
+---
+
 ## Step 3: Establish Style Fingerprint
 If `PATTERNS.md` exists: extract the 5 most important conventions and hold them in scope.
 If not: read 2 existing source files and infer:
@@ -198,7 +256,69 @@ Reviewer reads each Builder's output:
 
 Flag any deviation from existing patterns — Builders should blend in, not stand out.
 
-### 3d — Test + Fix Loop
+### 3d — Build Telemetry Check (runs before tests — catches type errors early)
+
+Using the Build Toolchain Profile from Step 2b, run the quality pipeline in sequence:
+
+**1. Type Check**
+```bash
+# TypeScript
+npx tsc --noEmit
+# Python
+mypy .
+# Go
+go vet ./...
+# Rust
+cargo check
+```
+- **PASS** → proceed
+- **FAIL (type errors)** → enter fix loop immediately. Do NOT proceed to tests until type-clean.
+
+Type error fix loop (max 3 attempts before escalating):
+```
+Type Fix [X]/3  Wave [N]
+Error:      [message at file:line]
+Root cause: [why it's failing]
+Fix:        [exactly what changed]
+Result:     PASS / still failing
+```
+
+**2. Lint**
+```bash
+# JS/TS
+npx eslint src/ --max-warnings=0
+# Python
+ruff check . / flake8 . / pylint src/
+# Go
+golangci-lint run
+# Rust
+cargo clippy -- -D warnings
+```
+- **Errors** (exit code non-zero) → fix before proceeding
+- **Warnings only** → log to wave report as `⚠ LINT WARN: [N] warnings` — non-blocking
+
+**3. Bundle Size Check (JS/TS only, if build cmd exists)**
+```bash
+npm run build 2>&1 | grep -E "dist/|bundle|chunk|asset"
+```
+Compare output size against `Bundle baseline` in Build Toolchain Profile:
+- First build → record as baseline in profile
+- Subsequent builds → compute delta
+- Delta > +10% → `⚠ BUNDLE WARN: bundle grew [X]% ([old KB] → [new KB])` — non-blocking
+- Delta > +25% → `🔴 BUNDLE ALERT: bundle grew [X]% — likely an unintended import. Investigate before proceeding.` — BLOCKING
+
+**Build Telemetry Report (printed for each wave):**
+```
+Build Telemetry  Wave [N]
+────────────────────────
+Type-check:   ✓ PASS  (0 errors)
+Lint:         ⚠ WARN  (3 warnings — non-blocking)
+Bundle size:  ✓ PASS  (142 KB → 144 KB, +1.4%)
+```
+
+Only proceed to Step 3e after type-check is PASS and lint errors (not warnings) are fixed.
+
+### 3e — Test + Fix Loop
 Run the full test suite:
 ```bash
 npm test        # Node / TS / JS
@@ -228,7 +348,7 @@ Fix:        [exactly what changed]
 Result:     PASS / still failing
 ```
 
-### 3e — Wave Commit
+### 3f — Wave Commit
 When all tests pass, commit this wave atomically:
 ```bash
 git add [changed files — explicit list, not -A]

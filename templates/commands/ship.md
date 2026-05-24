@@ -1,6 +1,6 @@
 ---
 name: buildflow-ship
-description: Finalize phase with spec gate, security gate, and context pruning
+description: Finalize phase with spec gate, security gate, build telemetry gate, and context pruning
 allowed-tools: Read, Write, Bash
 agents: strategist, security-auditor
 ---
@@ -79,10 +79,87 @@ If any test fails: BLOCK. "Fix test failures before shipping."
 
 ---
 
+## MANDATORY Gate 3: Build Telemetry
+
+Run the full build quality pipeline — type safety and compilation correctness are non-negotiable before shipping.
+
+### Type Check
+```bash
+# TypeScript
+npx tsc --noEmit
+# Python
+mypy .
+# Go
+go vet ./...
+# Rust
+cargo check
+```
+
+**Any type errors → BLOCK:**
+```
+🔴 SHIP BLOCKED — Type Errors
+
+[N] type error(s) found:
+  [file:line] [error message]
+
+Fix with /buildflow-modify or /buildflow-hotfix, then re-run /buildflow-ship.
+```
+
+### Lint
+```bash
+# JS/TS
+npx eslint src/ --max-warnings=0
+# Python
+ruff check . / flake8 .
+# Go
+golangci-lint run
+# Rust
+cargo clippy -- -D warnings
+```
+
+**Lint errors → BLOCK.** Lint warnings → non-blocking WARN, logged.
+
+### Compile / Build
+```bash
+npm run build      # JS/TS
+python -m build    # Python
+go build ./...     # Go
+cargo build        # Rust
+```
+
+**Compile failure → BLOCK:**
+```
+🔴 SHIP BLOCKED — Build Failed
+
+Build command exited with errors.
+Fix compilation errors before shipping.
+```
+
+### Bundle Size (JS/TS only)
+Compare final bundle size against baseline from `Build Toolchain Profile` (recorded during last `/buildflow-build`):
+- Delta ≤ +10% → PASS
+- Delta +10–25% → `⚠ BUNDLE WARN: bundle grew [X]% — review before shipping`
+- Delta > +25% → `🔴 BUNDLE ALERT: bundle grew [X]% — likely an unintended large import. Investigate before shipping.` — BLOCKING
+
+**Gate 3 Summary:**
+```
+Build Telemetry Gate
+────────────────────
+Type-check:   ✓ PASS
+Lint:         ⚠ WARN  (4 warnings — logged, non-blocking)
+Compile:      ✓ PASS
+Bundle size:  ✓ PASS  (148 KB → 151 KB, +2%)
+
+Gate 3: ✓ PASS
+```
+
+---
+
 ## Step 1: Pre-Ship Checklist (summary)
 - [ ] All ACs satisfied (Gate 0)
 - [ ] Security gate passed (Gate 1)
 - [ ] All tests passing (Gate 2)
+- [ ] Build telemetry clean (Gate 3) — type-check + lint errors + compile
 - [ ] `/buildflow-check` run and reviewed
 
 ---
@@ -152,8 +229,9 @@ Suggest next phase based on remaining roadmap items.
 
 ## Override Flags
 - `--skip-spec` — skips spec gate only. Logs to `security/DEBT.md`: "Spec gate skipped — [reason]"
-- `--force` — skips security gate. Requires typed confirmation. Logged with timestamp.
+- `--force` — skips security gate only. Requires typed confirmation. Logged with timestamp.
+- `--skip-telemetry` — skips Gate 3. Logs to `security/DEBT.md`: "Build telemetry gate skipped — [reason]"
 
-Neither flag skips the test gate.
+No flag skips the test gate (Gate 2) or type errors in Gate 3. Type safety and green tests are non-negotiable.
 
-## Token Budget: ~22K (including gates)
+## Token Budget: ~26K (including gates)
