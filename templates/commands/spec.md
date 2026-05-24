@@ -1,147 +1,251 @@
 ---
 name: buildflow-spec
-description: Generate formal PRD, Technical Design, and Acceptance Criteria before planning
+description: Generate user-story-backed PRD, Technical Design, and Acceptance Criteria with self-critique pass
 allowed-tools: Read, Write, WebSearch
 agent: strategist
 ---
 
 # /buildflow-spec
 
-Spec-Driven Development layer. Produces three locked spec artifacts before any code is planned or written. The Architect, Builder, and Reviewer agents all reference these during execution.
+Spec-Driven Development layer. Produces formally structured, self-critiqued spec artifacts before any code is planned or written. Every plan task, every build output, and every ship gate references these docs.
 
-Run this after `/buildflow-start` and before `/buildflow-plan`.
+Run after `/buildflow-start`, before `/buildflow-plan`.
 
 ## Usage
-- `/buildflow-spec` — generate full spec from vision
+- `/buildflow-spec` — full spec from vision
 - `/buildflow-spec prd` — regenerate PRD only
-- `/buildflow-spec tdd` — regenerate Technical Design only
-- `/buildflow-spec acceptance` — regenerate acceptance criteria only
-- `/buildflow-spec --review` — re-read and review existing specs without regenerating
+- `/buildflow-spec tdd` — regenerate TDD only
+- `/buildflow-spec acceptance` — regenerate ACs only
+- `/buildflow-spec --fast` — minimal spec for small features (single screen / endpoint)
+- `/buildflow-spec --review` — critique existing specs without regenerating
 
-## Context Packet (load only these — nothing else)
+## Context Packet
 - `.buildflow/core/vision.md`
-- `.buildflow/memory/light.md` (summary fields only: app_name, framework, phase)
-- `.buildflow/specs/` (existing specs if regenerating)
+- `.buildflow/codebase/PATTERNS.md` (if exists — align spec with existing architecture)
+- `.buildflow/memory/light.md` (app_name, framework, phase only)
+- `.buildflow/specs/` (if regenerating)
 
-## Step 1: Validate Vision Exists
+---
+
+## Step 1: Validate Vision
 Read `.buildflow/core/vision.md`.
-If empty or missing: "Run /buildflow-start first to capture the project vision."
+If empty: "Run `/buildflow-start` first."
 
-## Step 2: Clarify Ambiguities
-Before writing specs, ask only questions that are unanswered in vision.md:
-- What does success look like for the user? (measurable outcome, not a feature)
-- What is explicitly OUT of scope for this phase?
-- Are there known constraints? (tech stack lock-in, deadline, budget, team size)
-- Any third-party integrations required?
+If `PATTERNS.md` exists: note the existing architectural style (component structure, naming, API patterns).
+The TDD must align with these — don't invent new patterns unless explicitly asked.
 
-Ask all questions at once. Do not ask one at a time.
-Maximum 5 questions. Skip any already answered in vision.md.
+---
+
+## Step 2: Clarify (one round, all questions at once)
+Ask only what vision.md left unanswered. Max 5 questions:
+- What does success look like for the **user** — as a measurable outcome, not a feature list?
+- What is explicitly **out of scope** this phase?
+- Any **hard constraints**: tech stack, deadline, team size, compliance?
+- Any **third-party integrations** required?
+- If `--fast`: "Describe the single feature in one sentence."
+
+---
 
 ## Step 3: Generate PRD
 Write `.buildflow/specs/PRD.md`:
 
 ```markdown
 # Product Requirements Document
-**App:** [name]  **Phase:** [N]  **Date:** [today]
+**App:** [name]  **Phase:** [N]  **Date:** [today]  **Status:** DRAFT
 
 ## Problem Statement
-[One paragraph: what problem exists, who has it, why current solutions fail]
+[One paragraph. Must answer: what exists today that's broken/missing, who suffers, why current solutions fail.]
 
-## Users
-| User Type | Goal | Key Pain Point |
-|-----------|------|----------------|
-| [type] | [goal] | [pain] |
+## Users & Goals
+| User Type | Job-to-be-Done | Current Pain |
+|-----------|----------------|--------------|
+| [type] | [goal — verb phrase] | [specific friction today] |
+
+## User Stories
+| ID | Story | Acceptance Signal |
+|----|-------|------------------|
+| US-01 | As a [user], I want [goal] so that [outcome] | [one-line measurable signal] |
+| US-02 | ... | ... |
 
 ## Features — In Scope
-| ID | Feature | Priority | Success Metric |
-|----|---------|----------|----------------|
-| F-01 | [name] | Must-have / Should-have / Nice-to-have | [measurable] |
+| ID | Feature | Linked Stories | Priority | Success Metric |
+|----|---------|---------------|----------|----------------|
+| F-01 | [name] | US-01, US-02 | Must / Should / Could | [number or binary] |
 
-## Out of Scope
-- [what we are explicitly NOT building this phase]
+## Explicitly Out of Scope
+- [item] — reason: [why excluded this phase]
 
 ## Constraints
-- [tech, timeline, team, budget constraints]
+| Type | Constraint |
+|------|-----------|
+| Tech | [stack lock-in, version requirements] |
+| Timeline | [deadline if any] |
+| Compliance | [GDPR, HIPAA, accessibility level, etc.] |
+| Team | [size, skills] |
 
-## Success Criteria
-Phase is complete when:
-- [ ] [measurable outcome 1]
-- [ ] [measurable outcome 2]
+## Phase Complete When
+- [ ] [measurable outcome — must map to a Success Metric above]
 ```
 
-## Step 4: Generate Technical Design Doc
+---
+
+## Step 4: Generate TDD
 Write `.buildflow/specs/TDD.md`:
+
+If `PATTERNS.md` exists: components and API shapes must follow existing conventions.
 
 ```markdown
 # Technical Design Document
-**App:** [name]  **Phase:** [N]  **Date:** [today]
+**App:** [name]  **Phase:** [N]  **Date:** [today]  **Status:** DRAFT
 
 ## Architecture Overview
-[Brief description of the system architecture]
+[2–3 sentences. What components exist, how they communicate, what changes this phase.]
 
-## Components
-| Component | Responsibility | Interface |
-|-----------|---------------|-----------|
-| [name] | [what it does] | [API / function / event] |
+## Component Map
+| Component | Responsibility | Linked Feature | Interface Type |
+|-----------|---------------|----------------|----------------|
+| [name] | [single responsibility] | F-01 | REST / gRPC / event / function |
 
-## Data Model
-[Key entities and their relationships — use simple table or diagram]
+## Data Model Changes
+| Entity | Fields Added/Changed | Reason |
+|--------|---------------------|--------|
+| [entity] | [field: type] | [F-01] |
 
 ## API Contracts
-| Endpoint / Function | Input | Output | Auth Required |
-|--------------------|-------|--------|---------------|
-| [name] | [type] | [type] | yes/no |
+| Endpoint / Function | Method | Request Shape | Response Shape | Status Codes | Auth |
+|--------------------|--------|---------------|----------------|-------------|------|
+| /api/[path] | POST | `{ field: type }` | `{ field: type }` | 200, 400, 401, 500 | yes/no |
+
+## Error Response Format
+All errors follow:
+```json
+{ "error": { "code": "ERROR_CODE", "message": "human readable", "field": "optional" } }
+```
 
 ## Technology Decisions
-| Decision | Choice | Reason | Alternatives Rejected |
-|----------|--------|--------|----------------------|
-| [area] | [choice] | [why] | [what else was considered] |
+| Decision | Choice | Rationale | Alternatives Rejected | Reversibility |
+|----------|--------|-----------|----------------------|--------------|
+| [area] | [choice] | [why — cite constraint or principle] | [what else, why not] | easy / hard |
+
+## Non-Functional Requirements
+| Type | Requirement | Measurement Method |
+|------|------------|-------------------|
+| Performance | [endpoint] responds in < [Nms] at [N] rps | Load test / APM |
+| Security | [specific requirement — not "secure"] | Audit / pen test |
+| Accessibility | WCAG [2.1 AA / 2.1 AAA] | Automated + manual |
+| Availability | [N]% uptime | Monitoring |
+| Data retention | [N] days | Automated policy |
 
 ## Known Risks
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|-----------|
-| [risk] | low/med/high | low/med/high | [how to mitigate] |
+| Risk | Likelihood | Impact | Mitigation | Owner |
+|------|-----------|--------|-----------|-------|
+| [risk] | low/med/high | low/med/high | [concrete action] | dev / PM / ops |
 ```
+
+---
 
 ## Step 5: Generate Acceptance Criteria
 Write `.buildflow/specs/acceptance.md`:
 
-Each AC must be:
-- **Testable** — a human or automated test can verify it
-- **Binary** — pass or fail, no partial credit
-- **Specific** — no vague terms like "works correctly"
+**Rules for every AC:**
+- Binary — pass or fail only, no partial credit
+- Testable — an automated test or explicit manual step can verify it
+- Specific — no vague words (see Critic pass below)
+- Covers both happy path AND at least one failure/edge case per feature
 
 ```markdown
 # Acceptance Criteria
 **App:** [name]  **Phase:** [N]  **Date:** [today]
 
-## [Feature F-01 name]
-- AC-001: Given [context], when [action], then [outcome]
-- AC-002: Given [context], when [action], then [outcome]
+## [Feature F-01: name]  →  US-01, US-02
+**Happy path:**
+- AC-001: Given [setup state], when [user/system action], then [exact observable outcome]
+- AC-002: Given [...], when [...], then [...]
 
-## [Feature F-02 name]
-- AC-003: Given [context], when [action], then [outcome]
+**Failure / edge cases (required — minimum 1 per feature):**
+- AC-003: Given [invalid/boundary/error input], when [...], then [specific error behavior]
+- AC-004: Given [concurrent/race/timeout scenario], when [...], then [...]
+
+## [Feature F-02: name]  →  US-03
+- AC-005: Given [...], when [...], then [...]
+- AC-006 (edge): Given [...], when [...], then [...]
 
 ## Non-Functional
-- AC-NF-001: [performance/security/accessibility requirement]
+- AC-NF-001: [endpoint] under [N] concurrent users responds within [Nms] (p95)
+- AC-NF-002: [page/flow] achieves WCAG 2.1 AA with zero automated violations
+- AC-NF-003: No secrets present in committed code (automated scan passes)
 ```
 
-## Step 6: Spec Review Gate
-Show a summary of all three specs. Ask:
+---
 
-> "Do these specs accurately capture what you want to build? (yes / revise [area])"
+## Step 6: Spec Critic Pass (automatic — runs before showing user)
 
-- If yes: lock specs. Update `light.md`:
+Before presenting specs to the user, self-review all three docs as a Spec Critic:
+
+### Vague Language Scan
+Search every AC for these banned words. Flag any found:
+`correctly` `properly` `works` `fast` `quickly` `slow` `good` `bad` `easy` `easily`
+`should` `appropriate` `reasonable` `nice` `clean` `simple` `obvious` `intuitive`
+
+For each flagged word: replace with a specific, measurable alternative or mark `[NEEDS SPECIFICITY]`.
+
+### Coverage Check
+- Every feature in PRD has at least 2 ACs (1 happy + 1 error/edge) — flag if not
+- Every user story US-XX is referenced in at least one AC's feature section — flag orphans
+- Every component in TDD maps to at least one PRD feature — flag orphans
+- Every NFR in TDD has a corresponding AC-NF — flag gaps
+
+### Testability Check
+For each AC, verify it can be answered as a pass/fail automated test or explicit manual step.
+Flag any AC that requires human judgment to evaluate.
+
+### Consistency Check
+- API contracts in TDD match any referenced endpoints in ACs
+- Data model changes in TDD are sufficient to support all AC outcomes
+- Technology decisions don't contradict any constraints in PRD
+
+### Critic Report
+Show the user:
+```
+Spec Critic Report
+──────────────────
+Vague language:   [N found — fixed N, flagged N]
+Coverage gaps:    [list any orphaned features/stories/components]
+Testability:      [list any ACs needing rework]
+Consistency:      [any TDD/PRD conflicts]
+Overall quality:  STRONG / NEEDS REVISION
+```
+
+---
+
+## Step 7: User Review Gate
+Show summary of all three specs + Critic Report. Ask:
+
+> "Specs ready for review. Critic score: [STRONG / NEEDS REVISION]
+> Approve to lock, or tell me what to revise."
+
+- **Approve:** lock specs. Update `light.md`:
   ```yaml
   spec_status: locked
   spec_phase: [N]
   ac_count: [N]
+  us_count: [N]
+  spec_critic: strong/revised
   ```
-- If revise: ask what's wrong, update the relevant section, repeat Step 6.
+- **Revise:** apply changes to the named section, re-run Critic pass, repeat Step 7.
 
-Do not proceed until the user approves.
+Do not proceed until user approves.
 
-## Step 7: Next Step
-"Specs locked. Run `/buildflow-plan` — the Architect will map tasks to your acceptance criteria."
+---
 
-## Token Budget: ~18K
+## --fast Mode
+For single-feature additions:
+- Skip User Stories table (inline in feature row)
+- Skip Technology Decisions (use existing stack)
+- Generate 3 ACs minimum: 1 happy + 1 error + 1 NFR
+- Skip Critic coverage check (only vague language scan)
+- Token budget: ~8K
+
+---
+
+## Token Budget: ~20K (full) / ~8K (--fast)
