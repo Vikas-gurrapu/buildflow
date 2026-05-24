@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node bin/buildflow.js --version)",
+      "Bash(node bin/buildflow.js --help)"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+.buildflow/security/reports/
+*.tar.gz
+*.tgz
+.env
+.env.local
+.env.*.local
+dist/
+coverage/
+.DS_Store
+Thumbs.db
