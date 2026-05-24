@@ -15,13 +15,13 @@
     "security-audit",
     "code-generation"
   ],
-  "homepage": "https://github.com/vikasgurrapu/buildflow-dev",
+  "homepage": "https://github.com/Vikas-gurrapu/buildflow",
   "bugs": {
-    "url": "https://github.com/vikasgurrapu/buildflow-dev/issues"
+    "url": "https://github.com/Vikas-gurrapu/buildflow/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vikasgurrapu/buildflow-dev.git"
+    "url": "git+https://github.com/Vikas-gurrapu/buildflow.git"
   },
   "license": "MIT",
   "author": "Vikas Gurrapu <vikas.gurrapu@gmail.com>",
