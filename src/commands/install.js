@@ -421,6 +421,44 @@ function detectAppName() {
   return process.cwd().split(/[/\\]/).pop() || 'my-project'
 }
 
+export async function refreshInstalledTools(opts = {}) {
+  const commandFiles = loadCommandTemplates()
+  const commandCount = Object.keys(commandFiles).length
+  const results = []
+
+  for (const tool of Object.values(TOOLS)) {
+    const local  = tool.isInstalledLocal()
+    const global = tool.isInstalledGlobal()
+    if (!local && !global) continue
+
+    const sp = ora(`  ${tool.icon}  Refreshing ${tool.name}...`).start()
+    try {
+      if (local)  tool.installLocal(commandFiles)
+      if (global && !local) tool.installGlobal(commandFiles)
+      sp.succeed(chalk.green(`  ${tool.icon}  ${tool.name}`) + chalk.dim(` — ${commandCount} commands refreshed`))
+      results.push({ tool, success: true })
+    } catch (err) {
+      sp.fail(chalk.red(`  ${tool.icon}  ${tool.name} — ${err.message}`))
+      results.push({ tool, success: false, error: err })
+    }
+  }
+
+  if (results.length === 0) {
+    console.log(chalk.yellow('  No previously installed tools found.'))
+    console.log(chalk.dim('  Run: buildflow install\n'))
+  } else {
+    const failed = results.filter(r => !r.success)
+    if (failed.length > 0) {
+      console.log(chalk.red('\n  Some tools failed to update:'))
+      for (const { tool, error } of failed) {
+        console.log(chalk.red(`  ✗ ${tool.name}: ${error.message}`))
+      }
+    }
+  }
+
+  return results
+}
+
 export function getToolStatus() {
   return Object.values(TOOLS).map(tool => ({
     id:              tool.id,

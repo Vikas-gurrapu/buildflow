@@ -3,7 +3,7 @@ import ora from 'ora'
 import { existsSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { run as runInstall } from './install.js'
+import { refreshInstalledTools } from './install.js'
 import { checkVersion, clearUpdateNotice } from '../utils/checkVersion.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -35,13 +35,11 @@ export async function run(opts = {}) {
 
   console.log('\n' + chalk.bold.white('  Updating BuildFlow...\n'))
 
-  const sp = ora('Updating command files...').start()
-  await new Promise(r => setTimeout(r, 400))
-  sp.succeed(chalk.green('  ✓ Command files updated'))
+  // Re-push latest command templates to all previously installed tools
+  await refreshInstalledTools()
 
   // Clear the update notice now that we've updated
   clearUpdateNotice()
 
-  console.log('')
-  await runInstall({ yes: opts.yes })
+  console.log(chalk.green(`\n  ✓ BuildFlow updated to v${pkg.version}\n`))
 }
