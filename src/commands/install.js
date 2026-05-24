@@ -59,20 +59,29 @@ const TOOLS = {
     docsUrl: 'https://github.com/google-gemini/gemini-cli',
 
     detect() {
-      try { which.sync('gemini'); return true } catch { return false }
+      const hasCli = (() => { try { which.sync('gemini'); return true } catch { return false } })()
+      // Also check config dir — binary may not be on PATH in all shells
+      const hasGeminiDir = existsSync(join(homedir(), '.gemini'))
+      return hasCli || hasGeminiDir
     },
 
-    isInstalledLocal()  { return existsSync(join(process.cwd(), '.gemini', 'commands', 'start.md')) },
-    isInstalledGlobal() { return existsSync(join(homedir(), '.gemini', 'commands', 'start.md')) },
+    isInstalledLocal() {
+      const cmdFile = existsSync(join(process.cwd(), '.gemini', 'commands', 'start.md'))
+      const ctxFile = existsSync(join(process.cwd(), 'GEMINI.md')) &&
+        readFileSafe(join(process.cwd(), 'GEMINI.md')).includes('BuildFlow')
+      return cmdFile || ctxFile
+    },
+    isInstalledGlobal() {
+      const cmdFile = existsSync(join(homedir(), '.gemini', 'commands', 'start.md'))
+      const ctxFile = existsSync(join(homedir(), '.gemini', 'GEMINI.md')) &&
+        readFileSafe(join(homedir(), '.gemini', 'GEMINI.md')).includes('BuildFlow')
+      return cmdFile || ctxFile
+    },
 
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.gemini', 'commands')
       mkdirSync(dir, { recursive: true })
-      const contextPath = join(homedir(), '.gemini', 'GEMINI.md')
-      const existingContent = existsSync(contextPath) ? readFileSync(contextPath, 'utf8') : ''
-      if (!existingContent.includes('## BuildFlow Commands')) {
-        writeFileSync(contextPath, existingContent + '\n\n' + geminiContextBlock(commandFiles))
-      }
+      patchGeminiContext(join(homedir(), '.gemini', 'GEMINI.md'), commandFiles)
       for (const [name, content] of Object.entries(commandFiles)) {
         writeFileSync(join(dir, `${name}.md`), content)
       }
@@ -82,18 +91,14 @@ const TOOLS = {
     installLocal(commandFiles) {
       const dir = join(process.cwd(), '.gemini', 'commands')
       mkdirSync(dir, { recursive: true })
-      const contextPath = join(process.cwd(), 'GEMINI.md')
-      const existingContent = existsSync(contextPath) ? readFileSync(contextPath, 'utf8') : ''
-      if (!existingContent.includes('## BuildFlow Commands')) {
-        writeFileSync(contextPath, existingContent + '\n\n' + geminiContextBlock(commandFiles))
-      }
+      patchGeminiContext(join(process.cwd(), 'GEMINI.md'), commandFiles)
       for (const [name, content] of Object.entries(commandFiles)) {
         writeFileSync(join(dir, `${name}.md`), content)
       }
       return dir
     },
 
-    triggerNote: 'In Gemini CLI, type "/" or @buildflow to use commands',
+    triggerNote: 'In Gemini CLI, type "/buildflow-start" or ask Gemini to run a buildflow command',
   },
 
   codex: {
@@ -104,7 +109,9 @@ const TOOLS = {
     docsUrl: 'https://github.com/openai/codex',
 
     detect() {
-      try { which.sync('codex'); return true } catch { return false }
+      const hasCli = (() => { try { which.sync('codex'); return true } catch { return false } })()
+      const hasCodexDir = existsSync(join(homedir(), '.codex'))
+      return hasCli || hasCodexDir
     },
 
     isInstalledLocal()  { return existsSync(join(process.cwd(), '.codex', 'instructions', 'buildflow-start.md')) },
@@ -188,8 +195,7 @@ const TOOLS = {
     },
 
     isInstalledLocal() {
-      const p = join(process.cwd(), '.clinerules')
-      return existsSync(p) && readFileSync(p, 'utf8').includes('BuildFlow')
+      return readFileSafe(join(process.cwd(), '.clinerules')).includes('BuildFlow')
     },
     isInstalledGlobal() { return this.isInstalledLocal() },
 
@@ -267,11 +273,18 @@ ${UPDATE_CHECK_INSTRUCTION}`
 }
 
 function patchAgentsMd(filePath, scope) {
-  const existing = existsSync(filePath) ? readFileSync(filePath, 'utf8') : ''
-  if (existing.includes('BuildFlow')) return
+  const existing = readFileSafe(filePath)
   const dir = scope === 'global' ? '~/.codex/instructions/' : '.codex/instructions/'
-  const block = `\n\n## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n${UPDATE_CHECK_INSTRUCTION}`
-  writeFileSync(filePath, existing + block)
+  const block = `## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n${UPDATE_CHECK_INSTRUCTION}`
+  if (existing.includes('## BuildFlow Instructions')) {
+    const updated = existing.replace(
+      /## BuildFlow Instructions[\s\S]*?(?=\n## |\n# |$)/,
+      block
+    )
+    writeFileSync(filePath, updated)
+  } else {
+    writeFileSync(filePath, existing + (existing ? '\n\n' : '') + block)
+  }
 }
 
 function writeCodexSkill(skillsDir, name, commandContent) {
@@ -405,6 +418,27 @@ function readdirSafe(dir) {
     return readdirSync(dir)
   } catch {
     return []
+  }
+}
+
+function readFileSafe(filePath) {
+  try { return readFileSync(filePath, 'utf8') } catch { return '' }
+}
+
+// Writes or replaces the BuildFlow block in a GEMINI.md context file.
+// Always overwrites the block so updates pick up new commands.
+function patchGeminiContext(contextPath, commandFiles) {
+  const existing = readFileSafe(contextPath)
+  const block = geminiContextBlock(commandFiles)
+  if (existing.includes('## BuildFlow Commands')) {
+    // Replace old block — from the marker to the next top-level ## or end of file
+    const updated = existing.replace(
+      /## BuildFlow Commands[\s\S]*?(?=\n## |\n# |$)/,
+      block.trimStart()
+    )
+    writeFileSync(contextPath, updated)
+  } else {
+    writeFileSync(contextPath, existing + (existing ? '\n\n' : '') + block)
   }
 }
 
