@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { checkVersion } from './checkVersion.js'
+import { getToolStatus } from '../commands/install.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -68,6 +69,16 @@ export async function showWelcome() {
     console.log(chalk.white('    buildflow status  ') + chalk.dim('  Show project status'))
     console.log(chalk.white('    buildflow audit   ') + chalk.dim('  Run security audit from terminal'))
     console.log(chalk.white('    buildflow update  ') + chalk.dim('  Update BuildFlow commands'))
+
+    // Surface any newly installed AI tools that don't have BuildFlow yet
+    const uninstalled = getToolStatus().filter(t => t.detected && !t.installedLocal && !t.installedGlobal)
+    if (uninstalled.length > 0) {
+      console.log('')
+      console.log(chalk.yellow(`  New AI tool(s) detected — BuildFlow not installed yet:`))
+      for (const t of uninstalled) {
+        console.log(chalk.yellow(`    ${t.icon}  ${t.name}`) + chalk.dim(`  → buildflow install --tool ${t.id}`))
+      }
+    }
   } else {
     console.log(chalk.yellow('  Not initialized in this directory.\n'))
     console.log(chalk.bold('  Get started:\n'))

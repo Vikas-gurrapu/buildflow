@@ -26,6 +26,9 @@ const TOOLS = {
       return hasCli || hasClaudeDir
     },
 
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.claude', 'commands', 'buildflow-start.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.claude', 'commands', 'buildflow-start.md')) },
+
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.claude', 'commands')
       mkdirSync(dir, { recursive: true })
@@ -58,6 +61,9 @@ const TOOLS = {
     detect() {
       try { which.sync('gemini'); return true } catch { return false }
     },
+
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.gemini', 'commands', 'start.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.gemini', 'commands', 'start.md')) },
 
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.gemini', 'commands')
@@ -101,6 +107,9 @@ const TOOLS = {
       try { which.sync('codex'); return true } catch { return false }
     },
 
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.codex', 'instructions', 'buildflow-start.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.codex', 'instructions', 'buildflow-start.md')) },
+
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.codex', 'instructions')
       const skillsDir = join(homedir(), '.codex', 'skills')
@@ -143,6 +152,9 @@ const TOOLS = {
       return hasCursorApp || hasCursorDir
     },
 
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.cursor', 'rules', 'buildflow.mdc')) },
+    isInstalledGlobal() { return this.isInstalledLocal() },
+
     installGlobal(commandFiles) {
       return this.installLocal(commandFiles)
     },
@@ -175,6 +187,12 @@ const TOOLS = {
       )
     },
 
+    isInstalledLocal() {
+      const p = join(process.cwd(), '.clinerules')
+      return existsSync(p) && readFileSync(p, 'utf8').includes('BuildFlow')
+    },
+    isInstalledGlobal() { return this.isInstalledLocal() },
+
     installGlobal(commandFiles) {
       return this.installLocal(commandFiles)
     },
@@ -197,6 +215,9 @@ const TOOLS = {
     detect() {
       return existsSync(join(homedir(), '.continue', 'config.json'))
     },
+
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.continue', 'buildflow', 'start.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.continue', 'buildflow', 'start.md')) },
 
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.continue', 'buildflow')
@@ -400,6 +421,17 @@ function detectAppName() {
   return process.cwd().split(/[/\\]/).pop() || 'my-project'
 }
 
+export function getToolStatus() {
+  return Object.values(TOOLS).map(tool => ({
+    id:              tool.id,
+    name:            tool.name,
+    icon:            tool.icon,
+    detected:        tool.detect(),
+    installedLocal:  tool.isInstalledLocal(),
+    installedGlobal: tool.isInstalledGlobal(),
+  }))
+}
+
 function loadCommandTemplates() {
   const templatesDir = join(__dirname, '../../templates/commands')
   const commands = {}
@@ -434,15 +466,28 @@ export async function run(opts = {}) {
   const detectedList = Object.entries(detected).filter(([, found]) => found)
   const notFoundList = Object.entries(detected).filter(([, found]) => !found)
 
+  // Tools detected on the system but BuildFlow not yet installed into them
+  const newlyDetected = detectedList.filter(([id]) => {
+    const t = TOOLS[id]
+    return !t.isInstalledLocal() && !t.isInstalledGlobal()
+  })
+
   if (detectedList.length > 0) {
     console.log(chalk.green('  ✓ Detected on your system:'))
     for (const [id] of detectedList) {
       const t = TOOLS[id]
-      console.log(chalk.green(`    ${t.icon}  ${t.name}`) + chalk.dim(` — ${t.description}`))
+      const installed = t.isInstalledLocal() || t.isInstalledGlobal()
+      const badge = installed ? chalk.dim(' (already installed)') : chalk.yellow(' (not yet installed)')
+      console.log(chalk.green(`    ${t.icon}  ${t.name}`) + badge)
     }
   } else {
     console.log(chalk.yellow('  ⚠  No AI tools detected automatically.'))
     console.log(chalk.dim('     You can still install for tools not on this list.\n'))
+  }
+
+  if (newlyDetected.length > 0) {
+    console.log(chalk.yellow(`\n  ${newlyDetected.length} tool(s) detected but BuildFlow not installed yet.`))
+    console.log(chalk.dim('  They are pre-selected below.\n'))
   }
 
   if (notFoundList.length > 0) {
@@ -469,11 +514,19 @@ export async function run(opts = {}) {
       return
     }
   } else {
-    const choices = Object.entries(TOOLS).map(([id, tool]) => ({
-      name: id,
-      message: `${tool.icon}  ${tool.name}${detected[id] ? chalk.green(' ✓') : ''}`,
-      hint: tool.description,
-    }))
+    const choices = Object.entries(TOOLS).map(([id, tool]) => {
+      const isInstalled = tool.isInstalledLocal() || tool.isInstalledGlobal()
+      const statusBadge = !detected[id]
+        ? ''
+        : isInstalled
+          ? chalk.dim(' (reinstall)')
+          : chalk.yellow(' ← new')
+      return {
+        name: id,
+        message: `${tool.icon}  ${tool.name}${statusBadge}`,
+        hint: tool.description,
+      }
+    })
 
     const { tools } = await prompt({
       type: 'multiselect',
@@ -481,7 +534,10 @@ export async function run(opts = {}) {
       message: 'Which AI tools do you want to install BuildFlow into?',
       hint: '(Space to select, Enter to confirm)',
       choices,
-      initial: detectedList.map(([id]) => id),
+      // Pre-select newly detected tools (detected but not yet installed)
+      initial: newlyDetected.length > 0
+        ? newlyDetected.map(([id]) => id)
+        : detectedList.map(([id]) => id),
     })
 
     if (!tools || tools.length === 0) {

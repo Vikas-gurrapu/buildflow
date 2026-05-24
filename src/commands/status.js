@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
+import { getToolStatus } from './install.js'
 
 export async function run(opts = {}) {
   const base = join(process.cwd(), '.buildflow')
@@ -35,9 +36,43 @@ export async function run(opts = {}) {
      onboarded === 'n/a'  ? chalk.dim('N/A (greenfield)') :
                             chalk.yellow('No — run /buildflow-onboard')))
 
-  const hasDebt = debt.includes('## Active') && !debt.includes('[None]')
+  const hasDebt = debt.includes('## Active') && !debt.includes('*None')
   console.log(chalk.dim('  Security debt: ') +
     (hasDebt ? chalk.red('⚠ Issues pending — see .buildflow/security/DEBT.md') : chalk.green('Clean')))
+
+  // ── AI Tool Status ──────────────────────────────────────────────────────────
+  console.log(chalk.dim('\n  AI Tools:\n'))
+
+  const tools = getToolStatus()
+  const uninstalled = []
+
+  for (const t of tools) {
+    if (!t.detected) {
+      console.log(chalk.dim(`    ${t.icon}  ${t.name}`) + chalk.dim('  — not installed on this machine'))
+      continue
+    }
+
+    const local  = t.installedLocal
+    const global = t.installedGlobal
+
+    if (local || global) {
+      const scope = local && global ? 'local + global' : local ? 'local' : 'global'
+      console.log(chalk.green(`    ${t.icon}  ${t.name}`) + chalk.dim(`  ✓ BuildFlow installed (${scope})`))
+    } else {
+      console.log(chalk.yellow(`    ${t.icon}  ${t.name}`) + chalk.yellow('  ⚠ Detected but BuildFlow not installed'))
+      uninstalled.push(t)
+    }
+  }
+
+  if (uninstalled.length > 0) {
+    console.log('')
+    console.log(chalk.yellow('  Some tools are missing BuildFlow commands.'))
+    console.log(chalk.dim('  Run one of:'))
+    for (const t of uninstalled) {
+      console.log(chalk.white(`    buildflow install --tool ${t.id}`))
+    }
+    console.log(chalk.dim('  Or: buildflow install  (interactive)'))
+  }
 
   if (opts.verbose) {
     console.log(chalk.dim('\n  .buildflow/ structure:'))
