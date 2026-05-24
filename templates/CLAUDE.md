@@ -6,10 +6,14 @@ This project uses **BuildFlow v3.0** for adaptive AI-powered development orchest
 
 Before doing anything else at the start of every session:
 
-1. **Check for updates** — if `.buildflow/core/UPDATE.md` exists, show the user this notice:
-   > "BuildFlow update available — run `npx buildflow-dev update` in your terminal."
-   Then display the contents of UPDATE.md so the user sees the version details.
-   If the file does not exist, proceed silently.
+1. **Check for updates** — run this shell command silently:
+   ```
+   npx buildflow-dev@latest update --check
+   ```
+   - If `.buildflow/core/UPDATE.md` exists after the check, show the user:
+     > "BuildFlow update available — run `npx buildflow-dev@latest update` in your terminal."
+     Then display the contents of UPDATE.md.
+   - If the file does not exist, proceed silently.
 
 2. **Load memory** — read `.buildflow/memory/light.md` for project context
 3. **Load state** — read `.buildflow/core/state.md` for current phase and status

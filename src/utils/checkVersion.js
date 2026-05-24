@@ -1,8 +1,23 @@
-import { existsSync, writeFileSync, unlinkSync, mkdirSync } from 'fs'
+import { existsSync, writeFileSync, unlinkSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
+import { homedir } from 'os'
 
-const REGISTRY_URL = 'https://registry.npmjs.org/buildflow-dev/latest'
-const UPDATE_FILE  = '.buildflow/core/UPDATE.md'
+const REGISTRY_URL   = 'https://registry.npmjs.org/buildflow-dev/latest'
+const UPDATE_FILE    = '.buildflow/core/UPDATE.md'
+const REGISTRY_PATH  = join(homedir(), '.buildflow', 'projects.json')
+
+function getProjectRegistry() {
+  try { return JSON.parse(readFileSync(REGISTRY_PATH, 'utf8')) } catch { return [] }
+}
+
+function allProjectPaths() {
+  const projects = getProjectRegistry()
+  const cwd = process.cwd()
+  if (!projects.includes(cwd) && existsSync(join(cwd, '.buildflow'))) {
+    projects.push(cwd)
+  }
+  return projects.filter(p => existsSync(join(p, '.buildflow', 'core')))
+}
 
 export async function checkVersion(currentVersion) {
   try {
@@ -13,20 +28,24 @@ export async function checkVersion(currentVersion) {
     if (!res.ok) return null
 
     const { version: latest } = await res.json()
-    const updatePath = join(process.cwd(), UPDATE_FILE)
 
     if (latest === currentVersion) {
-      // Remove stale notice if we're already up to date
-      if (existsSync(updatePath)) unlinkSync(updatePath)
+      // Clear stale notices from all registered projects
+      for (const p of allProjectPaths()) {
+        const f = join(p, UPDATE_FILE)
+        if (existsSync(f)) unlinkSync(f)
+      }
       return null
     }
 
-    // Only write the file if .buildflow/ exists (i.e. project is initialized)
-    const coreDir = join(process.cwd(), '.buildflow', 'core')
-    if (!existsSync(coreDir)) return { current: currentVersion, latest }
-
-    mkdirSync(coreDir, { recursive: true })
-    writeFileSync(updatePath, buildUpdateNotice(currentVersion, latest))
+    // Write UPDATE.md to every registered project so their next AI session
+    // shows the update notice regardless of which project is opened.
+    const notice = buildUpdateNotice(currentVersion, latest)
+    for (const p of allProjectPaths()) {
+      try {
+        writeFileSync(join(p, UPDATE_FILE), notice)
+      } catch {}
+    }
 
     return { current: currentVersion, latest }
   } catch {
@@ -35,8 +54,13 @@ export async function checkVersion(currentVersion) {
 }
 
 export function clearUpdateNotice() {
-  const updatePath = join(process.cwd(), UPDATE_FILE)
-  if (existsSync(updatePath)) unlinkSync(updatePath)
+  // Clear from all registered projects, not just cwd
+  for (const p of allProjectPaths()) {
+    try {
+      const f = join(p, UPDATE_FILE)
+      if (existsSync(f)) unlinkSync(f)
+    } catch {}
+  }
 }
 
 function buildUpdateNotice(current, latest) {

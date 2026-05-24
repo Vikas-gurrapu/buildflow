@@ -4,7 +4,7 @@ import enquirer from 'enquirer'
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { execSync } from 'child_process'
-import { run as runInstall } from './install.js'
+import { run as runInstall, registerProject } from './install.js'
 
 const { prompt } = enquirer
 
@@ -587,6 +587,7 @@ export async function run(opts = {}) {
   scaffoldBuildflow(appName, { ...projectInfo, projectType })
   patchGitignore()
   ensureGit()
+  registerProject(process.cwd())
   await new Promise(r => setTimeout(r, 300))
   sp2.succeed(chalk.green('  ✓ .buildflow/ scaffold created'))
 

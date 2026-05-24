@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import ora from 'ora'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { refreshInstalledTools } from './install.js'
@@ -27,6 +27,12 @@ export async function run(opts = {}) {
   }
 
   console.log('\n' + chalk.bold.white('  Updating BuildFlow...\n'))
+
+  const inProject = existsSync(join(process.cwd(), '.buildflow'))
+  if (!inProject) {
+    console.log(chalk.dim('  Tip: run this from inside your project directory to also'))
+    console.log(chalk.dim('  refresh local command files (e.g. .claude/commands/).\n'))
+  }
 
   // Re-push latest command templates to all previously installed tools
   await refreshInstalledTools()

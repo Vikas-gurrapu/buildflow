@@ -253,9 +253,9 @@ const UPDATE_CHECK_INSTRUCTION = `
 ## BuildFlow Update Check (Run Every Session)
 
 At the very start of every session, before anything else:
-1. Check if \`.buildflow/core/UPDATE.md\` exists
-2. If it does, show the user this notice:
-   > "BuildFlow update available — run \`npx buildflow-dev update\` in your terminal to upgrade."
+1. Run this shell command silently: \`npx buildflow-dev@latest update --check\`
+2. If \`.buildflow/core/UPDATE.md\` exists after the check, notify the user:
+   > "BuildFlow update available — run \`npx buildflow-dev@latest update\` to upgrade."
    Then show the contents of UPDATE.md so the user sees the version details.
 3. If the file does not exist, proceed silently.
 `
@@ -413,6 +413,86 @@ function claudeMdContent() {
   return readFileSync(templatePath, 'utf8').replace('{{APP_NAME}}', detectAppName())
 }
 
+// ── Global project registry ──────────────────────────────────────────────────
+// Tracks all directories where `buildflow init` has been run so that
+// `buildflow update` can refresh local command files in every project,
+// not just the current working directory.
+
+const REGISTRY_PATH = join(homedir(), '.buildflow', 'projects.json')
+
+export function getProjectRegistry() {
+  try { return JSON.parse(readFileSync(REGISTRY_PATH, 'utf8')) } catch { return [] }
+}
+
+export function registerProject(projectPath) {
+  mkdirSync(join(homedir(), '.buildflow'), { recursive: true })
+  const projects = getProjectRegistry()
+  if (!projects.includes(projectPath)) {
+    projects.push(projectPath)
+    writeFileSync(REGISTRY_PATH, JSON.stringify(projects, null, 2))
+  }
+}
+
+// Refresh local command files inside a specific project directory.
+// Called by refreshInstalledTools for every registered project.
+function refreshProjectLocal(projectPath, commandFiles) {
+  let refreshed = false
+
+  const claudeDir = join(projectPath, '.claude', 'commands')
+  if (existsSync(claudeDir)) {
+    for (const [name, content] of Object.entries(commandFiles)) {
+      writeFileSync(join(claudeDir, `buildflow-${name}.md`), content)
+    }
+    const claudeMd = join(projectPath, 'CLAUDE.md')
+    if (existsSync(claudeMd)) {
+      writeFileSync(claudeMd, readFileSync(join(__dirname, '../../templates/CLAUDE.md'), 'utf8')
+        .replace('{{APP_NAME}}', projectPath.split(/[/\\]/).pop()))
+    }
+    refreshed = true
+  }
+
+  const geminiDir = join(projectPath, '.gemini', 'commands')
+  if (existsSync(geminiDir)) {
+    patchGeminiContext(join(projectPath, 'GEMINI.md'), commandFiles)
+    for (const [name, content] of Object.entries(commandFiles)) {
+      writeFileSync(join(geminiDir, `${name}.md`), content)
+    }
+    refreshed = true
+  }
+
+  const codexDir = join(projectPath, '.codex', 'instructions')
+  if (existsSync(codexDir)) {
+    for (const [name, content] of Object.entries(commandFiles)) {
+      writeFileSync(join(codexDir, `buildflow-${name}.md`), content)
+      writeCodexSkill(join(projectPath, '.codex', 'skills'), name, content)
+    }
+    patchAgentsMd(join(projectPath, 'AGENTS.md'), 'local')
+    refreshed = true
+  }
+
+  const cursorDir = join(projectPath, '.cursor', 'rules')
+  if (existsSync(join(cursorDir, 'buildflow.mdc'))) {
+    writeFileSync(join(cursorDir, 'buildflow.mdc'), cursorRulesContent(commandFiles))
+    refreshed = true
+  }
+
+  const clineRules = join(projectPath, '.clinerules')
+  if (readFileSafe(clineRules).includes('BuildFlow')) {
+    writeFileSync(clineRules, clineRulesContent(commandFiles))
+    refreshed = true
+  }
+
+  const continueDir = join(projectPath, '.continue', 'buildflow')
+  if (existsSync(continueDir)) {
+    for (const [name, content] of Object.entries(commandFiles)) {
+      writeFileSync(join(continueDir, `${name}.md`), content)
+    }
+    refreshed = true
+  }
+
+  return refreshed
+}
+
 function readdirSafe(dir) {
   try {
     return readdirSync(dir)
@@ -467,9 +547,12 @@ export async function refreshInstalledTools(opts = {}) {
 
     const sp = ora(`  ${tool.icon}  Refreshing ${tool.name}...`).start()
     try {
+      // Always refresh every scope that has BuildFlow installed —
+      // local and global can both be stale after a version bump.
       if (local)  tool.installLocal(commandFiles)
-      if (global && !local) tool.installGlobal(commandFiles)
-      sp.succeed(chalk.green(`  ${tool.icon}  ${tool.name}`) + chalk.dim(` — ${commandCount} commands refreshed`))
+      if (global) tool.installGlobal(commandFiles)
+      const scope = local && global ? 'local + global' : local ? 'local' : 'global'
+      sp.succeed(chalk.green(`  ${tool.icon}  ${tool.name}`) + chalk.dim(` — ${commandCount} commands refreshed (${scope})`))
       results.push({ tool, success: true })
     } catch (err) {
       sp.fail(chalk.red(`  ${tool.icon}  ${tool.name} — ${err.message}`))
@@ -479,7 +562,7 @@ export async function refreshInstalledTools(opts = {}) {
 
   if (results.length === 0) {
     console.log(chalk.yellow('  No previously installed tools found.'))
-    console.log(chalk.dim('  Run: buildflow install\n'))
+    console.log(chalk.dim('  Run: npx buildflow-dev install\n'))
   } else {
     const failed = results.filter(r => !r.success)
     if (failed.length > 0) {
@@ -487,6 +570,35 @@ export async function refreshInstalledTools(opts = {}) {
       for (const { tool, error } of failed) {
         console.log(chalk.red(`  ✗ ${tool.name}: ${error.message}`))
       }
+    }
+  }
+
+  // Refresh local command files in every registered project
+  const projects = getProjectRegistry()
+  // Always include cwd if it's an initialized buildflow project
+  if (existsSync(join(process.cwd(), '.buildflow')) && !projects.includes(process.cwd())) {
+    projects.push(process.cwd())
+  }
+
+  const validProjects = projects.filter(p => existsSync(join(p, '.buildflow')))
+  if (validProjects.length > 0) {
+    console.log(chalk.dim(`\n  Refreshing ${validProjects.length} registered project(s)...\n`))
+    for (const projectPath of validProjects) {
+      const name = projectPath.split(/[/\\]/).pop()
+      try {
+        const touched = refreshProjectLocal(projectPath, commandFiles)
+        if (touched) {
+          console.log(chalk.green(`  ✓ ${name}`) + chalk.dim(`  ${projectPath}`))
+        }
+      } catch (err) {
+        console.log(chalk.red(`  ✗ ${name} — ${err.message}`))
+      }
+    }
+
+    // Prune stale entries from registry
+    const stale = projects.filter(p => !existsSync(join(p, '.buildflow')))
+    if (stale.length > 0) {
+      writeFileSync(REGISTRY_PATH, JSON.stringify(validProjects, null, 2))
     }
   }
 
