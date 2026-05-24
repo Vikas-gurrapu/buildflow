@@ -1,7 +1,7 @@
 {
   "name": "buildflow-dev",
-  "version": "1.0.7",
-  "description": "Adaptive AI-powered development orchestration. Works with Claude Code, Gemini CLI, Codex CLI, Cursor, and more.",
+  "version": "4.0.0",
+  "description": "Spec-driven, multi-agent AI development orchestration with automatic token pruning. Works with Claude Code, Gemini CLI, Codex CLI, Cursor, and more.",
   "keywords": [
     "ai",
     "claude",
@@ -11,6 +11,8 @@
     "developer-tools",
     "cli",
     "workflow",
+    "spec-driven-development",
+    "multi-agent",
     "scaffolding",
     "security-audit",
     "code-generation"

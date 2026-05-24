@@ -1,6 +1,6 @@
 # {{APP_NAME}} — Claude Code Configuration
 
-This project uses **BuildFlow v3.0** for adaptive AI-powered development orchestration.
+This project uses **BuildFlow v4.0** for spec-driven, multi-agent development orchestration.
 
 ## Session Start Checklist (Run Every Time)
 
@@ -15,45 +15,57 @@ Before doing anything else at the start of every session:
      Then display the contents of UPDATE.md.
    - If the file does not exist, proceed silently.
 
-2. **Load memory** — read `.buildflow/memory/light.md` for project context
+2. **Prune memory** — read `.buildflow/memory/light.md`. If over 3K tokens, prune it:
+   - Archive phase task lists and build timestamps to `phases/[last phase]/retro.md`
+   - Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
+   - Report: "Context pruned: light.md [X] → [Y] tokens"
+
 3. **Load state** — read `.buildflow/core/state.md` for current phase and status
 
 ---
 
-## Quick Start
+## BuildFlow v4.0 Workflow
 
-Type `/` in Claude Code to see available commands:
+```
+/buildflow-start    → capture vision
+/buildflow-think    → research (optional)
+/buildflow-spec     → generate PRD + TDD + Acceptance Criteria  ← NEW
+/buildflow-plan     → map tasks to ACs, group into waves
+/buildflow-build    → execute waves with auto-test + auto-fix
+/buildflow-check    → verify all ACs satisfied
+/buildflow-ship     → spec gate + security gate + context pruning
+/buildflow-deploy   → pre-flight + deploy to staging/production
+```
 
-- `/buildflow-start` — begin or continue the project
-- `/buildflow-onboard` — analyze existing codebase (run once for existing projects)
-- `/buildflow-think` — research and discuss
-- `/buildflow-plan` — create execution plan
-- `/buildflow-build` — implement the plan
-- `/buildflow-test` — run tests and verify UI/functionality after each wave
-- `/buildflow-check` — verify quality with 3 parallel reviewers
-- `/buildflow-debug` — root-cause analysis when tests fail or something breaks
-- `/buildflow-ship` — finalize with security gate
-- `/buildflow-deploy` — pre-flight checks then deploy to staging or production
-- `/buildflow-audit` — run security scan
-- `/buildflow-modify` — surgical change or bugfix to existing code
-- `/buildflow-status` — see where you are
-- `/buildflow-help` — get help or recover from issues
+## Quick Reference
 
-## Always Do at Session Start
-
-1. Read `.buildflow/memory/light.md` for project context
-2. Read `.buildflow/core/state.md` for current phase and status
-3. If onboarded: load `.buildflow/codebase/MAP.md`
+| Command | When to use |
+|---------|-------------|
+| `/buildflow-start` | Begin or continue the project |
+| `/buildflow-spec` | Define PRD, TDD, Acceptance Criteria before planning |
+| `/buildflow-plan` | Create spec-traced wave plan |
+| `/buildflow-build` | Execute plan — auto-tests and auto-fixes each wave |
+| `/buildflow-test` | Re-verify a wave or test a manual change |
+| `/buildflow-check` | Verify all ACs satisfied + code quality |
+| `/buildflow-ship` | Spec gate + security gate + context prune + git tag |
+| `/buildflow-deploy` | Pre-flight checks + deploy staging/production |
+| `/buildflow-hotfix` | Fast-path fix — no planning, no waves |
+| `/buildflow-debug` | Root-cause analysis when tests fail |
+| `/buildflow-onboard` | One-time analysis of existing codebase |
+| `/buildflow-modify` | Surgical change or bugfix to existing code |
+| `/buildflow-audit` | OWASP Top 10 security scan |
+| `/buildflow-status` | See current phase and progress |
+| `/buildflow-help` | Diagnostic mode + recovery |
 
 ## Core Rules
 
+- Each agent receives a **minimal context packet** — only what it needs, nothing else
+- `light.md` must stay under 3K tokens — prune at session start if over
 - Ask confidence (1-5) before locking major decisions
-- Show alternatives before making architectural choices
-- Add `LEARN:` comments when introducing unfamiliar patterns
+- Run `/buildflow-spec` before `/buildflow-plan` — no spec, no plan
+- `/buildflow-ship` blocks if any Acceptance Criterion is unsatisfied
 - Create git restore points before destructive operations
 - Run `/buildflow-audit` before every `/buildflow-ship`
-- Cite research sources with trust scores (1-5)
-- Keep `.buildflow/memory/light.md` under 5K tokens
 
 ## Agents
 
@@ -62,14 +74,14 @@ Type `/` in Claude Code to see available commands:
 | Strategist | Vision, decisions, direction |
 | Researcher | Parallel web research with sources |
 | Synthesizer | Combines research findings |
-| Architect | Dependency-aware planning |
-| Builder | Code matching project style |
-| Reviewer | Quality checks |
+| Architect | Spec-traced dependency planning |
+| Builder | Code matching project style, AC-referenced |
+| Reviewer | Spec compliance + quality checks |
 | Cartographer | Maps existing codebases |
 | Surgeon | Precise modifications to existing code |
 | Security Auditor | OWASP Top 10 scanning |
 
-Each agent gets a **fresh context window** — no context rot.
+Each agent gets a **fresh context window** with a **minimal context packet** — no context rot, no wasted tokens.
 
 ## Project Structure
 
@@ -78,10 +90,14 @@ Each agent gets a **fresh context window** — no context rot.
 ├── core/
 │   ├── vision.md       ← What we're building
 │   └── state.md        ← Current phase and status
+├── specs/              ← Generated by /buildflow-spec  ← NEW
+│   ├── PRD.md          ← Product Requirements
+│   ├── TDD.md          ← Technical Design
+│   └── acceptance.md   ← Acceptance Criteria (AC-001, AC-002...)
 ├── you/
 │   └── preferences.md  ← Experience level, style prefs
 ├── memory/
-│   └── light.md        ← Persistent context (≤5K tokens)
+│   └── light.md        ← Persistent context (≤3K tokens, auto-pruned)
 ├── codebase/           ← Generated by /buildflow-onboard
 │   ├── MAP.md
 │   ├── PATTERNS.md

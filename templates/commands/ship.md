@@ -1,56 +1,91 @@
 ---
 name: buildflow-ship
-description: Finalize phase with mandatory pre-ship security gate
+description: Finalize phase with spec gate, security gate, and context pruning
 allowed-tools: Read, Write, Bash
 agents: strategist, security-auditor
 ---
 
 # /buildflow-ship
 
-Finalize current phase. Security gate runs automatically before shipping.
+Finalize current phase. Three gates run before shipping: spec compliance, security scan, and test pass. After shipping, session context is pruned so the next phase starts clean.
 
-## MANDATORY Step 0: Pre-Ship Security Gate
+## Context Packet (load only these)
+- `.buildflow/specs/acceptance.md`
+- `.buildflow/core/state.md`
+- `.buildflow/memory/light.md`
+- Git diff of changed files (not full codebase)
+
+## MANDATORY Gate 0: Spec Compliance Check
+
+Read `.buildflow/specs/acceptance.md`. Verify every AC is satisfied.
+
+```
+Spec Gate
+─────────
+AC-001 ✓
+AC-002 ✓
+AC-003 ✗  FAIL — password reset not implemented
+```
+
+**If any AC is ✗ FAIL → BLOCK:**
+```
+🔴 SHIP BLOCKED — Spec Not Complete
+
+These acceptance criteria are not satisfied:
+[AC-003] password reset not implemented
+
+Fix them with /buildflow-build or /buildflow-modify, then re-run /buildflow-ship.
+Override (skips spec gate only): /buildflow-ship --skip-spec
+```
+
+**If all ACs pass → proceed to Gate 1.**
+
+---
+
+## MANDATORY Gate 1: Pre-Ship Security Scan
 
 Spawn Security Auditor in `--pre-ship` mode:
-- Scan only changed files (git diff since last commit)
+- Scan changed files only (git diff since last commit)
 - Check for secrets
 - Check critical injection patterns
 - Check auth bypass risks
 - Check critical dependency CVEs
-- Token cost: ~10K
-
-### Gate Outcomes
 
 **Critical found → BLOCK:**
 ```
 🔴 SHIP BLOCKED — Critical Security Issues
 
-Fix these before shipping:
-[C1] [Issue] at [file:line]
+[C1] [issue] at [file:line]
      Fix: [specific action]
 
 Run /buildflow-modify for surgical fixes.
 Override (not recommended): /buildflow-ship --force
 ```
 
-**High found → WARN:**
+**High found → WARN (non-blocking):**
 ```
-⚠️  Security Warnings (non-blocking)
-[H1] [Issue]
-     Risk: [...]
-     Fix later: /buildflow-audit for details
+⚠️  Security Warnings
+[H1] [issue] — fix in next phase
 ```
 
-**Clean → proceed:**
-```
-✅ Security gate passed. No critical issues.
-```
+**Clean → proceed.**
 
-## Step 1: Pre-Ship Checklist
-- [ ] All acceptance criteria met
-- [ ] /buildflow-check passed
-- [ ] Tests pass
-- [ ] Security gate passed (above)
+---
+
+## MANDATORY Gate 2: Tests Pass
+
+Run the test suite one final time.
+If any test fails: BLOCK. "Fix test failures before shipping."
+
+---
+
+## Step 1: Pre-Ship Checklist (summary)
+- [ ] All ACs satisfied (Gate 0)
+- [ ] Security gate passed (Gate 1)
+- [ ] All tests passing (Gate 2)
+- [ ] `/buildflow-check` run and reviewed
+
+---
 
 ## Step 2: Retrospective
 Ask:
@@ -61,37 +96,64 @@ Ask:
 
 Save to `.buildflow/phases/[N]/retro.md`
 
-## Step 3: Update Docs
-- README if needed
-- vision.md if pivots occurred
-- state.md: Phase X → Shipped
+---
 
-## Step 4: Update Codebase Map (existing projects)
-If patterns changed, new hotspots added, or dependencies updated:
-- Update PATTERNS.md
-- Update HOTSPOTS.md
-- Update DEPENDENCIES.md
+## Step 3: Context Pruning (token efficiency)
+
+After a successful ship, prune `light.md` to stay lean for the next phase:
+
+**Archive** these from `light.md` to `phases/[N]/retro.md`:
+- Phase-specific task lists
+- Wave completion details
+- Build timestamps
+- Hotfix history older than current phase
+
+**Keep** in `light.md`:
+- app_name, framework, language
+- current_phase (update to N+1 or "complete")
+- spec_status (reset to "none" for next phase)
+- style_fingerprint
+- last 2 architectural decisions
+- onboard_status
+
+**Target:** `light.md` must be under 3K tokens after pruning.
+
+Update `light.md`:
+```yaml
+current_phase: [N+1 or complete]
+last_ship_date: [today]
+spec_status: none
+plan_status: none
+context_pruned: [today]
+```
+
+---
+
+## Step 4: Update Docs
+- README if public-facing features shipped
+- `vision.md` if pivots occurred during the phase
+
+---
 
 ## Step 5: Tag Release
 ```bash
 git add .
-git commit -m "buildflow: phase X shipped"
-git tag "buildflow-phase-X-complete"
+git commit -m "ship: phase [N] complete"
+git tag "phase-[N]-complete"
 ```
 
-## Step 6: Update Memory
-```yaml
-last_ship_date: [today]
-phase: X
-security_gate: passed|passed-with-warnings|overridden
-```
+---
 
-## Step 7: Next Phase
-Suggest next phase based on roadmap.
+## Step 6: Next Phase
+Suggest next phase based on remaining roadmap items.
+"Phase [N] shipped. Run `/buildflow-spec` to define the next phase."
 
-## --force Override
-If used, adds to `.buildflow/security/DEBT.md` and requires:
-- Typed confirmation: "I understand the risk"
-- Logged with timestamp
+---
 
-## Token Budget: ~22K (including pre-ship audit)
+## Override Flags
+- `--skip-spec` — skips spec gate only. Logs to `security/DEBT.md`: "Spec gate skipped — [reason]"
+- `--force` — skips security gate. Requires typed confirmation. Logged with timestamp.
+
+Neither flag skips the test gate.
+
+## Token Budget: ~22K (including gates)

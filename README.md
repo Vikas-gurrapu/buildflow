@@ -1,6 +1,6 @@
 # BuildFlow
 
-> Adaptive AI-powered development orchestration for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.
+> Spec-driven, multi-agent development orchestration with automatic token pruning — for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.
 
 [![npm version](https://badge.fury.io/js/buildflow-dev.svg)](https://www.npmjs.com/package/buildflow-dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -21,6 +21,7 @@
 - [The .buildflow/ Scaffold](#the-buildflow-scaffold)
 - [Template System](#template-system)
 - [9 Specialized Agents](#9-specialized-agents)
+- [v4.0: Spec-Driven + Token Pruning](#v40-what-changed)
 - [Examples](#examples)
 - [Token Economics](#token-economics)
 - [Contributing](#contributing)
@@ -31,14 +32,18 @@
 
 ## What is BuildFlow?
 
-BuildFlow is a **CLI tool** that installs a structured AI workflow into any project. It does two things:
+BuildFlow is a **CLI tool** that installs a spec-driven, multi-agent AI workflow into any project. It does two things:
 
-1. **Scaffolds `.buildflow/`** — a folder of markdown files that act as persistent memory, project state, and agent instructions for your AI tool
-2. **Installs slash commands** — writes `/buildflow-*` command files into whichever AI tools you use (Claude Code, Cursor, etc.)
+1. **Scaffolds `.buildflow/`** — markdown files that act as persistent memory, formal specs, project state, and agent instructions
+2. **Installs slash commands** — writes `/buildflow-*` command files into whichever AI tools you use (Claude Code, Cursor, Gemini CLI, etc.)
 
-Once installed, you work entirely inside your AI tool using `/buildflow-*` commands. BuildFlow itself stays out of your way — it only runs when you use the CLI (`buildflow audit`, `buildflow fix`, etc.) from the terminal.
+Once installed, you work entirely inside your AI tool using `/buildflow-*` commands.
 
-**The core idea:** AI tools lose context as conversations grow ("context rot"). BuildFlow prevents this by breaking work into phases, using fresh agent sessions per task, and persisting only essential context in `.buildflow/memory/light.md`.
+**Three core ideas that separate BuildFlow from other tools:**
+
+- **Spec-first:** Every phase starts with a formal PRD + Technical Design + Acceptance Criteria. Plans trace to ACs. Ship is blocked if any AC is unsatisfied.
+- **Context isolation:** Each agent receives a minimal context packet — only what it needs. No context rot, no wasted tokens.
+- **Auto-prune:** `light.md` is automatically compressed at session start and after each ship. Long sessions stay lean.
 
 ---
 
@@ -89,13 +94,14 @@ These are installed into your AI tool and triggered by typing `/` (or `@` / `$` 
 
 | Command | Agent | Purpose | Token Cost |
 |---------|-------|---------|-----------|
-| `/buildflow-start` | Strategist | Begin project: asks vision questions, detects mode, saves to `core/vision.md` | ~8K |
+| `/buildflow-start` | Strategist | Begin project: vision questions, pruning of stale context, saves to `core/vision.md` | ~8K |
 | `/buildflow-think [topic]` | Researcher × 3 + Synthesizer | Parallel web research on a topic, synthesized into a recommendation | ~30K |
-| `/buildflow-plan [phase]` | Architect | Maps task dependencies, groups into parallel waves, writes `phases/N/PLAN.md` | ~20K |
-| `/buildflow-build [wave]` | Builder × N + Reviewer | Executes the plan wave-by-wave — each wave auto-tests, auto-fixes failures, and only advances when fully green | ~50K/wave |
-| `/buildflow-test [wave]` | Reviewer | Standalone test + fix loop — re-verify a wave or test a manual change outside of `/buildflow-build` | ~25K |
-| `/buildflow-check` | Reviewer × 3 | Three parallel reviewers check correctness, quality, and security | ~20K |
-| `/buildflow-ship` | Strategist + Security Auditor | Pre-ship security gate → retrospective → git tag | ~22K |
+| `/buildflow-spec` | Strategist | **NEW** — Generate formal PRD + Technical Design + Acceptance Criteria. Required before planning | ~18K |
+| `/buildflow-plan [phase]` | Architect | Reads specs, maps tasks to ACs, groups into dependency waves, checks full AC coverage | ~20K |
+| `/buildflow-build [wave]` | Builder × N + Reviewer | Execute waves with context-isolated Builders — each wave auto-tests, auto-fixes, only advances when green | ~50K/wave |
+| `/buildflow-test [wave]` | Reviewer | Standalone test + fix loop — re-verify a wave or test a manual change | ~25K |
+| `/buildflow-check` | Reviewer × 4 | Spec compliance + correctness + quality + security in parallel | ~22K |
+| `/buildflow-ship` | Strategist + Security Auditor | Spec gate + security gate + context pruning + git tag | ~22K |
 
 ### Workflow — Existing Codebases
 
@@ -125,12 +131,14 @@ If you're not sure where the bug is yet, use `/buildflow-help` first — it's a 
 | Know what needs to change | `/buildflow-modify "fix description"` |
 | Don't know where the bug is | `/buildflow-help` first, then `/buildflow-modify` |
 | Tests failing after a change | `/buildflow-debug` |
+| Production incident / tiny patch | `/buildflow-hotfix "description"` — no planning, no waves |
 
 ### Debugging & Deployment
 
 | Command | Agent | Purpose | Token Cost |
 |---------|-------|---------|-----------|
-| `/buildflow-debug ["error"]` | Surgeon | Root-cause analysis for failing tests or broken behavior — traces error to source, applies minimal fix | ~20K |
+| `/buildflow-hotfix "description"` | Surgeon | **NEW** — Fast-path: no spec, no plan, no waves. Restore point → fix → test → commit. For incidents and small patches | ~10K |
+| `/buildflow-debug ["error"]` | Surgeon | Root-cause analysis for failing tests — traces error to source, applies minimal fix | ~20K |
 | `/buildflow-deploy [env]` | Strategist | Pre-flight checks then deploy to staging or production | ~15K |
 
 ### Security
@@ -207,36 +215,62 @@ npx buildflow-dev init
 
 ---
 
-### 3. Plan — Architect auto-generates phases and waves
+### 3. Spec — formal artifacts before any planning
+
+```
+/buildflow-spec
+```
+
+Strategist asks a few clarifying questions, then generates three locked files:
+
+```
+.buildflow/specs/
+├── PRD.md          ← What, for whom, success criteria, out of scope
+├── TDD.md          ← Architecture, API contracts, component breakdown
+└── acceptance.md   ← Testable pass/fail criteria
+
+  AC-001: Given unauthenticated user, when POST /login with valid credentials,
+          then return 200 with session token
+  AC-002: Given invalid password, when POST /login, then return 401
+  AC-003: Given expired token, when any authenticated request, then return 401
+  ...
+```
+
+User reviews and approves. Specs are locked. `/buildflow-plan` will not run without them.
+
+---
+
+### 4. Plan — Architect maps tasks to Acceptance Criteria
 
 ```
 /buildflow-plan
 ```
 
-The Architect reads `vision.md` and produces `.buildflow/phases/01/PLAN.md`:
+The Architect reads `specs/acceptance.md` and produces `.buildflow/phases/01/PLAN.md` with every task traced to an AC:
 
 ```
 Phase 1 — Foundation
 
 Wave 1 (parallel — no dependencies):
-  • Create database schema
-  • Create project config files
-  • Set up folder structure
+  • Create database schema          [AC-001, AC-002]
+  • Create project config files     [AC-NF-001]
 
 Wave 2 (depends on Wave 1):
-  • Create data models
-  • Create auth middleware
+  • Create auth middleware           [AC-001, AC-002, AC-003]
+  • Create data models               [AC-001]
 
 Wave 3 (depends on Wave 2):
-  • Create API routes
-  • Create service layer
+  • Create login API route           [AC-001, AC-002]
+  • Create token refresh route       [AC-003]
 
 Wave 4 (depends on Wave 3):
-  • Create UI components
-  • Write integration tests
+  • Create login UI form             [AC-001, AC-002]
+  • Write integration tests          [all ACs]
+
+AC Coverage check: AC-001 ✓  AC-002 ✓  AC-003 ✓  AC-NF-001 ✓
 ```
 
-You didn't write any of this — the Architect derived it from your vision.
+Every AC is covered. The Architect won't write the plan if any AC is orphaned.
 
 ---
 
@@ -271,17 +305,20 @@ If a wave can't be fixed within 5 attempts, the build stops and reports exactly 
 
 ---
 
-### 5. Check, ship, and deploy
+### 6. Check, ship, and deploy
 
 ```
 /buildflow-check
 ```
-> 3 Reviewers in parallel: correctness / quality / security
+> 4 Reviewers in parallel: spec compliance (all ACs?) / correctness / quality / security
 
 ```
 /buildflow-ship
 ```
-> Security gate → retrospective written to `phases/01/retro.md` → git tag
+> Gate 0: all ACs satisfied — blocks if any are ✗  
+> Gate 1: security scan — blocks on critical issues  
+> Gate 2: all tests passing  
+> Then: retrospective → context pruning (`light.md` compressed) → git tag
 
 ```
 /buildflow-deploy staging
@@ -416,19 +453,21 @@ buildflow-dev/
 │   │                         all available /buildflow-* commands.
 │   │                         {{APP_NAME}} is replaced with the detected project name.
 │   │
-│   └── commands/             17 markdown files — one per slash command.
+│   └── commands/             19 markdown files — one per slash command.
 │       │                     Each file is the full instruction set for that command.
 │       │                     The AI reads and executes these when you trigger the command.
 │       │                     Format: YAML frontmatter (name, description, agent, tools)
 │       │                     followed by numbered steps the agent follows.
 │       │
-│       ├── start.md          Vision gathering, mode detection (greenfield vs existing)
+│       ├── start.md          Vision gathering, mode detection, light.md pruning on session start
 │       ├── think.md          Parallel research with up to 3 Researcher agents
-│       ├── plan.md           Dependency mapping → wave-based execution plan
+│       ├── spec.md           Generate PRD + TDD + Acceptance Criteria (required before plan)
+│       ├── plan.md           AC-traced dependency mapping → wave-based execution plan
 │       ├── build.md          Wave-by-wave parallel Builder execution
 │       ├── test.md           Run tests + UI verification after each wave
 │       ├── check.md          3-reviewer parallel quality check
-│       ├── ship.md           Pre-ship security gate → retro → git tag
+│       ├── ship.md           Spec gate + security gate + context pruning → retro → git tag
+│       ├── hotfix.md         Fast-path fix — no spec, no plan, restore point → fix → test → commit
 │       ├── onboard.md        One-time codebase analysis → MAP/PATTERNS/DEPENDENCIES/HOTSPOTS
 │       ├── modify.md         Surgical code change with blast-radius analysis
 │       ├── refactor.md       Quality improvement without behavior change
@@ -472,12 +511,17 @@ their-project/
     │                         settings, parallelization limits. The AI adapts its
     │                         explanation depth based on the experience: field.
     │
+    ├── specs/                Generated by /buildflow-spec. Required before /buildflow-plan.
+    │   ├── PRD.md            Product Requirements: what, for whom, success criteria, out of scope.
+    │   ├── TDD.md            Technical Design: architecture, API contracts, component breakdown.
+    │   └── acceptance.md     Acceptance Criteria (AC-001, AC-002...). Every plan task traces
+    │                         to an AC. /buildflow-check verifies each. /buildflow-ship blocks
+    │                         if any AC is unsatisfied.
+    │
     ├── memory/
-    │   └── light.md          The core of the memory system. Persists project essentials
-    │                         across AI sessions: app name, framework, phase, last session
-    │                         date, onboarding status, style fingerprint, recent decisions.
-    │                         Kept under 5K tokens deliberately — costs less to load than
-    │                         it saves in re-detection work.
+    │   └── light.md          Persistent context across sessions. Auto-pruned to ≤3K tokens
+    │                         at session start and after each /buildflow-ship. Archived phase
+    │                         data moves to phases/N/retro.md — not deleted, just unloaded.
     │
     ├── learnings/
     │   ├── glossary.md       Project-specific jargon and BuildFlow concepts. Grows as
@@ -499,7 +543,8 @@ their-project/
     │
     ├── phases/               One subfolder per phase (01/, 02/, etc.)
     │   └── 01/
-    │       ├── PLAN.md       Task breakdown with dependency waves
+    │       ├── PLAN.md       Task breakdown with AC references and dependency waves.
+    │       │                 Archived context from light.md lands here after /buildflow-ship.
     │       └── retro.md      Written during /buildflow-ship: what worked, what didn't
     │
     └── security/
@@ -638,6 +683,36 @@ buildflow fix
 
 ---
 
+## v4.0: What Changed
+
+### Spec-Driven Layer
+Every phase now has a formal spec before any code is planned or written.
+
+| Old flow | New flow |
+|----------|----------|
+| vision → plan → build | vision → **spec** → plan → build |
+| Plan tasks were freeform | Plan tasks trace to Acceptance Criteria |
+| Check was code review only | Check verifies every AC is satisfied |
+| Ship had security gate | Ship has **spec gate** + security gate |
+
+### Context Isolation (Token Pruning)
+Agents now receive minimal context packets instead of full project state.
+
+| What changed | Effect |
+|-------------|--------|
+| Each Builder gets max 5 relevant files | −10–30K tokens per wave |
+| `light.md` auto-pruned to ≤3K at session start | Prevents bloat across long projects |
+| `light.md` pruned after every `/buildflow-ship` | Stale phase data archived, not re-loaded |
+| Reviewers receive diff + ACs only (not full codebase) | Faster, more focused reviews |
+
+### New Commands
+| Command | Purpose |
+|---------|---------|
+| `/buildflow-spec` | Generate PRD + TDD + Acceptance Criteria |
+| `/buildflow-hotfix` | Fast-path for incidents — no planning overhead |
+
+---
+
 ## Token Economics
 
 | Scenario | Tokens | Notes |
@@ -645,10 +720,18 @@ buildflow fix
 | Greenfield full workflow | 130–160K | All phases, one session |
 | Onboarding existing project | +35K | One-time, never again |
 | Existing project after onboard | 130–160K | Same as greenfield |
+| `/buildflow-spec` | ~18K | One-time per phase — produces PRD + TDD + ACs |
 | Security gate (per ship) | +10K | Always runs with `/buildflow-ship` |
-| Light memory load (per session) | ~2K | **Saves** ~10K in re-detection |
+| Light memory load (per session) | ~1.5K | Pruned to ≤3K — **saves** ~10K in re-detection |
+| Context pruning savings | −5–15K | Old phase data archived, not reloaded each session |
+| Hotfix (vs full build) | ~10K vs ~50K | 5× cheaper for small patches |
+| Per-agent context packets | −10–30K | Builders get minimal context, not full codebase |
 
-Light memory pays for itself after one session — loading 2K to avoid re-detecting framework, phase, and preferences each time.
+**Token efficiency strategy:**
+- `light.md` stays under 3K (auto-pruned after each ship and at session start)
+- Each agent gets a context packet: only task spec + relevant files + style rules
+- Builders never receive full codebase — they get max 5 relevant files
+- Old phase data lives in `phases/N/retro.md`, not loaded unless needed
 
 ---
 
