@@ -103,25 +103,29 @@ const TOOLS = {
 
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.codex', 'instructions')
+      const skillsDir = join(homedir(), '.codex', 'skills')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
         writeFileSync(join(dir, `buildflow-${name}.md`), content)
+        writeCodexSkill(skillsDir, name, content)
       }
       patchAgentsMd(join(homedir(), '.codex', 'AGENTS.md'), 'global')
-      return dir
+      return `${dir} + ${skillsDir}`
     },
 
     installLocal(commandFiles) {
       const dir = join(process.cwd(), '.codex', 'instructions')
+      const skillsDir = join(process.cwd(), '.codex', 'skills')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
         writeFileSync(join(dir, `buildflow-${name}.md`), content)
+        writeCodexSkill(skillsDir, name, content)
       }
       patchAgentsMd(join(process.cwd(), 'AGENTS.md'), 'local')
-      return dir
+      return `${dir} + ${skillsDir}`
     },
 
-    triggerNote: 'In Codex CLI, say "use the buildflow-start instructions" or type /buildflow-start',
+    triggerNote: 'In Codex CLI, use $buildflow-start or say "use buildflow-start". Slash menu commands are not exposed by Codex.',
   },
 
   cursor: {
@@ -229,8 +233,29 @@ function patchAgentsMd(filePath, scope) {
   const existing = existsSync(filePath) ? readFileSync(filePath, 'utf8') : ''
   if (existing.includes('BuildFlow')) return
   const dir = scope === 'global' ? '~/.codex/instructions/' : '.codex/instructions/'
-  const block = `\n\n## BuildFlow Instructions\n\nWhen the user types /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n`
+  const block = `\n\n## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n`
   writeFileSync(filePath, existing + block)
+}
+
+function writeCodexSkill(skillsDir, name, commandContent) {
+  const skillName = `buildflow-${name}`
+  const skillDir = join(skillsDir, skillName)
+  mkdirSync(skillDir, { recursive: true })
+  writeFileSync(join(skillDir, 'SKILL.md'), codexSkillContent(skillName, commandContent))
+}
+
+function codexSkillContent(skillName, commandContent) {
+  const description = extractFrontmatterValue(commandContent, 'description') || `Run ${skillName}`
+  return `---\nname: "${skillName}"\ndescription: "${escapeYamlString(description)}"\nmetadata:\n  short-description: "${escapeYamlString(description)}"\n---\n\n<objective>\nExecute the BuildFlow workflow below end-to-end.\nTreat any user text after $${skillName} as arguments for this workflow.\n</objective>\n\n<workflow>\n${commandContent}\n</workflow>\n`
+}
+
+function extractFrontmatterValue(content, key) {
+  const match = content.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'))
+  return match?.[1]?.trim().replace(/^["']|["']$/g, '')
+}
+
+function escapeYamlString(value) {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
 function cursorRulesContent(commandFiles) {
@@ -539,9 +564,15 @@ export async function run(opts = {}) {
   if (succeeded.length > 0) {
     console.log(chalk.bold('\n  Next steps:\n'))
     console.log(chalk.white('  1. Open your AI tool in this project'))
-    console.log(chalk.white('  2. Type "/" to see BuildFlow commands'))
-    console.log(chalk.white('  3. Start with: ') + chalk.cyan('/buildflow-start'))
-    console.log(chalk.white('     Or for existing projects: ') + chalk.cyan('/buildflow-onboard'))
+    if (succeeded.every(({ tool }) => tool.id === 'codex')) {
+      console.log(chalk.white('  2. Restart Codex CLI so new skills are loaded'))
+      console.log(chalk.white('  3. Start with: ') + chalk.cyan('$buildflow-start'))
+      console.log(chalk.white('     Or for existing projects: ') + chalk.cyan('$buildflow-onboard'))
+    } else {
+      console.log(chalk.white('  2. Type "/" to see BuildFlow commands'))
+      console.log(chalk.white('  3. Start with: ') + chalk.cyan('/buildflow-start'))
+      console.log(chalk.white('     Or for existing projects: ') + chalk.cyan('/buildflow-onboard'))
+    }
     console.log('')
   }
 }

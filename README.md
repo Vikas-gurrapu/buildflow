@@ -40,7 +40,7 @@ buildflow init
 |------|-----------|----------------|---------------|----------------|
 | **Claude Code** | ✓ Auto-detect | `~/.claude/commands/` | `.claude/commands/` | `/buildflow-*` |
 | **Gemini CLI** | ✓ Auto-detect | `~/.gemini/commands/` | `.gemini/commands/` | `/buildflow-*` |
-| **Codex CLI** | ✓ Auto-detect | `~/.codex/instructions/` | `.codex/instructions/` | `/buildflow-*` |
+| **Codex CLI** | ✓ Auto-detect | `~/.codex/instructions/` + `~/.codex/skills/` | `.codex/instructions/` + `.codex/skills/` | `$buildflow-*` |
 | **Cursor** | ✓ Auto-detect | (local only) | `.cursor/rules/` | `@buildflow-*` |
 | **Cline** | ✓ Auto-detect | (local only) | `.clinerules` | `/buildflow-*` |
 | **Continue** | ✓ Auto-detect | `~/.continue/` | `.continue/` | `/buildflow-*` |
@@ -180,6 +180,7 @@ For AI tools with dedicated directories:
 ```
 ~/.claude/commands/buildflow-*.md   ← Global Claude Code
 .claude/commands/buildflow-*.md     ← Local Claude Code
+~/.codex/skills/buildflow-*/        ← Global Codex CLI skills
 ~/.gemini/commands/buildflow-*.md   ← Global Gemini CLI
 .cursor/rules/buildflow.mdc         ← Cursor
 .clinerules                          ← Cline
