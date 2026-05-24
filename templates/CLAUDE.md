@@ -29,9 +29,13 @@ Type `/` in Claude Code to see available commands:
 - `/buildflow-think` — research and discuss
 - `/buildflow-plan` — create execution plan
 - `/buildflow-build` — implement the plan
-- `/buildflow-check` — verify quality
+- `/buildflow-test` — run tests and verify UI/functionality after each wave
+- `/buildflow-check` — verify quality with 3 parallel reviewers
+- `/buildflow-debug` — root-cause analysis when tests fail or something breaks
 - `/buildflow-ship` — finalize with security gate
+- `/buildflow-deploy` — pre-flight checks then deploy to staging or production
 - `/buildflow-audit` — run security scan
+- `/buildflow-modify` — surgical change or bugfix to existing code
 - `/buildflow-status` — see where you are
 - `/buildflow-help` — get help or recover from issues
 

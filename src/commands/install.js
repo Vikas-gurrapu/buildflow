@@ -620,8 +620,9 @@ function loadCommandTemplates() {
   const templatesDir = join(__dirname, '../../templates/commands')
   const commands = {}
   const commandNames = [
-    'start', 'think', 'plan', 'build', 'check', 'ship',
+    'start', 'think', 'plan', 'build', 'test', 'check', 'ship',
     'onboard', 'modify', 'refactor', 'audit',
+    'debug', 'deploy',
     'status', 'explain', 'back', 'help',
   ]
   for (const name of commandNames) {

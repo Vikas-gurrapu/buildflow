@@ -15,6 +15,7 @@
 - [Supported AI Tools](#supported-ai-tools)
 - [AI Slash Commands](#ai-slash-commands)
 - [CLI Commands](#cli-commands)
+- [Example: Full Greenfield Flow](#example-full-greenfield-flow-phases--waves)
 - [How It Works](#how-it-works)
 - [Package Source Structure](#package-source-structure)
 - [The .buildflow/ Scaffold](#the-buildflow-scaffold)
@@ -91,7 +92,8 @@ These are installed into your AI tool and triggered by typing `/` (or `@` / `$` 
 | `/buildflow-start` | Strategist | Begin project: asks vision questions, detects mode, saves to `core/vision.md` | ~8K |
 | `/buildflow-think [topic]` | Researcher × 3 + Synthesizer | Parallel web research on a topic, synthesized into a recommendation | ~30K |
 | `/buildflow-plan [phase]` | Architect | Maps task dependencies, groups into parallel waves, writes `phases/N/PLAN.md` | ~20K |
-| `/buildflow-build [wave]` | Builder × N + Reviewer | Executes the plan wave-by-wave with parallel Builders, style-matched to your codebase | ~50K/wave |
+| `/buildflow-build [wave]` | Builder × N + Reviewer | Executes the plan wave-by-wave — each wave auto-tests, auto-fixes failures, and only advances when fully green | ~50K/wave |
+| `/buildflow-test [wave]` | Reviewer | Standalone test + fix loop — re-verify a wave or test a manual change outside of `/buildflow-build` | ~25K |
 | `/buildflow-check` | Reviewer × 3 | Three parallel reviewers check correctness, quality, and security | ~20K |
 | `/buildflow-ship` | Strategist + Security Auditor | Pre-ship security gate → retrospective → git tag | ~22K |
 
@@ -100,8 +102,36 @@ These are installed into your AI tool and triggered by typing `/` (or `@` / `$` 
 | Command | Agent | Purpose | Token Cost |
 |---------|-------|---------|-----------|
 | `/buildflow-onboard` | Cartographer | One-time analysis: writes `MAP.md`, `PATTERNS.md`, `DEPENDENCIES.md`, `HOTSPOTS.md` | ~35K |
-| `/buildflow-modify "description"` | Surgeon | Surgical change with blast-radius analysis and restore point | ~30K |
+| `/buildflow-modify "description"` | Surgeon | Surgical change with blast-radius analysis and restore point — use for features **and bugfixes** | ~30K |
 | `/buildflow-refactor [scope]` | Surgeon + Reviewer | Improve code quality without changing behavior | ~40K |
+
+**`/buildflow-modify` works for both features and bugs.** Pass a plain-English description either way:
+
+```
+# Feature
+/buildflow-modify "Add pagination to the GET /users endpoint"
+
+# Bugfix
+/buildflow-modify "Fix null pointer crash when user has no profile photo"
+/buildflow-modify "Fix login redirect loop when session expires"
+```
+
+The Surgeon always runs a blast-radius analysis first (what files are affected, what calls them) and creates a git restore point before touching anything — making it especially safe for bugfixes where a wrong change can cause regressions.
+
+If you're not sure where the bug is yet, use `/buildflow-help` first — it's a diagnostic mode that helps you locate the problem before you try to fix it.
+
+| Situation | Command |
+|-----------|---------|
+| Know what needs to change | `/buildflow-modify "fix description"` |
+| Don't know where the bug is | `/buildflow-help` first, then `/buildflow-modify` |
+| Tests failing after a change | `/buildflow-debug` |
+
+### Debugging & Deployment
+
+| Command | Agent | Purpose | Token Cost |
+|---------|-------|---------|-----------|
+| `/buildflow-debug ["error"]` | Surgeon | Root-cause analysis for failing tests or broken behavior — traces error to source, applies minimal fix | ~20K |
+| `/buildflow-deploy [env]` | Strategist | Pre-flight checks then deploy to staging or production | ~15K |
 
 ### Security
 
@@ -146,6 +176,126 @@ buildflow status --verbose          # Also print .buildflow/ directory tree
 buildflow update                    # Re-install slash commands (pick up new versions)
 buildflow update --check            # Check current version without updating
 ```
+
+---
+
+## Example: Full Greenfield Flow (Phases & Waves)
+
+Here's what a complete new project looks like end-to-end, showing how phases and waves are **auto-generated** by BuildFlow — you never define them manually.
+
+### 1. Init and start
+
+```bash
+mkdir my-app && cd my-app
+npx buildflow-dev init
+```
+
+```
+/buildflow-start
+```
+> Strategist asks 4–5 questions. Writes answers to `.buildflow/core/vision.md`.
+
+---
+
+### 2. Research (optional)
+
+```
+/buildflow-think auth-strategy
+```
+> 3 Researcher agents run in parallel. Synthesizer combines results.  
+> Output → `.buildflow/research/auth-strategy.md`
+
+---
+
+### 3. Plan — Architect auto-generates phases and waves
+
+```
+/buildflow-plan
+```
+
+The Architect reads `vision.md` and produces `.buildflow/phases/01/PLAN.md`:
+
+```
+Phase 1 — Foundation
+
+Wave 1 (parallel — no dependencies):
+  • Create database schema
+  • Create project config files
+  • Set up folder structure
+
+Wave 2 (depends on Wave 1):
+  • Create data models
+  • Create auth middleware
+
+Wave 3 (depends on Wave 2):
+  • Create API routes
+  • Create service layer
+
+Wave 4 (depends on Wave 3):
+  • Create UI components
+  • Write integration tests
+```
+
+You didn't write any of this — the Architect derived it from your vision.
+
+---
+
+### 4. Build — testing is automatic inside every wave
+
+```
+/buildflow-build
+```
+
+Testing is **built into every wave** — you don't run `/buildflow-test` manually. For each wave, the cycle is:
+
+```
+Build wave tasks (parallel Builders)
+        ↓
+Review output (Reviewer)
+        ↓
+Run tests automatically
+        ↓
+  ┌─ Tests pass? ──────────────────────── Move to next wave
+  └─ Tests fail? → Fix → Re-test → loop until green (max 5 attempts)
+```
+
+So `Wave 1` is fully green before `Wave 2` starts. `Wave 2` is fully green before `Wave 3` starts. And so on.
+
+If a wave can't be fixed within 5 attempts, the build stops and reports exactly what failed — then you can use `/buildflow-debug` for deeper investigation.
+
+```
+/buildflow-debug "auth middleware not rejecting expired tokens"
+```
+
+**`/buildflow-test` standalone** is available if you want to re-verify a wave you already built, or test after a manual code change outside of `/buildflow-build`.
+
+---
+
+### 5. Check, ship, and deploy
+
+```
+/buildflow-check
+```
+> 3 Reviewers in parallel: correctness / quality / security
+
+```
+/buildflow-ship
+```
+> Security gate → retrospective written to `phases/01/retro.md` → git tag
+
+```
+/buildflow-deploy staging
+```
+> Pre-flight checks → deploy to staging → smoke test
+
+```
+/buildflow-deploy production
+```
+> Stricter gate (all tests + audit must pass) → deploy to production
+
+---
+
+**Key point:** `[phase]` and `[wave]` arguments are optional escape hatches for resuming or re-running specific parts. In a normal flow you just type `/buildflow-plan` and `/buildflow-build` with no arguments.
 
 ---
 
@@ -266,7 +416,7 @@ buildflow-dev/
 │   │                         all available /buildflow-* commands.
 │   │                         {{APP_NAME}} is replaced with the detected project name.
 │   │
-│   └── commands/             14 markdown files — one per slash command.
+│   └── commands/             17 markdown files — one per slash command.
 │       │                     Each file is the full instruction set for that command.
 │       │                     The AI reads and executes these when you trigger the command.
 │       │                     Format: YAML frontmatter (name, description, agent, tools)
@@ -276,12 +426,15 @@ buildflow-dev/
 │       ├── think.md          Parallel research with up to 3 Researcher agents
 │       ├── plan.md           Dependency mapping → wave-based execution plan
 │       ├── build.md          Wave-by-wave parallel Builder execution
+│       ├── test.md           Run tests + UI verification after each wave
 │       ├── check.md          3-reviewer parallel quality check
 │       ├── ship.md           Pre-ship security gate → retro → git tag
 │       ├── onboard.md        One-time codebase analysis → MAP/PATTERNS/DEPENDENCIES/HOTSPOTS
 │       ├── modify.md         Surgical code change with blast-radius analysis
 │       ├── refactor.md       Quality improvement without behavior change
 │       ├── audit.md          OWASP Top 10 AI-powered scan
+│       ├── debug.md          Root-cause analysis for failing tests or broken behavior
+│       ├── deploy.md         Pre-flight checks → deploy to staging or production
 │       ├── status.md         Current phase and recommended next action
 │       ├── explain.md        Plain-language explanation of code, concepts, errors
 │       ├── back.md           Undo to git restore point, update state
@@ -576,11 +729,23 @@ Everything else (`.claude/`, `node_modules/`, `.gitignore`, etc.) is excluded.
 
 ## Roadmap
 
+### New AI Tools
 - [ ] `buildflow install --tool windsurf` — Windsurf IDE support
 - [ ] `buildflow install --tool aider` — Aider CLI support
 - [ ] `buildflow install --tool zed` — Zed editor support
-- [ ] GitHub Actions workflow: `buildflow audit` in CI
+
+### New Slash Commands
+- [ ] `/buildflow-perf` — performance profiling: detect slow queries, bundle size issues, render bottlenecks
+- [ ] `/buildflow-docs` — auto-generate or update README, API docs, and inline comments from code
+- [ ] `/buildflow-migrate` — guided database migration: generate migration files, verify rollback safety
+- [ ] `/buildflow-seed` — generate realistic test data for the current schema
+
+### CLI Improvements
+- [ ] `buildflow audit` in GitHub Actions — CI-friendly exit codes already work, needs workflow template
 - [ ] `buildflow fix --auto` — non-interactive mode for CI
+- [ ] `buildflow test` — terminal wrapper that runs the project's test suite with BuildFlow context
+
+### Platform
 - [ ] Web dashboard for project status visualization
 - [ ] Custom agent creation: `buildflow agent create`
 - [ ] Team sync: shared `.buildflow/` across teammates
