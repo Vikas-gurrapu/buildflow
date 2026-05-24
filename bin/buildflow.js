@@ -33,6 +33,7 @@ program
 program
   .command('install')
   .description('Install BuildFlow slash commands into an AI tool')
+  .option('-y, --yes', 'Skip prompts, use defaults')
   .option('--tool <name>', 'AI tool to install into (claude|gemini|codex|cursor|all)')
   .option('--global', 'Install globally (available in all projects)')
   .option('--local', 'Install locally (current project only)')
