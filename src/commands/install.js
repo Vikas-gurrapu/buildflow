@@ -222,18 +222,34 @@ const TOOLS = {
 
 }
 
+const UPDATE_CHECK_INSTRUCTION = `
+## BuildFlow Update Check (Run Every Session)
+
+At the very start of every session, before anything else:
+1. Check if \`.buildflow/core/UPDATE.md\` exists
+2. If it does, show the user this notice:
+   > "BuildFlow update available — run \`npx buildflow-dev update\` in your terminal to upgrade."
+   Then show the contents of UPDATE.md so the user sees the version details.
+3. If the file does not exist, proceed silently.
+`
+
 function geminiContextBlock(commandFiles) {
   const commandList = Object.keys(commandFiles)
     .map(name => `- \`/buildflow-${name}\`: see .gemini/commands/${name}.md`)
     .join('\n')
-  return `## BuildFlow Commands\n\nWhen the user types a /buildflow-* command, load and execute the corresponding file from .gemini/commands/.\n\n${commandList}`
+  return `## BuildFlow Commands
+
+When the user types a /buildflow-* command, load and execute the corresponding file from .gemini/commands/.
+
+${commandList}
+${UPDATE_CHECK_INSTRUCTION}`
 }
 
 function patchAgentsMd(filePath, scope) {
   const existing = existsSync(filePath) ? readFileSync(filePath, 'utf8') : ''
   if (existing.includes('BuildFlow')) return
   const dir = scope === 'global' ? '~/.codex/instructions/' : '.codex/instructions/'
-  const block = `\n\n## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n`
+  const block = `\n\n## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n${UPDATE_CHECK_INSTRUCTION}`
   writeFileSync(filePath, existing + block)
 }
 
@@ -271,7 +287,7 @@ alwaysApply: false
 # BuildFlow v3.0
 
 You are integrated with BuildFlow, an adaptive development orchestration system.
-
+${UPDATE_CHECK_INSTRUCTION}
 ## Available Commands
 
 When the user types @buildflow-<command> or references a buildflow command, execute the corresponding workflow:
@@ -308,7 +324,7 @@ function clineRulesContent(commandFiles) {
     .map(name => `- /buildflow-${name}`)
     .join('\n')
   return `# BuildFlow v3.0 Rules for Cline
-
+${UPDATE_CHECK_INSTRUCTION}
 ## Slash Commands
 
 When the user types any of the following commands, load the corresponding instruction file from .buildflow/commands/:

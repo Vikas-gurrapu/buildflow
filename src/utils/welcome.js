@@ -1,8 +1,20 @@
 import chalk from 'chalk'
 import { existsSync, readFileSync } from 'fs'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { checkVersion } from './checkVersion.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export async function showWelcome() {
+  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8'))
+  // Fire-and-forget version check — writes UPDATE.md if behind, doesn't block output
+  checkVersion(pkg.version).then(update => {
+    if (update) {
+      console.log(chalk.yellow(`\n  Update available: ${update.current} → ${update.latest}`))
+      console.log(chalk.dim('  Run: npx buildflow-dev update\n'))
+    }
+  }).catch(() => {})
   const isInitialized = existsSync(join(process.cwd(), '.buildflow'))
 
   console.log('\n' + chalk.bold.white('  BuildFlow v3.0'))
