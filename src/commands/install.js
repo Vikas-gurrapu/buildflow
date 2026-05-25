@@ -34,7 +34,7 @@ const TOOLS = {
       const dir = join(homedir(), '.claude', 'commands')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `buildflow-${name}.md`), content)
+        writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
       }
       return dir
     },
@@ -43,7 +43,7 @@ const TOOLS = {
       const dir = join(process.cwd(), '.claude', 'commands')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `buildflow-${name}.md`), content)
+        writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
       }
       writeFileSync(join(process.cwd(), 'CLAUDE.md'), claudeMdContent())
       return dir
@@ -125,7 +125,7 @@ const TOOLS = {
       const skillsDir = join(homedir(), '.codex', 'skills')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `buildflow-${name}.md`), content)
+        writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
         writeCodexSkill(skillsDir, name, content)
       }
       patchAgentsMd(join(homedir(), '.codex', 'AGENTS.md'), 'global')
@@ -137,7 +137,7 @@ const TOOLS = {
       const skillsDir = join(process.cwd(), '.codex', 'skills')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `buildflow-${name}.md`), content)
+        writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
         writeCodexSkill(skillsDir, name, content)
       }
       patchAgentsMd(join(process.cwd(), 'AGENTS.md'), 'local')
@@ -232,7 +232,7 @@ const TOOLS = {
       const dir = join(homedir(), '.continue', 'buildflow')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `${name}.md`), content)
+        writeFileSync(join(dir, `${name}.md`), guardedCommandContent(content))
       }
       patchContinueConfig(commandFiles)
       return dir
@@ -242,7 +242,7 @@ const TOOLS = {
       const dir = join(process.cwd(), '.continue', 'buildflow')
       mkdirSync(dir, { recursive: true })
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `${name}.md`), content)
+        writeFileSync(join(dir, `${name}.md`), guardedCommandContent(content))
       }
       return dir
     },
@@ -263,6 +263,41 @@ At the very start of every session, before anything else:
 3. If the file does not exist, proceed silently.
 `
 
+const FOLDER_ACCESS_GUARD = `
+## Folder Access Guard
+
+Before reading or writing any file outside \`.buildflow/\`, check \`.buildflow/you/preferences.md\` → \`path_permissions\`:
+
+1. Extract the top-level folder of the target path — e.g., \`src/auth/service.ts\` → \`src/\`, \`tests/auth/\` → \`tests/\`
+2. Look up that folder in \`path_permissions\`:
+   - **\`approved\`**: proceed immediately, no prompt
+   - **\`denied\`**: skip this path, warn once: "Access to \`[folder]/\` is denied in preferences.md"
+   - **not listed**: show this prompt **once per folder per session**:
+
+\`\`\`
+──────────────────────────────────────────────────
+BuildFlow needs access to [folder]/
+  [1] Yes         — allow this session, ask again next time
+  [2] Yes, always — allow + save to preferences (never ask again)
+  [3] No          — deny access to this folder
+──────────────────────────────────────────────────
+\`\`\`
+
+   - **[1]**: proceed, cache approval for this session only
+   - **[2]**: add \`  [folder]/: approved\` under \`path_permissions\` in \`.buildflow/you/preferences.md\`, then proceed
+   - **[3]**: add \`  [folder]/: denied\` under \`path_permissions\` in \`.buildflow/you/preferences.md\`, skip this path
+
+**Rules:**
+- Ask once per folder per session — cache the response, never ask again for the same folder this session
+- \`.buildflow/\` is always accessible — never prompt for it
+- When a command needs multiple new folders at once, list them all in a single prompt instead of asking one by one
+- If \`path_permissions\` key is absent from preferences.md, treat all folders as not listed
+`
+
+function guardedCommandContent(commandContent) {
+  return `${FOLDER_ACCESS_GUARD}\n\n${commandContent}`
+}
+
 function geminiContextBlock(commandFiles) {
   const commandList = Object.keys(commandFiles)
     .map(name => `- \`/buildflow-${name}\`: see .gemini/commands/buildflow-${name}.toml`)
@@ -272,13 +307,13 @@ function geminiContextBlock(commandFiles) {
 When the user types a /buildflow-* command, load and execute the corresponding file from .gemini/commands/.
 
 ${commandList}
-${UPDATE_CHECK_INSTRUCTION}`
+${UPDATE_CHECK_INSTRUCTION}${FOLDER_ACCESS_GUARD}`
 }
 
 function writeGeminiCommand(commandsDir, name, commandContent) {
   const commandName = `buildflow-${name}`
   const description = extractFrontmatterValue(commandContent, 'description') || `Run ${commandName}`
-  const prompt = `Execute the BuildFlow workflow below end-to-end. Treat any user text after /${commandName} as arguments for this workflow.\n\n${commandContent}`
+  const prompt = `Execute the BuildFlow workflow below end-to-end. Treat any user text after /${commandName} as arguments for this workflow.\n\n${guardedCommandContent(commandContent)}`
   const toml = [
     `description = ${JSON.stringify(description)}`,
     `prompt = ${JSON.stringify(prompt)}`,
@@ -290,10 +325,10 @@ function writeGeminiCommand(commandsDir, name, commandContent) {
 function patchAgentsMd(filePath, scope) {
   const existing = readFileSafe(filePath)
   const dir = scope === 'global' ? '~/.codex/instructions/' : '.codex/instructions/'
-  const block = `## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n${UPDATE_CHECK_INSTRUCTION}`
+  const block = `## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n${UPDATE_CHECK_INSTRUCTION}${FOLDER_ACCESS_GUARD}`
   if (existing.includes('## BuildFlow Instructions')) {
     const updated = existing.replace(
-      /## BuildFlow Instructions[\s\S]*?(?=\n## |\n# |$)/,
+      /## BuildFlow Instructions[\s\S]*?(?=\n## (?!BuildFlow Update Check|Folder Access Guard)|\n# |$)/,
       block
     )
     writeFileSync(filePath, updated)
@@ -311,7 +346,7 @@ function writeCodexSkill(skillsDir, name, commandContent) {
 
 function codexSkillContent(skillName, commandContent) {
   const description = extractFrontmatterValue(commandContent, 'description') || `Run ${skillName}`
-  return `---\nname: "${skillName}"\ndescription: "${escapeYamlString(description)}"\nmetadata:\n  short-description: "${escapeYamlString(description)}"\n---\n\n<objective>\nExecute the BuildFlow workflow below end-to-end.\nTreat any user text after $${skillName} as arguments for this workflow.\n</objective>\n\n<workflow>\n${commandContent}\n</workflow>\n`
+  return `---\nname: "${skillName}"\ndescription: "${escapeYamlString(description)}"\nmetadata:\n  short-description: "${escapeYamlString(description)}"\n---\n\n<objective>\nExecute the BuildFlow workflow below end-to-end.\nTreat any user text after $${skillName} as arguments for this workflow.\n</objective>\n\n<folder-access-guard>\n${FOLDER_ACCESS_GUARD.trim()}\n</folder-access-guard>\n\n<workflow>\n${commandContent}\n</workflow>\n`
 }
 
 function extractFrontmatterValue(content, key) {
@@ -337,6 +372,7 @@ alwaysApply: false
 
 You are integrated with BuildFlow, an adaptive development orchestration system.
 ${UPDATE_CHECK_INSTRUCTION}
+${FOLDER_ACCESS_GUARD}
 ## Available Commands
 
 When the user types @buildflow-<command> or references a buildflow command, execute the corresponding workflow:
@@ -375,6 +411,7 @@ function clineRulesContent(commandFiles) {
     .join('\n')
   return `# BuildFlow v3.0 Rules for Cline
 ${UPDATE_CHECK_INSTRUCTION}
+${FOLDER_ACCESS_GUARD}
 ## Slash Commands
 
 When the user types any of the following commands, load the corresponding instruction file from .buildflow/commands/:
@@ -413,12 +450,18 @@ function patchContinueConfig(commandFiles) {
   if (!config.slashCommands) config.slashCommands = []
 
   const existing = config.slashCommands.map(c => c.name)
+  for (const command of config.slashCommands) {
+    if (typeof command.name === 'string' && command.name.startsWith('buildflow-')) {
+      const name = command.name.replace(/^buildflow-/, '')
+      command.prompt = `Execute the BuildFlow ${name} workflow from .continue/buildflow/${name}.md, including its Folder Access Guard before file access.`
+    }
+  }
   const toAdd = Object.keys(commandFiles)
     .filter(name => !existing.includes(`buildflow-${name}`))
     .map(name => ({
       name: `buildflow-${name}`,
       description: `BuildFlow: ${name}`,
-      prompt: `Execute the BuildFlow ${name} workflow from .continue/buildflow/${name}.md`,
+      prompt: `Execute the BuildFlow ${name} workflow from .continue/buildflow/${name}.md, including its Folder Access Guard before file access.`,
     }))
 
   config.slashCommands.push(...toAdd)
@@ -458,7 +501,7 @@ function refreshProjectLocal(projectPath, commandFiles) {
   const claudeDir = join(projectPath, '.claude', 'commands')
   if (existsSync(claudeDir)) {
     for (const [name, content] of Object.entries(commandFiles)) {
-      writeFileSync(join(claudeDir, `buildflow-${name}.md`), content)
+      writeFileSync(join(claudeDir, `buildflow-${name}.md`), guardedCommandContent(content))
     }
     const claudeMd = join(projectPath, 'CLAUDE.md')
     if (existsSync(claudeMd)) {
@@ -480,7 +523,7 @@ function refreshProjectLocal(projectPath, commandFiles) {
   const codexDir = join(projectPath, '.codex', 'instructions')
   if (existsSync(codexDir)) {
     for (const [name, content] of Object.entries(commandFiles)) {
-      writeFileSync(join(codexDir, `buildflow-${name}.md`), content)
+      writeFileSync(join(codexDir, `buildflow-${name}.md`), guardedCommandContent(content))
       writeCodexSkill(join(projectPath, '.codex', 'skills'), name, content)
     }
     patchAgentsMd(join(projectPath, 'AGENTS.md'), 'local')
@@ -502,7 +545,7 @@ function refreshProjectLocal(projectPath, commandFiles) {
   const continueDir = join(projectPath, '.continue', 'buildflow')
   if (existsSync(continueDir)) {
     for (const [name, content] of Object.entries(commandFiles)) {
-      writeFileSync(join(continueDir, `${name}.md`), content)
+      writeFileSync(join(continueDir, `${name}.md`), guardedCommandContent(content))
     }
     refreshed = true
   }
@@ -529,7 +572,7 @@ function patchGeminiContext(contextPath, commandFiles) {
   const block = geminiContextBlock(commandFiles)
   if (existing.includes('## BuildFlow Commands')) {
     const updated = existing.replace(
-      /## BuildFlow Commands[\s\S]*?(?=\n## (?!BuildFlow Update Check)|\n# |$)/,
+      /## BuildFlow Commands[\s\S]*?(?=\n## (?!BuildFlow Update Check|Folder Access Guard)|\n# |$)/,
       block.trimStart()
     )
     writeFileSync(contextPath, updated)

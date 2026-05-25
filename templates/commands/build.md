@@ -39,6 +39,15 @@ This guard applies to commits, tags, stash, worktrees, branches, merges, and res
 
 ---
 
+## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
+
+Before reading or writing any source file, apply the installed **Folder Access Guard**:
+- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
+- Batch all new folders needed for this wave into a single prompt rather than asking per-file
+
+---
+
 ## Step 1: Load & Confirm Plan
 Read `.buildflow/phases/[N]/PLAN.md`.
 Report: "Phase [N] — [N] waves, [N] tasks, [N] ACs. Est: [total]. Starting Wave [N]."
@@ -767,10 +776,10 @@ Result:     PASS / still failing
 ──────────────────────────────────────────────────
 Targeted tests passed. Run full app-level test suite?
   [Y] Yes — run full suite now
-  [N] No  — skip and proceed to schema drift check
+  [N] No  — skip, proceed to schema drift check
 ──────────────────────────────────────────────────
 ```
-- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
 - **[N]:** Skip. Proceed to 3f. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ### 3f — Schema Drift Check (runs after tests, before commit — if schema files exist)

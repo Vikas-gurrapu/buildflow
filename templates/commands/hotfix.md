@@ -28,6 +28,15 @@ Do NOT use for: new features, refactors, or anything that touches more than ~5 f
 - Target file(s) if specified
 - Do NOT load: specs, phases, codebase MAP, PATTERNS — keep it fast
 
+## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
+
+Before reading or writing any source file, apply the installed **Folder Access Guard**:
+- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
+- Identify the fix's target folder(s) upfront — ask once, not per file
+
+---
+
 ## Step 1: Understand the Fix
 Parse the description. Identify:
 - What is broken?
@@ -237,11 +246,11 @@ If tests fail: fix and re-run. Max 3 attempts, then stop and report what's unres
 ──────────────────────────────────────────────────
 Targeted tests passed. Run full app-level test suite?
   [Y] Yes — run full suite now
-  [N] No  — skip and proceed to Ship
+  [N] No  — skip, proceed to Ship
 ──────────────────────────────────────────────────
 ```
-- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
-- **[N]:** Skip. Proceed to Step 6. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
+- **[N]:** Skip. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ## Step 6: Ship
 

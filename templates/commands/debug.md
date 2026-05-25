@@ -15,6 +15,14 @@ Systematic root-cause analysis for failing tests, broken builds, or unexpected b
 - `/buildflow-debug src/auth/login.ts` — debug a specific file
 - `/buildflow-debug --trace` — full stack trace analysis
 
+## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
+
+Before reading or writing any source file, apply the installed **Folder Access Guard**:
+- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
+
+---
+
 ## Step 1: Collect the Error
 If a description was passed, use it.
 Otherwise check for recent failure context:
@@ -149,11 +157,11 @@ If `git.permission` is not `approved`, copy files likely to be changed into `.bu
 ──────────────────────────────────────────────────
 Targeted tests passed. Run full app-level test suite?
   [Y] Yes — run full suite now
-  [N] No  — skip and proceed to Prevent Recurrence
+  [N] No  — skip, proceed to Prevent Recurrence
 ──────────────────────────────────────────────────
 ```
-- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
-- **[N]:** Skip. Proceed to Step 8. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
+- **[N]:** Skip. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ## Step 8: Prevent Recurrence
 - Add a test that would have caught this bug

@@ -35,6 +35,15 @@ If not onboarded: "Run `/buildflow-onboard` first — impact analysis requires t
 
 ---
 
+## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
+
+Before reading or writing any source file, apply the installed **Folder Access Guard**:
+- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
+- Identify all folders in the impact chain upfront and batch into one prompt if multiple are new
+
+---
+
 ## Step 1: Understand the Change
 Parse the description. Identify:
 - **What** must change (behavior, data, interface)
@@ -441,11 +450,11 @@ Also verify:
 ──────────────────────────────────────────────────
 Targeted tests passed. Run full app-level test suite?
   [Y] Yes — run full suite now
-  [N] No  — skip and proceed to Update Memory
+  [N] No  — skip, proceed to Update Memory
 ──────────────────────────────────────────────────
 ```
-- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
-- **[N]:** Skip. Proceed to Step 9. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
+- **[N]:** Skip. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ---
 

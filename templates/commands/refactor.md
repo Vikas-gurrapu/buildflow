@@ -14,6 +14,14 @@ Improve code quality, readability, or performance — without changing observabl
 - `/buildflow-refactor "Extract auth logic into middleware"`
 - `/buildflow-refactor --scope=module src/api/`
 
+## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
+
+Before reading or writing any source file, apply the installed **Folder Access Guard**:
+- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
+
+---
+
 ## Step 1: Load Context
 Read `.buildflow/codebase/MAP.md`, `PATTERNS.md`, `HOTSPOTS.md`.
 
@@ -116,11 +124,11 @@ After each step: verify behavior unchanged.
 ──────────────────────────────────────────────────
 Targeted tests passed. Run full app-level test suite?
   [Y] Yes — run full suite now
-  [N] No  — skip and proceed to Update Codebase Map
+  [N] No  — skip, proceed to Update Codebase Map
 ──────────────────────────────────────────────────
 ```
-- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
-- **[N]:** Skip. Proceed to Step 7. Full suite runs at `/buildflow-check`.
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
+- **[N]:** Skip. Full suite runs at `/buildflow-check`.
 - Does it match PATTERNS.md conventions?
 - Any new complexity introduced?
 

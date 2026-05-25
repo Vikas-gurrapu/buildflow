@@ -428,6 +428,28 @@ To enable git after denying: set \`permission: approved\` and ensure git is inst
 
 ---
 
+## Folder Access Permissions
+
+\`\`\`yaml
+path_permissions:
+  # Auto-populated as you approve or deny folder access during commands.
+  # BuildFlow checks this before reading or writing any folder outside .buildflow/.
+  #
+  # approved — access allowed, never ask again for this folder
+  # denied   — access blocked, skip silently
+  #
+  # Example after setup:
+  #   src/: approved
+  #   tests/: approved
+  #   config/: approved
+  #   secrets/: denied
+\`\`\`
+
+To manually allow a folder: add \`  [folder]/: approved\` under \`path_permissions\`.
+To block a folder permanently: add \`  [folder]/: denied\`.
+
+---
+
 ## Memory
 
 \`\`\`yaml

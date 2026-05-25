@@ -91,6 +91,39 @@ Before doing anything else at the start of every session:
 - Run `/buildflow-audit` before every `/buildflow-ship`
 - No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
 - **Strict mode** — when `strict_mode: true` or phase planned with `--strict`: `/buildflow-check --strict` is mandatory before ship; strict violations have no override flag
+- **Folder Access Guard** — check `path_permissions` before reading or writing any folder (see below)
+
+## Folder Access Guard
+
+Applies to every command that reads or writes files outside `.buildflow/`.
+
+**Before accessing a folder for the first time this session:**
+
+1. Extract the top-level folder of the target path — e.g., `src/auth/service.ts` → `src/`, `tests/auth/` → `tests/`, `config/db.ts` → `config/`.
+2. Read `.buildflow/you/preferences.md` → `path_permissions.[folder]`:
+   - **`approved`**: proceed immediately — no prompt.
+   - **`denied`**: skip this path. Warn once: "Access to `[folder]/` is denied in preferences.md."
+   - **not listed**: show the prompt below **once per folder per session**, then cache the response for the rest of the session.
+
+**Access prompt (shown when folder is not listed in path_permissions):**
+```
+──────────────────────────────────────────────────
+BuildFlow needs access to [folder]/
+  [1] Yes         — allow this session, ask again next time
+  [2] Yes, always — allow + save to preferences (never ask again)
+  [3] No          — deny access to this folder
+──────────────────────────────────────────────────
+```
+
+- **[1]:** Proceed. Cache approval for this session only — do not write to preferences.md.
+- **[2]:** Use the **Write tool** to add `  [folder]/: approved` under `path_permissions` in `.buildflow/you/preferences.md`. Then proceed.
+- **[3]:** Use the **Write tool** to add `  [folder]/: denied` under `path_permissions` in `.buildflow/you/preferences.md`. Skip this path for the rest of the session.
+
+**Rules:**
+- Ask once per folder per session — after the user responds, cache it and never ask again for files in that same folder this session.
+- `.buildflow/` is always accessible — never prompt for it.
+- If preferences.md is missing or `path_permissions` key is absent: treat all folders as not listed (prompt).
+- Batch folders when a command needs multiple new folders at once — list them all in one prompt instead of asking separately for each.
 
 ## Strict Mode
 
