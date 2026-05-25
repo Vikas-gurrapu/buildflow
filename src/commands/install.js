@@ -67,13 +67,15 @@ const TOOLS = {
     },
 
     isInstalledLocal() {
-      const cmdFile = existsSync(join(process.cwd(), '.gemini', 'commands', 'start.md'))
+      const cmdFile = existsSync(join(process.cwd(), '.gemini', 'commands', 'buildflow-start.toml'))
+        || existsSync(join(process.cwd(), '.gemini', 'commands', 'start.md'))
       const ctxFile = existsSync(join(process.cwd(), 'GEMINI.md')) &&
         readFileSafe(join(process.cwd(), 'GEMINI.md')).includes('BuildFlow')
       return cmdFile || ctxFile
     },
     isInstalledGlobal() {
-      const cmdFile = existsSync(join(homedir(), '.gemini', 'commands', 'start.md'))
+      const cmdFile = existsSync(join(homedir(), '.gemini', 'commands', 'buildflow-start.toml'))
+        || existsSync(join(homedir(), '.gemini', 'commands', 'start.md'))
       const ctxFile = existsSync(join(homedir(), '.gemini', 'GEMINI.md')) &&
         readFileSafe(join(homedir(), '.gemini', 'GEMINI.md')).includes('BuildFlow')
       return cmdFile || ctxFile
@@ -84,7 +86,7 @@ const TOOLS = {
       mkdirSync(dir, { recursive: true })
       patchGeminiContext(join(homedir(), '.gemini', 'GEMINI.md'), commandFiles)
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `${name}.md`), content)
+        writeGeminiCommand(dir, name, content)
       }
       return dir
     },
@@ -94,7 +96,7 @@ const TOOLS = {
       mkdirSync(dir, { recursive: true })
       patchGeminiContext(join(process.cwd(), 'GEMINI.md'), commandFiles)
       for (const [name, content] of Object.entries(commandFiles)) {
-        writeFileSync(join(dir, `${name}.md`), content)
+        writeGeminiCommand(dir, name, content)
       }
       return dir
     },
@@ -263,7 +265,7 @@ At the very start of every session, before anything else:
 
 function geminiContextBlock(commandFiles) {
   const commandList = Object.keys(commandFiles)
-    .map(name => `- \`/buildflow-${name}\`: see .gemini/commands/${name}.md`)
+    .map(name => `- \`/buildflow-${name}\`: see .gemini/commands/buildflow-${name}.toml`)
     .join('\n')
   return `## BuildFlow Commands
 
@@ -271,6 +273,18 @@ When the user types a /buildflow-* command, load and execute the corresponding f
 
 ${commandList}
 ${UPDATE_CHECK_INSTRUCTION}`
+}
+
+function writeGeminiCommand(commandsDir, name, commandContent) {
+  const commandName = `buildflow-${name}`
+  const description = extractFrontmatterValue(commandContent, 'description') || `Run ${commandName}`
+  const prompt = `Execute the BuildFlow workflow below end-to-end. Treat any user text after /${commandName} as arguments for this workflow.\n\n${commandContent}`
+  const toml = [
+    `description = ${JSON.stringify(description)}`,
+    `prompt = ${JSON.stringify(prompt)}`,
+    '',
+  ].join('\n')
+  writeFileSync(join(commandsDir, `${commandName}.toml`), toml)
 }
 
 function patchAgentsMd(filePath, scope) {
@@ -456,7 +470,7 @@ function refreshProjectLocal(projectPath, commandFiles) {
   if (existsSync(geminiDir)) {
     patchGeminiContext(join(projectPath, 'GEMINI.md'), commandFiles)
     for (const [name, content] of Object.entries(commandFiles)) {
-      writeFileSync(join(geminiDir, `${name}.md`), content)
+      writeGeminiCommand(geminiDir, name, content)
     }
     refreshed = true
   }
@@ -512,9 +526,8 @@ function patchGeminiContext(contextPath, commandFiles) {
   const existing = readFileSafe(contextPath)
   const block = geminiContextBlock(commandFiles)
   if (existing.includes('## BuildFlow Commands')) {
-    // Replace old block — from the marker to the next top-level ## or end of file
     const updated = existing.replace(
-      /## BuildFlow Commands[\s\S]*?(?=\n## |\n# |$)/,
+      /## BuildFlow Commands[\s\S]*?(?=\n## (?!BuildFlow Update Check)|\n# |$)/,
       block.trimStart()
     )
     writeFileSync(contextPath, updated)
