@@ -1,289 +1,294 @@
 ---
 name: buildflow-onboard
-description: Deep codebase analysis — import graph, module boundaries, feature inventory, local support map, load-bearing files, risk scores
+description: Deep codebase analysis — maps modules, patterns, hotspots, features, import graph, and writes all knowledge files to .buildflow/codebase/
 allowed-tools: Read, Write, Bash, Glob, Grep
 agent: cartographer
 ---
 
 # /buildflow-onboard
 
-Deep one-time analysis of an existing codebase. Goes beyond folder structure — maps import graphs, identifies load-bearing modules, scores file risk, establishes module boundaries, and inventories user-facing/operator-facing features including local support. All other agents reference these outputs.
+Deep one-time analysis of an existing codebase. Produces 10 knowledge files that every other BuildFlow command references. All other agents load these files rather than re-scanning the codebase.
 
-## When to Run
+## When to run
 - First time using BuildFlow on an existing project
 - After a major refactor or framework migration
-- `--update` flag for incremental refresh after significant changes
+- `--update` flag: incremental refresh after significant changes
+- `--paths src/auth,packages/ui` flag: scoped remap of specific paths
 
 ## Usage
-- `/buildflow-onboard` — full analysis
-- `/buildflow-onboard --update` — refresh changed files, affected feature evidence, and local-support metadata
-- `/buildflow-onboard --paths src/auth,packages/ui` — scoped remap of specific repo-relative paths
-- `/buildflow-onboard --query locale` — search codebase map documents and `intel.json` for a term
-- `/buildflow-onboard --depth imports` — focus on dependency graph only
+- `/buildflow-onboard` — full analysis + write all knowledge files
+- `/buildflow-onboard --update` — refresh changed files only
+- `/buildflow-onboard --paths src/auth,packages/ui` — remap specific paths
+- `/buildflow-onboard --query locale` — search knowledge files for a term without rewriting
 
 ---
 
-## Step 1: Prior State Check
-Ensure output directories exist before analysis:
+## OUTPUT CONTRACT — Read this first
+
+This command MUST produce the following files before it is complete. The analysis and the file writes are not separable — each analysis section writes its file immediately. Do not defer writes to the end.
+
+Required output files:
+```
+.buildflow/codebase/MAP.md          ← module map, entry points, folder roles
+.buildflow/codebase/STACK.md        ← languages, frameworks, dependencies
+.buildflow/codebase/STRUCTURE.md    ← physical layout, path conventions
+.buildflow/codebase/PATTERNS.md     ← code conventions, naming, test style
+.buildflow/codebase/FEATURES.md     ← user-facing capabilities, local/locale support
+.buildflow/codebase/GRAPH.md        ← import graph, fan-in/out, symbol callers
+.buildflow/codebase/HOTSPOTS.md     ← high-risk files (risk ≥ 3.5)
+.buildflow/codebase/DEPENDENCIES.md ← all dependencies with purpose + criticality
+.buildflow/codebase/CONCERNS.md     ← risks, debt, fragile flows, blind spots
+.buildflow/codebase/TESTING.md      ← test framework, layout, coverage gaps
+.buildflow/codebase/intel.json      ← machine-readable index for other commands
+```
+
+If any write fails, stop immediately and report the file path and error. Do not continue to the next step.
+
+---
+
+## Step 1: Setup
 
 ```bash
 mkdir -p .buildflow/codebase .buildflow/memory
 ```
 
-If `.buildflow/` does not exist yet, create it. `/buildflow-onboard` is allowed to run before `/buildflow-start` or `/buildflow-init`; it must still write `.buildflow/codebase/*` outputs.
-
-If `.buildflow/codebase/MAP.md` exists:
-- `--update` flag: run the Incremental Refresh rules below, then continue with affected steps only
-- `--paths` flag: validate path scope first, then run the same affected-step refresh only inside those paths
-- `--query` flag: search `.buildflow/codebase/*.md` and `.buildflow/codebase/intel.json`; print matching file/section/line snippets and exit without rewriting maps
-- Otherwise ask: "Full re-onboard or incremental update?"
-- If running in a non-interactive context and no answer is available, default to incremental update when existing maps are present.
-
-### Scoped Path Rules (`--paths`)
-
-Use scoped remaps for structural drift, large monorepos, or focused updates after a feature area changes.
-
-Accept only repo-relative paths that:
-- Do not start with `/`, drive letters, or `~`
-- Do not contain `..`
-- Do not contain shell metacharacters: `;`, `` ` ``, `$`, `&`, `|`, `<`, `>`
-- Use only path components made from letters, numbers, `_`, `-`, `.`
-
-If all supplied paths are invalid, stop and ask for valid repo-relative paths. If some are invalid, ignore invalid paths and report which were skipped.
-
-When scoped paths are active:
-- Every scan command must restrict itself to those paths.
-- Every generated document must state `Scope: [paths]`.
-- `intel.json.scope` must record the paths refreshed.
-- Only update feature/local/locale evidence that references the scoped paths, unless a scoped dependency proves a wider update is needed.
-
-### Incremental Refresh Rules (`--update`)
-
-Do not refresh only source files. Feature and local-support drift often lives in docs, scripts, config, test fixtures, generated command files, compose files, and package metadata.
-
-For `--update`, first identify changed files since the last `drift_baseline.recorded_at` or last onboard commit:
-- Source/runtime: `src/`, `app/`, `pages/`, `lib/`, `server/`, `api/`
-- UI/route metadata: route files, page files, screen files, component entry files
-- CLI/workflow metadata: `bin/`, command registries, scripts, task runners, CI workflows
-- Local support: `package.json`, lockfiles, `.env*`, Docker/Compose files, devcontainer files, seed/fixture/mock directories, local DB config, emulator config
-- Locale/i18n support: locale JSON/static catalogs, translation imports, message bundles, localized docs, label/copy metadata, language config, i18n middleware/providers
-- Docs that describe runnable behavior: `README*`, `docs/**`, install/setup files
-- Tests/specs that name user capabilities
-
-Then refresh:
-- Any module touched by changed source files
-- Any feature whose evidence references a changed file
-- The entire `local_support` block if any local-support file changed
-- The entire `locale_support` block if any locale/i18n file changed
-- `FEATURES.md`, `MAP.md` Feature Inventory Summary, and `intel.json.features[]` on every update
-- `drift_baseline` after all refreshed data is written
-
-If changed files include docs/config/scripts but no source files, still update `FEATURES.md`; those files may represent operator-facing or local-support capabilities.
-
-### Structural Drift Categories
-
-When deciding whether a map is stale, classify changed files before refreshing:
-
-| Category | Examples | Refresh |
-|----------|----------|---------|
-| `new_dir` | new top-level or module directory not mentioned in `STRUCTURE.md` | `STRUCTURE.md`, `MAP.md`, `intel.json.modules` |
-| `route` | new route/API/page/screen file | `FEATURES.md`, `MAP.md`, `GRAPH.md`, `intel.json.features[]` |
-| `migration` | Prisma/Drizzle/Supabase/SQL migration or schema file | `DEPENDENCIES.md`, `STACK.md`, `HOTSPOTS.md`, schema drift baseline |
-| `barrel` | new `index.ts/js` public export in `src/`, `apps/*/src`, `packages/*/src` | `GRAPH.md`, `STRUCTURE.md`, symbol exports |
-| `dependency` | package/lock/build config changes | `STACK.md`, `DEPENDENCIES.md`, `INTEGRATIONS.md` |
-| `integration` | API client, webhook, auth provider, env contract | `INTEGRATIONS.md`, `FEATURES.md`, security surface |
-| `test` | test framework/config/fixture changes | `TESTING.md`, `PATTERNS.md` |
-| `copy_locale` | labels, localized docs, locale catalogs | `FEATURES.md`, `locale_support` |
-
-If 3 or more structural drift elements are found, recommend `/buildflow-onboard --paths [affected paths]`. This warning is non-blocking; do not interrupt build/check workflows unless the user asks for strict mapping freshness.
+Check for prior state:
+- If `.buildflow/codebase/MAP.md` already exists and `--update` is NOT passed: ask "Full re-onboard or incremental update?" — in non-interactive context, default to incremental.
+- If `--update`: identify changed files since last `drift_baseline.recorded_at` in `intel.json`, then re-run only affected steps:
+  - Any change to `locales/`, `i18n/`, `translations/`, `lang/`, `*.po`, `*.mo`, `*.arb`, `*.resx`, `*.properties`, `Localizable.strings`, `strings.xml` → re-run Step 9c and update `locale_support` in intel.json and FEATURES.md
+  - Any change to route/screen/page/handler files → re-run Step 9a and update FEATURES.md
+  - Any change to source files → re-run Steps 4–6 (import graph, load-bearing, risk scores)
+  - Any change to dependency files → re-run Step 8 and update STACK.md, DEPENDENCIES.md, INTEGRATIONS.md
+  - Any structural change (new dirs, new entry points) → re-run Step 3 and update STRUCTURE.md
+- If `--query [term]`: search `.buildflow/codebase/*.md` and `intel.json` for the term, print matches, and exit without rewriting any files.
+- If `--paths [paths]`: validate paths are repo-relative, don't contain `..` or shell metacharacters, then restrict all scans to those paths.
 
 ---
 
-## Step 2: Structural Analysis — 5 Parallel Lenses
+## Step 2: Language & Framework Detection
 
-Run these five analyses in parallel. Each lens produces a focused view that the others don't cover.
+Run this first — the language determines which grep patterns to use in later steps.
 
-### Lens A — Architecture (entry points, layers, module boundaries)
+```bash
+# Detect project files
+ls package.json requirements.txt Cargo.toml go.mod pom.xml build.gradle build.gradle.kts pubspec.yaml Package.swift build.sbt Gemfile composer.json 2>/dev/null
+```
+
+Identify: primary language, framework, package manager, runtime version.
+
+**Write `.buildflow/codebase/STACK.md` NOW** using the Write tool:
+
+```markdown
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
+
+# Stack
+
+## Languages & Runtimes
+| Language/Runtime | Version | Evidence |
+|------------------|---------|----------|
+| [language] | [version] | [evidence file] |
+
+## Frameworks & Build Tools
+| Tool | Purpose | Evidence |
+|------|---------|----------|
+| [framework] | [purpose] | [evidence file] |
+
+## Package Managers & Lockfiles
+- [npm/pnpm/yarn/pip/poetry/maven/gradle/go/cargo] — [evidence path]
+
+## Critical Dependencies
+| Dependency | Purpose | Runtime/Dev | Evidence |
+|------------|---------|-------------|----------|
+| [name] | [purpose] | [runtime/dev] | [file] |
+
+## Platform Requirements
+- Development: [requirements]
+- Production: [requirements]
+```
+
+---
+
+## Step 3: Structural Analysis
+
+Run these scans:
+
 ```bash
 # Entry points
-find . -name "main.*" -o -name "index.*" -o -name "app.*" | grep -v node_modules
-# File count by type
-find src/ -type f | sed 's/.*\.//' | sort | uniq -c | sort -rn
+find . \( -name "main.*" -o -name "index.*" -o -name "app.*" \) | grep -v node_modules | grep -v ".buildflow" | head -20
+
+# Directory structure
+find . -maxdepth 3 -type d | grep -v node_modules | grep -v ".git" | grep -v ".buildflow" | head -40
+
 # Layer markers
-find . -path "*/controllers/*" -o -path "*/services/*" -o -path "*/models/*" -o -path "*/repositories/*" -o -path "*/routes/*" -o -path "*/components/*" | grep -v node_modules | head -20
-```
-Produce: entry points, top-level folder responsibilities, detected architectural pattern (MVC, layered, hexagonal, feature-based, flat).
+find . \( -path "*/controllers/*" -o -path "*/services/*" -o -path "*/models/*" -o -path "*/repositories/*" -o -path "*/routes/*" -o -path "*/components/*" \) | grep -v node_modules | head -20
 
-### Lens B — Quality (size, complexity, test coverage signals)
-```bash
-# Largest files (complexity proxy)
-find src/ -name "*.ts" -o -name "*.py" -o -name "*.go" | xargs wc -l 2>/dev/null | sort -rn | head -20
-# Files with no co-located test
-find src/ -name "*.ts" ! -name "*.test.ts" ! -name "*.spec.ts" | head -30
-# TODO/FIXME/HACK density
-grep -rn "TODO\|FIXME\|HACK\|XXX" src/ | wc -l
-```
-Produce: top 10 largest files, estimated test coverage % (files with tests / total files), tech debt signal (TODO density).
-
-### Lens C — Security (credential patterns, dangerous APIs, auth surface)
-```bash
-# Potential secrets
-grep -rn "password\|secret\|api_key\|apikey\|token\|credential" src/ --include="*.ts" --include="*.py" --include="*.go" -i | grep -v "test\|spec\|mock" | head -20
-# Dangerous patterns
-grep -rn "eval(\|exec(\|shell_exec\|subprocess\|dangerouslySetInnerHTML\|innerHTML" src/ | head -10
-# Auth surface
-find . -path "*/auth*" -o -path "*/middleware*" -o -path "*/guard*" | grep -v node_modules | head -10
-```
-Produce: security surface area, potential secret exposure locations, dangerous API usage.
-
-### Lens D — Data (schema definitions, migration state, ORM patterns)
-```bash
-# Schema files
-find . -name "schema.prisma" -o -name "*.migration.*" -o -name "models.py" -o -name "*.entity.ts" | grep -v node_modules | head -10
-# Migration count and newest
-ls -lt migrations/ db/migrations/ prisma/migrations/ 2>/dev/null | head -5
-# ORM / query patterns
-grep -rn "findOne\|findMany\|query\|Model\.\|session\.query\|db\." src/ | wc -l
-```
-Produce: data layer pattern (Prisma/SQLAlchemy/GORM/raw SQL), migration count, schema file locations.
-
-### Lens E — Feature Inventory (user-facing capabilities, local support, locale/i18n support, workflows)
-
-This lens answers: **"What can this app do?"** Do not infer only from folder names. Use code evidence from routes, CLI commands, UI screens, handlers, tests, docs, config, and integration points.
-
-Scan for feature entry points:
-```bash
-# Routes / APIs
-grep -rn "router\.\|app\.\|Route\|Controller\|@Get\|@Post\|urlpatterns\|FastAPI\|Blueprint" src/ app/ pages/ api/ 2>/dev/null | head -80
-
-# UI screens / pages / views
-find src app pages screens views components lib -type f 2>/dev/null | grep -E "(page|screen|view|route|component)\.(ts|tsx|js|jsx|vue|svelte|dart|kt|swift)$" | head -80
-
-# CLI commands / jobs / workflows
-grep -rn "command(\|program\.\|commander\|click\.command\|argparse\|cobra.Command\|urfave/cli\|thor " . 2>/dev/null | head -80
-
-# Local/offline/dev support signals
-grep -rn "localhost\|127.0.0.1\|offline\|localStorage\|IndexedDB\|sqlite\|file://\|dev server\|hot reload\|watch\|docker-compose\|compose.dev\|mock\|fixture\|seed" . 2>/dev/null | grep -v node_modules | head -120
-
-# Locale/i18n support signals
-find . -type f \( -path "*/locales/*" -o -path "*/locale/*" -o -path "*/i18n/*" -o -path "*/messages/*" -o -path "*/translations/*" -o -name "*.locale.json" -o -name "*.messages.json" -o -name "README.*.md" -o -name "*.i18n.md" \) 2>/dev/null | grep -v node_modules | head -120
-grep -rn "i18n\|locale\|locales\|translations\|messages\|language\|languages\|Intl\|useTranslation\|t(\|formatMessage\|next-intl\|react-i18next\|vue-i18n" src app pages lib components public docs README.md 2>/dev/null | head -120
-grep -rn "import .*\\.json\|require(.*\\.json\|assert.*json\|with .*json" src app pages lib components 2>/dev/null | head -120
-
-# UI copy, command labels, localized docs, and static label catalogs
-find . -type f \( -name "README.*.md" -o -name "*.locale.md" -o -name "*.labels.json" -o -name "*labels*.json" -o -name "*copy*.json" -o -name "*strings*.json" -o -name "*messages*.json" \) 2>/dev/null | grep -v node_modules | head -120
-grep -rn "\"label\"[[:space:]]*:\|label:[[:space:]]*['\"]\|labels:[[:space:]]*\\[\|displayName\|title:[[:space:]]*['\"]\|aria-label\|placeholder" src app pages lib components commands templates docs README*.md 2>/dev/null | head -120
-grep -rn "English.*Português\|English.*日本語\|English.*한국어\|English.*中文\|language selector\|language switcher" README*.md docs 2>/dev/null | head -80
-
-# Cross-language locale/i18n dependency and import signals
-grep -rn "ResourceBundle\|MessageSource\|LocaleContextHolder\|spring.messages\|messages_.*\\.properties" src main app 2>/dev/null | head -80
-grep -rn "golang.org/x/text\|language\\.Tag\|message\\.NewPrinter\|go-i18n\|i18n.Bundle" . --include="*.go" 2>/dev/null | head -80
-grep -rn "gettext\|ngettext\|Babel\|flask_babel\|django.utils.translation\|LocaleMiddleware" . --include="*.py" 2>/dev/null | head -80
-grep -rn "I18n\\.t\|config/locales\|rails-i18n" . --include="*.rb" --include="*.yml" 2>/dev/null | head -80
-grep -rn "__([^_]\|trans(\|Lang::\|resources/lang\|symfony/translation" . --include="*.php" --include="*.yaml" --include="*.yml" 2>/dev/null | head -80
-grep -rn "CultureInfo\|IStringLocalizer\|ResourceManager\|\\.resx" . --include="*.cs" --include="*.resx" 2>/dev/null | head -80
-grep -rn "AppLocalizations\|Intl\\.message\|flutter_localizations\|arb-dir\|\\.arb" . --include="*.dart" --include="*.arb" --include="pubspec.yaml" 2>/dev/null | head -80
-grep -rn "NSLocalizedString\|Localizable\\.strings\|Locale\\.current" . --include="*.swift" --include="*.strings" 2>/dev/null | head -80
-grep -rn "getString(R\\.string\|strings\\.xml\|Locale\\.getDefault\|androidx.compose.ui.text.intl" . --include="*.kt" --include="*.java" --include="*.xml" 2>/dev/null | head -80
-find . -type f \( -name "messages*.properties" -o -name "*.po" -o -name "*.mo" -o -name "*.resx" -o -name "*.arb" -o -name "Localizable.strings" -o -name "strings.xml" \) 2>/dev/null | grep -v node_modules | head -120
-
-# Feature names in tests and docs
-grep -rn "describe(\|it(\|test(\|Feature:\|Scenario:\|User can\|should " test tests spec specs docs README.md src app 2>/dev/null | head -120
+# File count by type
+find src/ app/ lib/ -type f 2>/dev/null | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -10
 ```
 
-Produce a **Feature Inventory** with one row per discovered capability:
-```
-Feature: Local development support
-Aliases:
-  - local mode
-  - dev environment
-  - offline/dev workflow
-Evidence:
-  - docker-compose.dev.yml: defines app + db + redis for local runs
-  - src/config/env.ts: LOCAL_MODE flag
-  - README.md: "Run locally" section
-Entry points:
-  - npm run dev
-  - /api/health
-Owned modules:
-  - Config
-  - Docker / runtime
-Status:
-  implemented / partial / docs-only / test-only
-Confidence:
-  high / medium / low
-Risk:
-  missed-by-architecture-scan if only config/docs touched
-Blind spots:
-  - runtime behavior not verified
-  - feature may be hidden behind env flag
-```
+Identify: entry points, top-level folder responsibilities, architectural pattern (MVC / layered / hexagonal / feature-based / flat).
 
-Feature discovery rules:
-- Treat docs + config + scripts as feature evidence, not just `src/` code.
-- Treat static JSON assets as feature evidence when they are imported, loaded by config, or stored under known feature directories such as `locales/`, `i18n/`, `messages/`, `translations/`, `fixtures/`, or `data/`.
-- Treat static label/copy files as feature evidence when they define UI labels, command labels, option labels, placeholders, display names, accessibility labels, or translated documentation. These often live in JSON, Markdown, templates, command definitions, or framework metadata rather than route handlers.
-- A feature is real if at least one of these exists: route/handler, UI entry point, CLI command, background job, config flag, documented workflow, test scenario.
-- Always look for local support explicitly: local dev scripts, Docker Compose, seed data, mocks, offline mode, localhost callbacks, local file storage, emulator support, dev credentials placeholders, hot reload.
-- Always look for locale/i18n support explicitly: locale catalogs, imported JSON translations, message bundles, language switchers, i18n providers/middleware, translation helper calls, route prefixes such as `/en` or `/fr`, and fallback/default locale config.
-- Always look for localized documentation explicitly: `README.*.md`, translated docs, language link bars, language selector text, and docs that mirror the same product capability in multiple languages.
-- Always look for label/copy catalogs explicitly: `label`, `labels`, `displayName`, `title`, `placeholder`, `aria-label`, command option labels, form labels, menu labels, and static JSON/Markdown files whose primary purpose is user-facing text.
-- Detect locale/i18n dependencies and imports across stacks, not only JavaScript:
-  - Java/Spring: `ResourceBundle`, `MessageSource`, `LocaleContextHolder`, `messages*.properties`, `spring.messages.*`
-  - Go: `golang.org/x/text`, `language.Tag`, `message.Printer`, `go-i18n`
-  - Python: `gettext`, `Babel`, `flask_babel`, `django.utils.translation`, `.po`, `.mo`
-  - Ruby/Rails: `I18n.t`, `config/locales/*.yml`, `rails-i18n`
-  - PHP/Laravel/Symfony: `__()`, `trans()`, `Lang::`, `resources/lang`, `symfony/translation`
-  - .NET: `.resx`, `CultureInfo`, `IStringLocalizer`, `ResourceManager`
-  - Flutter/Dart: `.arb`, `AppLocalizations`, `Intl.message`, `flutter_localizations`
-  - Swift/iOS: `NSLocalizedString`, `Localizable.strings`, `Locale.current`
-  - Android/Kotlin/Java: `strings.xml`, `getString(R.string...)`, `Locale.getDefault`
-- Do not mark a feature complete unless there is executable code or runnable config behind it. Docs-only features must be marked `docs-only`.
-- If a feature is expected by docs but missing in code, record it as `documented_missing`.
-- Record aliases/synonyms when docs, tests, and code use different names for the same capability.
-- Record confidence. Use `high` only when at least two evidence types agree (for example code + test, code + docs, config + runnable script). Use `medium` for one strong executable signal. Use `low` for docs/test-only signals.
-- Record blind spots when static scanning cannot prove runtime behavior, permissions, environment-specific behavior, or generated routes.
+**Write `.buildflow/codebase/STRUCTURE.md` NOW** using the Write tool:
 
-**Lens Summary (printed after all 5 complete):**
-```
-5-Lens Analysis Complete
-────────────────────────
-Architecture:  [pattern detected — MVC / layered / flat / feature-based]
-Quality:       [N files, ~N% have tests, N TODO/FIXME markers]
-Security:      [N auth files, N potential secret refs, N dangerous patterns]
-Data:          [ORM: Prisma/SQLAlchemy/GORM, N migrations, schema at: path]
-Features:      [N implemented, N partial, N docs-only, local support: YES/NO/PARTIAL, locale support: YES/NO/PARTIAL]
+```markdown
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
+
+# Structure
+
+## Directory Map
+| Path | Responsibility | Owner Module | Notes |
+|------|----------------|--------------|-------|
+| [path] | [responsibility] | [module] | [notes] |
+
+## Entry Points
+- [path] — [why it starts or wires the system]
+
+## Generated / Static Assets
+- [path] — [locale labels, fixtures, generated clients, public assets]
+
+## Path Conventions
+- [source layout, test layout, route layout, package layout]
 ```
 
 ---
 
-## Step 3: Technology & Dependency Detection
-Parse `package.json` / `requirements.txt` / `Cargo.toml` / `go.mod`. For each major dependency:
-- Purpose (what problem it solves)
-- Criticality: CORE (app breaks without) / UTIL (convenience) / DEV (build-time only)
-- Security status: check for known CVE patterns in version
+## Step 4: Module Boundary Mapping
 
-### Test Framework Detection (captured here so all agents can reuse it)
+Identify **bounded contexts** — groups of files that form a logical subsystem.
+
 ```bash
-# JS/TS — check deps and config
-cat package.json | grep -E "jest|vitest|mocha|jasmine|@testing-library|supertest|cypress|playwright"
+# Find module/package-level files
+find . \( -name "index.ts" -o -name "index.js" -o -name "__init__.py" -o -name "mod.rs" \) | grep -v node_modules | head -20
+```
+
+For each module, identify: owns (file paths), exports (public API), depends on, depended on by.
+
+Flag **boundary violations**: files importing across module lines without going through the module's public export.
+
+---
+
+## Step 5: Load-Bearing Module Identification
+
+```bash
+# Get all imports across source files to compute fan-in
+grep -rn "^import\|^from\|^require\|^use " src/ app/ lib/ --include="*.ts" --include="*.js" --include="*.py" --include="*.go" --include="*.rs" 2>/dev/null | head -200
+```
+
+Calculate for each file:
+- **Fan-in** (how many other files import THIS file) — high = load-bearing
+- **Fan-out** (how many files THIS file imports) — high = coupled
+
+Files with fan-in ≥ 5 are **load-bearing** — mark as CRITICAL or HIGH.
+
+---
+
+## Step 6: Risk Scoring
+
+Score each file (1–5) on:
+- Fan-in (0–1 = 1, 10+ = 5)
+- File size (< 100 lines = 1, > 500 lines = 5)
+- Test coverage (tests exist = 1, no tests = 5)
+- Complexity proxy (< 5 TODO/FIXME = 1, > 20 = 5)
+
+```bash
+# Largest files
+find src/ app/ lib/ -type f 2>/dev/null | xargs wc -l 2>/dev/null | sort -rn | head -20
+
+# Files with no co-located test
+find src/ -name "*.ts" ! -name "*.test.ts" ! -name "*.spec.ts" 2>/dev/null | head -20
+
+# TODO/FIXME density per file
+grep -rn "TODO\|FIXME\|HACK\|XXX" src/ app/ 2>/dev/null | head -30
+```
+
+**Write `.buildflow/codebase/HOTSPOTS.md` NOW** using the Write tool:
+
+```markdown
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
+
+# Hotspots — Handle With Care
+Files scored ≥ 3.5 risk. Review before any modification.
+
+| File | Risk | Fan-in | Size | Tests | Notes |
+|------|------|--------|------|-------|-------|
+| [file] | [N.N] | [N] | [N]L | [yes/no/partial] | [why risky] |
+```
+
+---
+
+## Step 7: Pattern Recognition
+
+Read 2–3 representative files per major module:
+
+```bash
+# Read example files from each module
+```
+
+Document:
+- Naming conventions (PascalCase, camelCase, snake_case)
+- Import order (stdlib → 3rd party → internal)
+- Error handling (throw vs return, error types)
+- Async pattern (async/await, Promise chains, callbacks)
+- Test conventions (co-located vs `__tests__/`, naming)
+
+Detect test framework:
+```bash
+# JS/TS
+cat package.json 2>/dev/null | grep -E "jest|vitest|mocha|jasmine|@testing-library|supertest|cypress|playwright"
 ls jest.config.* vitest.config.* .mocharc.* 2>/dev/null
-find . -name "*.test.ts" -o -name "*.test.js" -o -name "*.spec.ts" -o -name "*.spec.js" | head -5
-find . -type d -name "__tests__" | head -3
 
 # Python
-cat requirements.txt pyproject.toml setup.cfg 2>/dev/null | grep -E "pytest|unittest|nose"
-find . -name "test_*.py" -o -name "*_test.py" | head -5
+cat requirements.txt pyproject.toml 2>/dev/null | grep -E "pytest|unittest|nose"
 
-# Go — test files use same package
+# Go
 find . -name "*_test.go" | head -5
 
-# Rust — tests are inline
-grep -rn "#\[cfg(test)\]" src/ | head -5
+# Rust
+grep -rn "#\[cfg(test)\]" src/ 2>/dev/null | head -3
 ```
 
-Record the **Test Profile** in `PATTERNS.md` under a `## Testing` section:
-```
+**Write `.buildflow/codebase/PATTERNS.md` NOW** using the Write tool:
+
+```markdown
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
+
+# Patterns
+
+## Naming Conventions
+- Files: [kebab-case / PascalCase / snake_case]
+- Classes: [PascalCase]
+- Functions: [camelCase / snake_case]
+- Constants: [UPPER_SNAKE / camelCase]
+
+## Component / Class Structure
+[example from actual codebase]
+
+## Import Order
+[stdlib → 3rd party → internal — example from actual codebase]
+
+## Error Handling
+[throw vs return — example from actual codebase]
+
+## Async Pattern
+[async/await / Promise chains — example]
+
+## Testing
 Framework:     [Jest / Vitest / pytest / go test / cargo test / NONE]
 Config:        [jest.config.ts / vitest.config.ts / pytest.ini / N/A]
 Test location: [co-located *.test.ts / __tests__/ / tests/ / inline]
@@ -291,718 +296,647 @@ Naming:        [describe/it / test() / def test_ / #[test]]
 Mock library:  [jest.mock / vi.mock / pytest fixtures / mockall / NONE]
 Coverage:      [jest --coverage / pytest-cov / go test -cover / NONE]
 Existing tests:[N files, N cases]
-Has tests:     [YES / NO — no framework detected]
+Has tests:     [YES / NO]
 ```
 
-If `Has tests: NO`: note in summary — "⚠ No test framework found. Tests cannot be written until one is installed."
+**Write `.buildflow/codebase/TESTING.md` NOW** using the Write tool:
 
----
-
-## Step 4: Import Graph Analysis — Symbol Level (repo awareness core)
-
-### 4a: File-Level Import Graph
-For each source file, trace its imports and exports:
-
-```bash
-# JS/TS: find all import statements
-grep -rn "^import\|^const.*require" src/ --include="*.ts" --include="*.js"
-# Python
-grep -rn "^import\|^from" src/ --include="*.py"
-# Go
-grep -rn "^import" --include="*.go" .
-# Rust
-grep -rn "^use " src/ --include="*.rs"
-```
-
-Build a dependency map:
-```
-file-a.ts  imports  [auth.service.ts, db.client.ts, types.ts]
-auth.service.ts  imports  [db.client.ts, crypto.ts, config.ts]
-db.client.ts  imports  [config.ts]
-```
-
-From this graph, calculate for each file:
-- **Fan-in** (how many files import THIS file) — high = load-bearing
-- **Fan-out** (how many files THIS file imports) — high = coupled
-- **Depth** (longest import chain to reach this file from entry point)
-
-### 4b: Symbol-Level Export Extraction
-For each source file, extract its exported symbols (functions, classes, types, constants). This enables `/buildflow-modify` to trace impact at the function level, not just the file level.
-
-```bash
-# TypeScript / JavaScript — exported symbols
-grep -rn "^export (async )?function\|^export class\|^export const\|^export type\|^export interface\|^export enum\|^export default" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx"
-
-# Python — public functions and classes (no leading underscore)
-grep -rn "^def [^_]\|^class [^_]\|^async def [^_]" src/ --include="*.py"
-
-# Go — exported (uppercase) functions and types
-grep -rn "^func [A-Z]\|^type [A-Z]" --include="*.go" .
-
-# Rust — public functions, structs, enums
-grep -rn "^pub fn\|^pub struct\|^pub enum\|^pub trait\|^pub type" src/ --include="*.rs"
-
-# Java — public classes, methods, interfaces
-grep -rn "^public class\|^public interface\|^public enum\|public [a-zA-Z].*(.*).*{" src/main/ --include="*.java" | head -50
-
-# Kotlin — public/top-level functions, classes, data classes
-grep -rn "^fun [A-Z]\|^class \|^data class \|^object \|^interface \|^enum class " src/main/ --include="*.kt" | grep -v "//\|private\|internal" | head -50
-
-# C# — public classes, methods, interfaces, enums
-grep -rn "public class \|public interface \|public enum \|public static.*\|public .*(" src/ --include="*.cs" | grep -v "//\|override\|abstract" | head -50
-
-# Ruby — public methods and classes
-grep -rn "^class \|^module \|^  def [^_]\|^def [^_]" app/ lib/ --include="*.rb" 2>/dev/null | grep -v "private\|protected" | head -50
-
-# PHP — public classes, methods, functions
-grep -rn "^class \|^interface \|^trait \|^function \|public function " app/ src/ --include="*.php" 2>/dev/null | head -50
-
-# Dart / Flutter — public classes, functions (no leading underscore)
-grep -rn "^class [^_]\|^mixin [^_]\|^extension [^_]\|^[A-Za-z].*[^_]([^_]" lib/ --include="*.dart" 2>/dev/null | grep -v "//\|_\b" | head -50
-
-# Swift — public/open functions, classes, structs, protocols
-grep -rn "^public class\|^public struct\|^public func\|^public protocol\|^open class\|^open func\|^func [A-Z]" Sources/ --include="*.swift" 2>/dev/null | head -50
-
-# Scala — public defs, classes, objects, traits
-grep -rn "^def \|^class \|^object \|^trait \|^case class " src/main/ --include="*.scala" 2>/dev/null | grep -v "private\|protected" | head -50
-```
-
-For each symbol, record:
-- `name` — symbol name
-- `type` — `function` | `class` | `type` | `const` | `interface` | `enum`
-- `line` — line number in file
-- `exported` — true (only track exported/public symbols)
-
-### 4c: Symbol Caller Index
-Build a reverse map of which files call each exported symbol:
-
-```bash
-# For each exported symbol "MyFunction" from "auth/service.ts":
-# Find all files that reference it (not the defining file itself)
-grep -rn "MyFunction\|AuthService\|DBClient" src/ --include="*.ts" --include="*.py" --include="*.go" | grep -v "auth/service.ts"
-```
-
-Build `symbol_callers` index:
-```
-AuthService.login()    called by: [routes/auth.ts:45, middleware/session.ts:12, tests/auth.test.ts:8]
-AuthService.register() called by: [routes/auth.ts:62, tests/auth.test.ts:20]
-DBClient.query()       called by: [auth/service.ts:34, users/service.ts:18, orders/service.ts:7]
-```
-
-This is the key input for `/buildflow-modify` — when a function signature changes, the caller index shows exactly which lines need updating, not just which files.
-
----
-
-## Step 5: Load-Bearing Module Identification
-Files with fan-in ≥ 5 are **load-bearing** — changes ripple widely.
-
-```
-Load-Bearing Modules
-────────────────────
-db.client.ts     fan-in: 12   ← CRITICAL — 12 files depend on this
-auth.service.ts  fan-in: 8    ← HIGH
-config.ts        fan-in: 15   ← CRITICAL
-types.ts         fan-in: 20   ← CRITICAL (type-only, lower risk)
-```
-
----
-
-## Step 6: Module Boundary Mapping
-Identify **bounded contexts** — groups of files that form a logical subsystem:
-
-```
-Module: Auth
-  Owns:  src/auth/*.ts
-  Exports: AuthService, AuthMiddleware, JWTUtil
-  Depends on: Database, Config
-  Depended on by: API routes, WebSocket handlers
-
-Module: Database
-  Owns:  src/db/*.ts
-  Exports: DBClient, QueryBuilder, Migrations
-  Depends on: Config
-  Depended on by: Auth, Users, Orders (everything)
-
-Module: API
-  Owns:  src/routes/*.ts
-  Exports: Router
-  Depends on: Auth, Users, Orders
-  Depended on by: main.ts (entry point only)
-```
-
-Flag **boundary violations**: files that import across module lines without going through the module's public export.
-
----
-
-## Step 7: Pattern Recognition
-Read 2–3 representative files per module. Document:
-- Component/class structure conventions
-- Naming patterns (PascalCase, camelCase, snake_case, kebab-case)
-- Import organization order (stdlib → 3rd party → internal)
-- Error handling approach (throw vs return, error types used)
-- Async pattern (async/await, Promise chains, callbacks)
-- Test file conventions (co-located vs `__tests__/`, naming)
-- Comment style (JSDoc, inline, none)
-
----
-
-## Step 8: Risk Scoring
-Score each file on a 1–5 risk scale:
-
-| Factor | Low (1) | High (5) |
-|--------|---------|---------|
-| Fan-in | 0–1 dependents | 10+ dependents |
-| File size | < 100 lines | > 500 lines |
-| Test coverage | Tests exist | No tests found |
-| Complexity | Simple logic | Deep nesting, many branches |
-| Change frequency | Rarely changed | Frequently changed |
-
-Final risk score = average of applicable factors.
-
-```
-File Risk Map
-─────────────
-db.client.ts      risk: 4.8  ← touch with extreme care
-auth.service.ts   risk: 4.2  ← high-impact changes
-config.ts         risk: 4.0  ← high fan-in, usually stable
-UserController.ts risk: 2.1  ← isolated, well-tested
-utils/format.ts   risk: 1.0  ← pure functions, low coupling
-```
-
----
-
-## Step 9: Write Knowledge Files
-
-This step is mandatory. Do not return only an analysis summary. Create or update the files listed below using the Write tool. If any write fails, report the exact file and error instead of saying onboarding is complete.
-
-All `.buildflow/codebase/*.md` knowledge files must start with YAML frontmatter:
-
-```yaml
+```markdown
 ---
 generated_by: buildflow-onboard
 last_mapped_at: [ISO date]
-last_mapped_commit: [git HEAD sha or unknown]
 scope: [full repo or comma-separated paths]
 ---
+
+# Testing
+
+## Frameworks
+| Framework | Type | Command | Evidence |
+|-----------|------|---------|----------|
+| [framework] | [unit/integration/e2e] | [command] | [evidence file] |
+
+## Test Layout
+- [path pattern] — [unit/integration/e2e/fixture]
+
+## Targeted Test Strategy
+- Source file → likely test file convention: [convention]
+- Run tests for a specific file: [command]
+
+## Gaps
+- [missing test framework/coverage/e2e/fixtures or NONE]
 ```
 
-Preserve existing frontmatter keys when updating a document. This keeps the drift baseline attached to the document instead of only in `intel.json`.
+---
 
-### `.buildflow/codebase/MAP.md`
-```markdown
-# Codebase Map
-**Project:** [name]  **Onboarded:** [date]  **Files analyzed:** [N]
+## Step 8: Dependency & Integration Analysis
 
-## Feature Inventory Summary
-[top-level user-facing capabilities from FEATURES.md, including local support status]
+```bash
+# Parse dependency files
+cat package.json 2>/dev/null
+cat requirements.txt pyproject.toml 2>/dev/null
+cat Cargo.toml 2>/dev/null
+cat go.mod 2>/dev/null
+cat pom.xml 2>/dev/null | head -80
 
-## Entry Points
-- [file]: [purpose]
+# External service signals
+grep -rn "axios\|fetch(\|http\.\|grpc\|stripe\|twilio\|sendgrid\|firebase\|supabase\|redis\|rabbitmq\|kafka" src/ app/ 2>/dev/null | head -30
 
-## Module Boundaries
-[module table from Step 6]
+# Env contracts
+find . \( -name ".env.example" -o -name ".env.sample" -o -name ".env.template" \) | head -5
+cat .env.example .env.sample 2>/dev/null | grep -v "^#" | head -30
 
-## Load-Bearing Modules
-[critical file list from Step 5]
-
-## Folder Structure
-[annotated tree — one line per folder explaining its role]
-
-## Key Patterns
-- [pattern name]: [brief description]
+# Webhook / callback patterns
+grep -rn "webhook\|callback\|on_event\|event\.listen\|pubsub" src/ app/ 2>/dev/null | head -20
 ```
 
-### `.buildflow/codebase/STACK.md`
-Technology foundation. This is the human-readable stack map that complements `intel.json.tech_stack`.
+**Write `.buildflow/codebase/DEPENDENCIES.md` NOW** using the Write tool:
 
 ```markdown
-# Stack
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
 
-## Languages & Runtimes
-| Language/Runtime | Version | Evidence |
-|------------------|---------|----------|
+# Dependencies
 
-## Frameworks & Build Tools
-| Tool | Purpose | Evidence |
-|------|---------|----------|
+## Runtime Dependencies
+| Package | Purpose | Criticality | Notes |
+|---------|---------|-------------|-------|
+| [name] | [purpose] | CORE/UTIL | [notes] |
 
-## Package Managers & Lockfiles
-- [npm/pnpm/yarn/pip/poetry/maven/gradle/go/cargo/etc.] — [evidence path]
+## Dev Dependencies
+| Package | Purpose | Notes |
+|---------|---------|-------|
+| [name] | [purpose] | [notes] |
 
-## Critical Dependencies
-| Dependency | Purpose | Runtime/Dev | Evidence |
-|------------|---------|-------------|----------|
-
-## Platform Requirements
-- Development: [OS/tooling/runtime requirements]
-- Production: [deployment/runtime requirements]
+## Known Vulnerability Flags
+- [package@version] — [CVE or "ok"] 
 ```
 
-### `.buildflow/codebase/STRUCTURE.md`
-Physical layout map used for structural drift detection.
+**Write `.buildflow/codebase/INTEGRATIONS.md` NOW** using the Write tool:
 
 ```markdown
-# Structure
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
 
-## Directory Map
-| Path | Responsibility | Owner Module | Notes |
-|------|----------------|--------------|-------|
-
-## Entry Points
-- [path] — [why it starts or wires the system]
-
-## Generated / Static Assets
-- [path] — [locale labels, fixtures, generated clients, public assets, etc.]
-
-## Path Conventions
-- [source layout, test layout, route layout, package layout]
-```
-
-### `.buildflow/codebase/INTEGRATIONS.md`
-External systems, runtime services, and environment contracts.
-
-```markdown
 # Integrations
 
 ## External Services
 | Service | Purpose | SDK/Client | Auth/Env Contract | Evidence |
 |---------|---------|------------|-------------------|----------|
+| [service] | [purpose] | [sdk] | [ENV_VAR] | [file:line] |
 
 ## Data Stores
 | Store | Client/ORM | Migrations | Evidence |
 |-------|------------|------------|----------|
+| [store] | [client] | [yes/no/N] | [file] |
 
 ## Webhooks / Callbacks
 | Direction | Service | Endpoint | Verification | Evidence |
 |-----------|---------|----------|--------------|----------|
 
 ## Environment Contracts
-- [ENV_VAR] — [purpose, required/optional, evidence path; never include secret values]
+- [ENV_VAR] — [purpose, required/optional, evidence path]
 ```
 
-### `.buildflow/codebase/TESTING.md`
-Dedicated test and validation map.
+---
 
-```markdown
-# Testing
+## Step 9: Feature Inventory (Lens E)
 
-## Frameworks
-| Framework | Type | Command | Evidence |
-|-----------|------|---------|----------|
+Run ALL scans below. Do not skip any section — locale detection is required even if the project doesn't look like it has i18n, because locale evidence is often in config or static JSON files rather than in `src/`.
 
-## Test Layout
-- [path pattern] — [unit/integration/e2e/fixture]
+### 9a: Routes, screens, CLI
 
-## Targeted Test Strategy
-- Source file → likely test file convention
-- Dependency-neighborhood test command
+```bash
+# HTTP routes / API handlers
+grep -rn "router\.\|app\.\(get\|post\|put\|delete\|patch\)\|@Get\|@Post\|@Put\|@Delete\|urlpatterns\|FastAPI\|Blueprint\|Route(\|routes\." src/ app/ pages/ api/ 2>/dev/null | head -80
 
-## Gaps
-- [missing test framework/coverage/e2e/fixtures]
+# UI screens / pages / views
+find src app pages screens views components lib -type f 2>/dev/null | grep -E "(page|screen|view|route|layout)\.(ts|tsx|js|jsx|vue|svelte|dart|kt|swift)$" | head -60
+
+# CLI commands and background jobs
+grep -rn "command(\|program\.\|commander\|click\.command\|cobra\.Command\|urfave/cli\|thor \|argparse\|subcommand" . 2>/dev/null | head -40
+
+# Feature names from tests (user-visible behavior)
+grep -rn "describe(\|it(\|test(\|Feature:\|Scenario:\|User can\|should " test tests spec specs docs README.md src app 2>/dev/null | head -60
 ```
 
-### `.buildflow/codebase/CONCERNS.md`
-Risk, debt, fragile flows, and map blind spots.
+### 9b: Local dev / offline support
 
-```markdown
-# Concerns
+```bash
+# Local run / dev server / offline signals
+grep -rn "localhost\|127\.0\.0\.1\|offline\|localStorage\|IndexedDB\|sqlite\|file://\|dev server\|hot reload\|watch\|mock\|fixture\|seed" . 2>/dev/null | grep -v node_modules | grep -v ".buildflow" | head -60
 
-## High-Risk Areas
-| Area/File | Concern | Evidence | Suggested Guard |
-|-----------|---------|----------|-----------------|
-
-## Security / Performance / Reliability Concerns
-- [concern] — [evidence]
-
-## Mapping Blind Spots
-- [generated routes, dynamic imports, runtime plugin loading, feature flags, missing tests]
+# Docker / dev environment files
+find . \( -name "docker-compose*.yml" -o -name "docker-compose*.yaml" -o -name "devcontainer.json" -o -name ".env.example" -o -name ".env.sample" -o -name ".env.template" \) | grep -v node_modules | head -20
 ```
 
-### `.buildflow/codebase/GRAPH.md`
-Full import dependency graph output from Steps 4a–4c.
-Includes fan-in / fan-out counts per file (file-level) AND symbol caller index (symbol-level).
+### 9c: Locale / i18n support — run every command regardless of language
 
-Structure:
-```markdown
-## File-Level Import Graph
-[file dependency map with fan-in / fan-out counts]
+This is the most commonly missed feature. Run all of these — the evidence may be in config, static JSON, docs, or dependency files rather than in application code.
 
-## Symbol Caller Index
-AuthService.login      → src/routes/auth.ts:45, src/routes/auth.ts:89, src/tests/auth.test.ts:8
-AuthService.register   → src/routes/auth.ts:62, src/tests/auth.test.ts:20
-createToken            → src/auth/service.ts:31, src/middleware/session.ts:18
-DBClient.query         → src/auth/service.ts:34, src/users/service.ts:18, src/orders/service.ts:7
+```bash
+# --- Locale catalog files (language-agnostic) ---
+find . -type f \( \
+  -path "*/locales/*" \
+  -o -path "*/locale/*" \
+  -o -path "*/i18n/*" \
+  -o -path "*/messages/*" \
+  -o -path "*/translations/*" \
+  -o -path "*/lang/*" \
+  -o -name "*.locale.json" \
+  -o -name "*.messages.json" \
+  -o -name "messages*.properties" \
+  -o -name "*.po" \
+  -o -name "*.mo" \
+  -o -name "*.resx" \
+  -o -name "*.arb" \
+  -o -name "Localizable.strings" \
+  -o -name "strings.xml" \
+\) 2>/dev/null | grep -v node_modules | grep -v ".buildflow" | head -60
+
+# --- JS / TS (React, Next.js, Vue, Svelte, Node) ---
+grep -rn "i18n\|useTranslation\|t(\|formatMessage\|next-intl\|react-i18next\|vue-i18n\|svelte-i18n\|Intl\.\|locale\|locales\|language\|languages" src/ app/ pages/ lib/ components/ 2>/dev/null | grep -v node_modules | head -60
+grep -rn "import.*locales\|require.*locales\|import.*i18n\|require.*i18n\|import.*translations\|require.*translations" src/ app/ pages/ lib/ 2>/dev/null | head -30
+
+# --- Python (Django, Flask, FastAPI, Babel) ---
+grep -rn "gettext\|ngettext\|Babel\|flask_babel\|django\.utils\.translation\|LocaleMiddleware\|LANGUAGE_CODE\|LANGUAGES\s*=\|ugettext" . --include="*.py" --include="*.cfg" --include="*.ini" 2>/dev/null | head -40
+find . \( -name "*.po" -o -name "*.mo" \) 2>/dev/null | grep -v node_modules | head -20
+
+# --- Java / Spring Boot ---
+grep -rn "ResourceBundle\|MessageSource\|LocaleContextHolder\|spring\.messages\|@RequestMapping.*locale\|LocaleResolver\|AcceptHeaderLocaleResolver" . --include="*.java" --include="*.properties" --include="*.yml" --include="*.yaml" 2>/dev/null | head -40
+find . -name "messages*.properties" -o -name "messages*.xml" 2>/dev/null | grep -v node_modules | head -20
+
+# --- Kotlin (Spring Boot, Android) ---
+grep -rn "ResourceBundle\|MessageSource\|getString(R\.string\|Locale\.getDefault\|androidx\.compose\.ui\.text\.intl" . --include="*.kt" --include="*.xml" --include="*.properties" 2>/dev/null | head -30
+find . -name "strings.xml" 2>/dev/null | grep -v node_modules | head -10
+
+# --- Go ---
+grep -rn "golang\.org/x/text\|language\.Tag\|message\.NewPrinter\|go-i18n\|i18n\.Bundle\|i18n\.Config\|Locale\|locale" . --include="*.go" 2>/dev/null | head -30
+
+# --- Rust ---
+grep -rn "i18n\|locale\|fluent\|rust-i18n\|gettext\|tr!(" . --include="*.rs" --include="*.toml" 2>/dev/null | head -20
+
+# --- Ruby / Rails ---
+grep -rn "I18n\.t\|I18n\.locale\|config/locales\|rails-i18n\|translate\|:locale =>" . --include="*.rb" --include="*.yml" --include="*.yaml" 2>/dev/null | head -30
+find . -path "*/config/locales/*" -type f 2>/dev/null | head -20
+
+# --- PHP / Laravel / Symfony ---
+grep -rn "__(\|trans(\|Lang::\|resources/lang\|symfony/translation\|Translator\|setLocale\|getLocale\|app\.locale\|fallback_locale" . --include="*.php" --include="*.yaml" --include="*.yml" 2>/dev/null | head -30
+find . -path "*/resources/lang/*" -o -path "*/translations/*" 2>/dev/null | grep "\.php\|\.json\|\.yaml\|\.yml" | grep -v node_modules | head -20
+
+# --- C# / .NET ---
+grep -rn "CultureInfo\|IStringLocalizer\|ResourceManager\|resx\|\.AddLocalization\|RequestLocalizationOptions\|SupportedCultures" . --include="*.cs" --include="*.resx" --include="*.csproj" 2>/dev/null | head -30
+find . -name "*.resx" 2>/dev/null | grep -v node_modules | head -10
+
+# --- Dart / Flutter ---
+grep -rn "AppLocalizations\|Intl\.message\|flutter_localizations\|arb-dir\|\.arb\|supportedLocales\|localizationsDelegates\|MaterialApp.*locale" . --include="*.dart" --include="*.arb" --include="pubspec.yaml" 2>/dev/null | head -30
+find . -name "*.arb" 2>/dev/null | head -10
+
+# --- Swift / iOS ---
+grep -rn "NSLocalizedString\|Localizable\.strings\|Locale\.current\|Bundle\.localizations\|\.localized\|stringsdict" . --include="*.swift" --include="*.strings" --include="*.stringsdict" 2>/dev/null | head -30
+find . \( -name "Localizable.strings" -o -name "*.stringsdict" \) 2>/dev/null | head -10
+
+# --- Scala (Play, Akka) ---
+grep -rn "Messages\|MessagesApi\|Lang\|play\.i18n\|I18nSupport\|Lang\(" . --include="*.scala" --include="*.conf" 2>/dev/null | head -20
+
+# --- Localized documentation ---
+find . \( -name "README.*.md" -o -name "*.locale.md" -o -name "CHANGELOG.*.md" -o -name "CONTRIBUTING.*.md" \) 2>/dev/null | grep -v node_modules | head -20
+grep -rn "English.*Português\|English.*日本語\|English.*한국어\|English.*中文\|English.*Español\|language selector\|language switcher\|\[en\]\|\[fr\]\|\[ja\]\|\[ko\]\|\[zh\]" README*.md docs 2>/dev/null | head -30
+
+# --- Label / copy catalogs (static UI text in JSON/MD) ---
+find . -type f \( \
+  -name "*labels*.json" \
+  -o -name "*copy*.json" \
+  -o -name "*strings*.json" \
+  -o -name "*messages*.json" \
+  -o -name "*text*.json" \
+  -o -name "*content*.json" \
+\) 2>/dev/null | grep -v node_modules | head -20
+grep -rn "\"label\"\s*:\|\"placeholder\"\s*:\|\"title\"\s*:\|\"aria-label\"\s*:\|displayName\s*:" src/ app/ lib/ components/ 2>/dev/null | head -30
 ```
 
-`/buildflow-modify` Step 2 uses `symbol_callers` from `intel.json` for precise call-site lookup (file:line pairs). GRAPH.md is the human-readable version of the same data.
+### 9c: Locale detection rules
 
-### `.buildflow/codebase/PATTERNS.md`
-All conventions from Step 7. Used by Builder and Surgeon agents to match style.
-Each pattern has an example extracted from the actual codebase.
+From the scan results above, determine:
 
-### `.buildflow/codebase/FEATURES.md`
-User-facing and operator-facing capability map from Lens E. This is required output.
+1. **Locale catalog files found?** → Any `.po`, `.mo`, `.resx`, `.arb`, `*.locale.json`, `messages*.properties`, `strings.xml`, `Localizable.strings`, or JSON files under `locales/`, `i18n/`, `translations/`, `lang/` → **locale support exists**
+
+2. **i18n library/framework found?** → Any import of `react-i18next`, `next-intl`, `vue-i18n`, `flutter_localizations`, `I18n.t`, `ResourceBundle`, `django.utils.translation`, `gettext`, `go-i18n`, `Intl.message`, `NSLocalizedString`, etc. → **locale support exists**
+
+3. **Default locale** → Look for: `defaultLocale`, `LANGUAGE_CODE`, `app.locale`, `default_locale`, `fallback_locale`, locale folder named `en/` or `en.json`, or the first entry in a `LANGUAGES = []` list
+
+4. **Supported locales** → Folder names under `locales/` or `lang/`, or file names like `fr.json`, `ja.json`, `.po` prefixes, or `supportedLocales: [...]` array
+
+5. **Label catalogs** → JSON files containing `label`, `placeholder`, `title`, `aria-label` as primary keys → treat as locale evidence even if no i18n framework present
+
+6. **If NO locale evidence found at all** → mark `Status: NO` in FEATURES.md with confidence `high` (not `unknown`) — the absence is a confirmed finding, not a gap in the scan
+
+Rules for feature discovery:
+- A feature is real if at least one exists: route/handler, UI entry point, CLI command, background job, config flag, documented workflow, or test scenario.
+- Docs-only features → mark `docs-only`; missing despite docs → mark `documented_missing`
+- Local support (Docker Compose, seeds, offline mode) is a first-class feature — always detect it
+- **i18n/locale is a first-class feature — always scan for it using all 9c commands above, even for projects that appear monolingual**
+
+**Write `.buildflow/codebase/FEATURES.md` NOW** using the Write tool:
 
 ```markdown
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
+
 # Feature Inventory
 
 ## Summary
 | Feature | Status | Entry Points | Owned Modules | Evidence |
 |---------|--------|--------------|---------------|----------|
-| Local development support | implemented | npm run dev, docker-compose.dev.yml | Runtime, Config | README.md, package.json, docker-compose.dev.yml |
-
-## Discovery Notes
-- Confidence model: high = multiple evidence types, medium = one executable signal, low = docs/test-only signal
-- Blind spots: [generated routes / dynamic plugins / feature flags / external services / runtime-only behavior]
+| [feature] | implemented/partial/docs-only | [route or script] | [module] | [file:line] |
 
 ## Local Support
 Status: YES / PARTIAL / NO
 Confidence: high / medium / low
-
 Evidence:
-- [path:line] local run script
-- [path:line] Docker/dev compose
-- [path:line] local env config
-- [path:line] seed/mock fixture
-
+- [path] [what it enables]
 Gaps:
-- [missing item if any]
+- [missing item or NONE]
 
 ## Locale Support
-Status: YES / PARTIAL / NO
+Status: YES / PARTIAL / NO  ← never leave as UNKNOWN; confirm YES or NO using scan results from Step 9c
 Confidence: high / medium / low
-Default locale: [locale code or UNKNOWN]
-Supported locales: [en, fr, ... or UNKNOWN]
-Detected stacks: [Java/Spring, Go, Python, Rails, Laravel, .NET, Flutter, iOS, Android, JS/TS, or UNKNOWN]
-Localized docs: YES / PARTIAL / NO
-Label/copy catalogs: YES / PARTIAL / NO
+Default locale: [en / fr / ja / UNKNOWN]
+Supported locales: [en, fr, ja — derived from catalog filenames or supportedLocales array]
+Detected stacks: [TypeScript/react-i18next / Python/django-i18n / Java/Spring-MessageSource / etc.]
+Catalog type: [json / properties / po/mo / resx / arb / strings / xml]
+i18n library: [react-i18next / next-intl / I18n.t / ResourceBundle / NSLocalizedString / django gettext / etc. / NONE]
 
-Evidence:
-- [path:line] i18n provider/middleware/config
-- [path:line] imported static JSON catalog
-- [path:line] locale/message bundle
-- [path:line] language switcher or route prefix
-- [path:line] language-specific i18n dependency/import
-- [path:line] localized README/docs language link or translated doc
-- [path:line] label/copy catalog or command/UI label definition
+Catalog files:
+- [path] — [locale code and purpose, e.g., "en.json — English translation catalog"]
 
-Static assets:
-- [path] [locale/catalog purpose]
+Provider / config:
+- [path:line] [i18n init, locale middleware, or language switcher]
 
-Dependencies/imports:
-- [dependency/import/API] [language/framework] [evidence path]
-
-Labels and copy:
-- [path:line] [label/copy purpose, e.g., "command option labels", "form labels", "menu labels"]
+Label / copy catalogs:
+- [path] — [purpose, e.g., "UI button labels", "form placeholders"]
 
 Localized docs:
-- [path] [locale/language and purpose]
+- [path] — [locale and purpose, e.g., "README.ja-JP.md — Japanese README"]
+
+Evidence:
+- [path:line] [catalog / library import / config / provider]
 
 Gaps:
-- [missing fallback/default locale/tests if any]
+- [missing fallback locale / no test coverage for locale switching / etc. — or NONE]
+- [if Status is NO: "Confirmed — no locale catalogs, i18n libraries, or locale-specific file patterns found"]
 
 ## Features
-### [Feature name]
-Aliases: [alternate names from docs/tests/code]
-Status: implemented / partial / docs-only / documented_missing / test-only
+
+### [Feature Name]
+Status: implemented / partial / docs-only / documented_missing
 Confidence: high / medium / low
 User value: [what this enables]
 Entry points:
-- [route / screen / command / script]
+- [route / screen / command]
 Evidence:
 - [path:line] [why this proves the feature exists]
-Owned modules:
-- [module names]
-Tests:
-- [test paths or NONE]
-Risks:
-- [risk or NONE]
-Blind spots:
-- [what static mapping could not prove, or NONE]
+Owned modules: [module names]
+Tests: [test paths or NONE]
+Blind spots: [what static mapping cannot prove, or NONE]
 ```
 
-### `.buildflow/codebase/DEPENDENCIES.md`
-All dependencies from Step 3 with purpose, criticality, and security status.
+---
 
-### `.buildflow/codebase/HOTSPOTS.md`
+## Step 10: Import Graph — File Level & Symbol Level
+
+### 10a: File-level import graph
+
+```bash
+# JS/TS
+grep -rn "^import\|^const.*require" src/ app/ --include="*.ts" --include="*.js" 2>/dev/null | head -200
+
+# Python
+grep -rn "^import\|^from" src/ app/ --include="*.py" 2>/dev/null | head -100
+
+# Go
+grep -rn "^import" --include="*.go" . 2>/dev/null | head -100
+
+# Rust
+grep -rn "^use " src/ --include="*.rs" 2>/dev/null | head -100
+```
+
+Build: file → imports list. Calculate fan-in and fan-out per file.
+
+### 10b: Symbol export extraction
+
+For each source file, extract exported symbols:
+
+```bash
+# TypeScript / JavaScript
+grep -rn "^export \(async \)\?function\|^export class\|^export const\|^export type\|^export interface\|^export enum\|^export default" src/ app/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null
+
+# Python — public symbols (no leading underscore)
+grep -rn "^def [^_]\|^class [^_]\|^async def [^_]" src/ app/ --include="*.py" 2>/dev/null
+
+# Go — exported (uppercase)
+grep -rn "^func [A-Z]\|^type [A-Z]" --include="*.go" . 2>/dev/null
+
+# Rust — pub items
+grep -rn "^pub fn\|^pub struct\|^pub enum\|^pub trait" src/ --include="*.rs" 2>/dev/null
+
+# Java
+grep -rn "^public class\|^public interface\|public [a-zA-Z].*(" src/main/ --include="*.java" 2>/dev/null | head -40
+
+# Kotlin
+grep -rn "^fun [A-Z]\|^class \|^data class \|^object \|^interface " src/main/ --include="*.kt" 2>/dev/null | grep -v "private\|internal" | head -40
+
+# C#
+grep -rn "public class \|public interface \|public static.*\|public .*(" src/ --include="*.cs" 2>/dev/null | grep -v "//" | head -40
+
+# Ruby
+grep -rn "^class \|^module \|^  def [^_]\|^def [^_]" app/ lib/ --include="*.rb" 2>/dev/null | grep -v "private\|protected" | head -40
+```
+
+### 10c: Symbol caller index
+
+For each key exported symbol, find callers:
+
+```bash
+# For each symbol name: grep for references in source files excluding the defining file
+grep -rn "[SymbolName]" src/ app/ --include="*.ts" --include="*.py" --include="*.go" 2>/dev/null | grep -v "[defining-file]" | head -20
+```
+
+**Write `.buildflow/codebase/GRAPH.md` NOW** using the Write tool:
+
 ```markdown
-# Hotspots — Handle With Care
-Files scored 3.5+ risk. Review before any modification.
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
 
-| File | Risk | Fan-in | Size | Tests | Notes |
-|------|------|--------|------|-------|-------|
-| db.client.ts | 4.8 | 12 | 380L | partial | Central DB abstraction |
+# Import Graph
+
+## File-Level Dependencies
+| File | Fan-in | Fan-out | Imports | Notes |
+|------|--------|---------|---------|-------|
+| [file] | [N] | [N] | [file, file] | CRITICAL / HIGH / normal |
+
+## Symbol Caller Index
+[SymbolName.method]    → [file:line, file:line]
+[SymbolName2]          → [file:line]
 ```
 
-### `.buildflow/codebase/intel.json` — Queryable Intel Index
+---
 
-Write a machine-readable JSON index alongside the markdown files. This enables `/buildflow-modify`, `/buildflow-build`, and `/buildflow-check` to query specific facts without loading all markdown files.
+## Step 11: Security Surface & Concerns
+
+```bash
+# Potential secret exposure
+grep -rn "password\|secret\|api_key\|apikey\|token\|credential" src/ app/ --include="*.ts" --include="*.py" --include="*.go" -i 2>/dev/null | grep -v "test\|spec\|mock" | head -20
+
+# Dangerous patterns
+grep -rn "eval(\|exec(\|shell_exec\|subprocess\|dangerouslySetInnerHTML\|innerHTML" src/ app/ 2>/dev/null | head -10
+
+# Auth surface
+find . \( -path "*/auth*" -o -path "*/middleware*" -o -path "*/guard*" \) | grep -v node_modules | head -10
+```
+
+**Write `.buildflow/codebase/CONCERNS.md` NOW** using the Write tool:
+
+```markdown
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
+
+# Concerns
+
+## High-Risk Areas
+| Area/File | Concern | Evidence | Suggested Guard |
+|-----------|---------|----------|-----------------|
+| [file] | [concern] | [evidence] | [guard] |
+
+## Security Surface
+- Auth files: [list]
+- Potential secret refs: [list or NONE]
+- Dangerous API usage: [list or NONE]
+
+## Technical Debt
+- TODO/FIXME count: [N]
+- Largest files with no tests: [list]
+
+## Mapping Blind Spots
+- [generated routes, dynamic imports, feature flags, missing tests — or NONE]
+```
+
+---
+
+## Step 12: Write MAP.md and intel.json
+
+Now that all sub-files are written, write the master index files.
+
+**Write `.buildflow/codebase/MAP.md` NOW** using the Write tool:
+
+```markdown
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+scope: [full repo or comma-separated paths]
+---
+
+# Codebase Map
+**Project:** [name]  **Onboarded:** [date]  **Files analyzed:** [N]
+
+## Feature Inventory Summary
+[top-level user-facing capabilities — link to FEATURES.md for detail]
+- [Feature]: [status] ([confidence])
+
+## Entry Points
+- [file]: [purpose]
+
+## Module Boundaries
+| Module | Owns | Exports | Depends On | Depended On By |
+|--------|------|---------|------------|----------------|
+| [name] | [paths] | [symbols] | [modules] | [modules] |
+
+## Load-Bearing Modules
+| File | Fan-in | Risk | Notes |
+|------|--------|------|-------|
+| [file] | [N] | [N.N] | CRITICAL / HIGH |
+
+## Boundary Violations
+[files importing across module lines without public API — or NONE]
+
+## Folder Structure
+```
+[annotated directory tree — one line per folder with its role]
+```
+```
+
+**Write `.buildflow/codebase/intel.json` NOW** using the Write tool with the machine-readable index:
 
 ```json
 {
-  "onboarded_at": "[ISO date]",
+  "onboarded_at": "[ISO datetime]",
   "last_mapped_commit": "[git HEAD sha or unknown]",
-  "scope": {
-    "mode": "full",
-    "paths": []
-  },
+  "scope": { "mode": "full", "paths": [] },
   "file_count": 0,
+  "tech_stack": {
+    "language": "[language]",
+    "framework": "[framework]",
+    "test_framework": "[framework or NONE]",
+    "orm": "[orm or NONE]",
+    "bundler": "[bundler or NONE]"
+  },
   "modules": [
     {
-      "name": "Auth",
-      "owns": ["src/auth/service.ts", "src/auth/middleware.ts"],
-      "exports": ["AuthService", "AuthMiddleware"],
-      "depends_on": ["Database", "Config"],
-      "depended_on_by": ["API", "WebSocket"]
+      "name": "[Module]",
+      "owns": ["[path]"],
+      "exports": ["[Symbol]"],
+      "depends_on": ["[Module]"],
+      "depended_on_by": ["[Module]"]
     }
   ],
   "features": [
     {
-      "name": "Local development support",
-      "aliases": ["local mode", "dev environment"],
+      "name": "[Feature]",
       "status": "implemented",
       "confidence": "high",
-      "user_value": "Run the application and dependencies locally for development and testing",
-      "entry_points": ["npm run dev", "docker-compose.dev.yml"],
-      "owned_modules": ["Runtime", "Config"],
-      "evidence": [
-        { "file": "package.json", "line": 12, "note": "dev script" },
-        { "file": "docker-compose.dev.yml", "line": 1, "note": "local service stack" }
-      ],
-      "tests": [],
-      "risks": [],
-      "blind_spots": []
+      "entry_points": ["[route or script]"],
+      "owned_modules": ["[Module]"],
+      "evidence": [{ "file": "[path]", "line": 0, "note": "[why]" }]
     }
   ],
   "local_support": {
     "status": "yes",
     "confidence": "high",
-    "dev_scripts": ["npm run dev"],
-    "local_services": ["docker-compose.dev.yml"],
+    "dev_scripts": ["[npm run dev / python manage.py runserver / go run . / etc.]"],
+    "local_services": ["[docker-compose.dev.yml / etc.]"],
     "env_files": [".env.example"],
     "seed_or_fixture_files": [],
-    "evidence": [
-      { "file": "README.md", "line": 10, "note": "local run instructions" }
-    ],
-    "gaps": [],
-    "blind_spots": []
+    "evidence": [{ "file": "[path]", "line": 0, "note": "[what it enables]" }],
+    "gaps": []
   },
   "locale_support": {
     "status": "yes",
     "confidence": "high",
-    "default_locale": "en",
-    "supported_locales": ["en"],
-    "detected_stacks": ["TypeScript"],
-    "localized_docs": ["README.ja-JP.md", "README.ko-KR.md"],
-    "label_catalogs": ["src/labels.json"],
-    "catalog_files": ["src/locales/en.json"],
-    "importers": [
-      { "file": "src/i18n/index.ts", "line": 3, "note": "imports locale JSON catalog" }
-    ],
-    "provider_files": ["src/i18n/index.ts"],
-    "dependencies_or_apis": [
-      { "name": "react-i18next", "language": "TypeScript", "evidence_file": "package.json" }
-    ],
-    "labels_or_copy": [
-      { "file": "src/labels.json", "line": 1, "note": "static UI label catalog" }
-    ],
+    "default_locale": "[en / UNKNOWN]",
+    "supported_locales": ["[en]", "[fr]"],
+    "detected_stacks": ["[TypeScript / Python / Java / Go / Ruby / PHP / .NET / Flutter / Swift / Kotlin / Scala]"],
+    "catalog_files": ["[src/locales/en.json / messages_en.properties / Localizable.strings / etc.]"],
+    "catalog_type": "[json / properties / po / mo / resx / arb / strings / xml]",
+    "i18n_library": "[react-i18next / next-intl / django.utils.translation / I18n.t / ResourceBundle / NSLocalizedString / etc. / NONE]",
+    "label_catalogs": ["[path to static label/copy JSON — or NONE]"],
+    "localized_docs": ["[README.ja-JP.md / etc. — or NONE]"],
+    "provider_files": ["[src/i18n/index.ts / etc.]"],
     "evidence": [
-      { "file": "src/locales/en.json", "line": 1, "note": "static translation catalog" }
+      { "file": "[path]", "line": 0, "note": "[catalog / library / config / provider]" }
     ],
-    "gaps": [],
-    "blind_spots": []
+    "gaps": ["[missing fallback locale / missing test coverage / etc. — or NONE]",
+             "[if status is NO: confirmed no locale evidence found]"]
   },
   "load_bearing": [
-    { "file": "src/db/client.ts", "fan_in": 12, "risk": 4.8 }
+    { "file": "[path]", "fan_in": 0, "risk": 0.0 }
   ],
   "hotspots": [
-    { "file": "src/db/client.ts", "risk": 4.8, "fan_in": 12, "lines": 380, "has_tests": false }
+    { "file": "[path]", "risk": 0.0, "fan_in": 0, "lines": 0, "has_tests": false }
   ],
   "file_index": [
     {
-      "path": "src/auth/service.ts",
-      "module": "Auth",
-      "fan_in": 8,
-      "fan_out": 3,
-      "risk": 4.2,
-      "has_tests": true,
-      "test_file": "src/auth/service.test.ts",
-      "exports": ["AuthService", "createToken"],
-      "imports": ["src/db/client.ts", "src/config.ts"],
+      "path": "[path]",
+      "module": "[Module]",
+      "fan_in": 0,
+      "fan_out": 0,
+      "risk": 0.0,
+      "has_tests": false,
+      "exports": ["[Symbol]"],
+      "imports": ["[path]"],
       "symbols": [
         {
-          "name": "AuthService",
-          "type": "class",
-          "line": 12,
-          "exported": true
-        },
-        {
-          "name": "AuthService.login",
+          "name": "[Symbol]",
           "type": "function",
-          "line": 24,
+          "line": 0,
           "exported": true,
-          "signature": "login(email: string, password: string): Promise<AuthToken>"
-        },
-        {
-          "name": "AuthService.register",
-          "type": "function",
-          "line": 45,
-          "exported": true,
-          "signature": "register(email: string, password: string, name: string): Promise<User>"
-        },
-        {
-          "name": "createToken",
-          "type": "function",
-          "line": 78,
-          "exported": true,
-          "signature": "createToken(userId: string): string"
+          "signature": "[signature]"
         }
       ]
     }
   ],
   "symbol_callers": {
-    "AuthService.login": [
-      { "file": "src/routes/auth.ts", "line": 45 },
-      { "file": "src/tests/auth.test.ts", "line": 8 }
-    ],
-    "AuthService.register": [
-      { "file": "src/routes/auth.ts", "line": 62 },
-      { "file": "src/tests/auth.test.ts", "line": 20 }
-    ],
-    "createToken": [
-      { "file": "src/auth/service.ts", "line": 31 },
-      { "file": "src/middleware/session.ts", "line": 18 }
+    "[Symbol.method]": [
+      { "file": "[path]", "line": 0 }
     ]
   },
-  "tech_stack": {
-    "language": "TypeScript",
-    "framework": "Express",
-    "test_framework": "Jest",
-    "orm": "Prisma",
-    "bundler": "esbuild"
-  },
-  "integrations": [
-    {
-      "name": "Stripe",
-      "type": "external_api",
-      "purpose": "payments",
-      "sdk_or_client": "stripe",
-      "env_contract": ["STRIPE_SECRET_KEY"],
-      "evidence": [{ "file": "src/payments/stripe.ts", "line": 1 }]
-    }
-  ],
-  "testing": {
-    "framework": "Jest",
-    "commands": ["npm test"],
-    "test_file_patterns": ["*.test.ts"],
-    "fixture_paths": ["test/fixtures"],
-    "gaps": []
-  },
-  "structure": {
-    "directories": [
-      { "path": "src/routes", "responsibility": "HTTP route handlers", "module": "API" }
-    ],
-    "entry_points": ["src/main.ts"],
-    "static_assets": ["public/"]
-  },
-  "map_documents": {
-    "MAP.md": { "purpose": "summary", "last_mapped_commit": "[sha]" },
-    "STACK.md": { "purpose": "tech stack", "last_mapped_commit": "[sha]" },
-    "STRUCTURE.md": { "purpose": "physical layout", "last_mapped_commit": "[sha]" },
-    "INTEGRATIONS.md": { "purpose": "external systems", "last_mapped_commit": "[sha]" },
-    "TESTING.md": { "purpose": "test profile", "last_mapped_commit": "[sha]" },
-    "CONCERNS.md": { "purpose": "risk and blind spots", "last_mapped_commit": "[sha]" }
-  },
   "security_surface": {
-    "auth_files": ["src/auth/middleware.ts"],
+    "auth_files": ["[path]"],
     "secret_ref_files": [],
     "dangerous_patterns": []
   },
   "schema": {
-    "orm": "Prisma",
-    "schema_file": "prisma/schema.prisma",
-    "migration_count": 5,
-    "last_migration": "20240101_add_users"
+    "orm": "[orm or null]",
+    "schema_file": "[path or null]",
+    "migration_count": 0
+  },
+  "testing": {
+    "framework": "[framework or NONE]",
+    "commands": ["[command]"],
+    "test_file_patterns": ["[pattern]"],
+    "gaps": []
+  },
+  "integrations": [],
+  "structure": {
+    "directories": [
+      { "path": "[path]", "responsibility": "[role]", "module": "[Module]" }
+    ],
+    "entry_points": ["[path]"],
+    "static_assets": []
+  },
+  "map_documents": {
+    "MAP.md": { "purpose": "summary" },
+    "STACK.md": { "purpose": "tech stack" },
+    "STRUCTURE.md": { "purpose": "physical layout" },
+    "INTEGRATIONS.md": { "purpose": "external systems" },
+    "TESTING.md": { "purpose": "test profile" },
+    "CONCERNS.md": { "purpose": "risk and blind spots" },
+    "FEATURES.md": { "purpose": "feature inventory" },
+    "GRAPH.md": { "purpose": "import graph" },
+    "PATTERNS.md": { "purpose": "code conventions" },
+    "HOTSPOTS.md": { "purpose": "high-risk files" }
   },
   "drift_baseline": {
-    "recorded_at": "[ISO date]",
+    "recorded_at": "[ISO datetime]",
     "last_mapped_commit": "[git HEAD sha or unknown]",
-    "structure_paths": ["src/", "app/", "packages/ui/"],
-    "drift_categories": ["new_dir", "route", "migration", "barrel", "dependency", "integration", "test", "copy_locale"],
-    "file_hashes": {
-      "prisma/schema.prisma": "[sha256]",
-      "src/db/schema.ts": "[sha256]"
-    }
+    "structure_paths": ["src/", "app/"],
+    "file_hashes": {},
+    "module_file_counts": {},
+    "load_bearing_exports": {}
   }
 }
 ```
 
-**Usage by other commands:**
-- `/buildflow-modify` reads `file_index[].symbols` + `symbol_callers` to trace impact at function level — shows exactly which lines call a changing function
-- `/buildflow-spec` and `/buildflow-plan` read `features[]`, `local_support`, and `locale_support` to avoid re-specing shipped capabilities and to preserve local/dev/i18n support during changes
-- `/buildflow-modify` falls back to file-level `file_index` fan-in/fan-out if intel.json predates symbol tracking (built before this GAP-H version)
-- `/buildflow-build` reads `hotspots` to warn before touching high-risk files
-- `/buildflow-check` reads `schema.drift_baseline` to detect schema file changes
-- `/buildflow-start` reads `tech_stack` to populate context packet fields
-- `/buildflow-onboard --query` searches `intel.json` plus all `.buildflow/codebase/*.md` files for terms without loading the whole source tree
-- `/buildflow-build` and `/buildflow-check` use `STRUCTURE.md` + frontmatter `last_mapped_commit` to warn about structural drift and suggest scoped remaps
+---
 
-Update `intel.json` on every `--update` or `--paths` run, not just full re-onboards.
+## Step 13: Secret Scan
 
-### Secret Scan Generated Maps
-
-Before declaring onboarding complete, scan generated map files for likely secrets:
+Before declaring complete, scan generated files for accidentally included secrets:
 
 ```bash
-grep -E "(sk-[a-zA-Z0-9]{20,}|sk_live_[a-zA-Z0-9]+|ghp_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9_-]+|AKIA[A-Z0-9]{16}|xox[baprs]-[a-zA-Z0-9-]+|-----BEGIN.*PRIVATE KEY|eyJ[a-zA-Z0-9_-]+\\.eyJ[a-zA-Z0-9_-]+\\.)" .buildflow/codebase/*.md .buildflow/codebase/intel.json 2>/dev/null
+grep -E "(sk-[a-zA-Z0-9]{20,}|sk_live_[a-zA-Z0-9]+|ghp_[a-zA-Z0-9]{36}|AKIA[A-Z0-9]{16}|-----BEGIN.*PRIVATE KEY|eyJ[a-zA-Z0-9_-]+\.eyJ)" .buildflow/codebase/*.md .buildflow/codebase/intel.json 2>/dev/null
 ```
 
-If matches are found, stop and show the file/line references. Do not include secret values in summaries. Ask the user to confirm false positive or redact before continuing.
+If matches found: stop, show file:line references, ask user to confirm false positive or redact.
 
 ---
 
-## Step 10: Drift Baseline
+## Step 14: Update Memory
 
-After onboarding (and after every `--update`), record a drift baseline in `intel.json` under `drift_baseline`:
-
-1. Hash all schema-defining files: `schema.prisma`, `*.entity.ts`, `models.py`, `schema.sql`
-2. Record file count per module
-3. Record the set of exported **symbols** per load-bearing file (function names and signatures, not just file names) — this is the symbol-level drift baseline
-
-This baseline is read by `/buildflow-start` at every session to detect silent drift.
-
-```json
-"drift_baseline": {
-  "recorded_at": "[ISO date]",
-  "file_hashes": {
-    "prisma/schema.prisma": "[sha256 of file content]"
-  },
-  "module_file_counts": {
-    "Auth": 4,
-    "Database": 2
-  },
-  "load_bearing_exports": {
-    "src/db/client.ts": {
-      "symbols": ["DBClient", "QueryBuilder", "runMigration"],
-      "signatures": {
-        "DBClient.query": "query(sql: string, params?: any[]): Promise<Row[]>",
-        "QueryBuilder.select": "select(table: string): QueryBuilder"
-      }
-    }
-  }
-}
-```
-
-**Drift signals from symbol-level baseline (detected by `/buildflow-start`):**
-- New symbol added to a load-bearing file → INFO (new export, check callers)
-- Symbol removed from a load-bearing file → WARN (callers may break)
-- Signature changed for a load-bearing symbol → WARN (callers likely need updates)
-
-These signals surface silent API breakage before build failures happen.
-
----
-
-## Step 11: Update Memory
+Update `.buildflow/memory/light.md`:
 ```yaml
 onboarded: true
 onboarded_date: [today]
@@ -1010,44 +944,78 @@ file_count: [N]
 module_count: [N]
 load_bearing_files: [N]
 hotspot_count: [N]
-codebase_summary: [2-line summary]
+codebase_summary: [2-line summary of what this codebase does]
 intel_index: .buildflow/codebase/intel.json
 ```
 
 ---
 
-## Step 12: Onboarding Summary
-Report:
+## Step 15: Output Verification (MANDATORY)
+
+Before printing the completion summary, verify every required file exists and is non-empty:
+
+```bash
+ls -la .buildflow/codebase/
+```
+
+Check for each file in the OUTPUT CONTRACT:
+- MAP.md ✓ / ✗
+- STACK.md ✓ / ✗
+- STRUCTURE.md ✓ / ✗
+- PATTERNS.md ✓ / ✗
+- FEATURES.md ✓ / ✗
+- GRAPH.md ✓ / ✗
+- HOTSPOTS.md ✓ / ✗
+- DEPENDENCIES.md ✓ / ✗
+- CONCERNS.md ✓ / ✗
+- TESTING.md ✓ / ✗
+- intel.json ✓ / ✗
+
+**If any file is missing or empty: write it now.** Do not print "Onboarding Complete" if any file is missing.
+
+---
+
+## Step 16: Completion Summary
+
 ```
 Onboarding Complete
 ───────────────────
 Files analyzed:      [N]
 Modules identified:  [N]
+Features mapped:     [N]  ([N] implemented, [N] partial, [N] docs-only)
 Load-bearing files:  [N]  (fan-in ≥ 5)
-High-risk hotspots:  [N]  (risk score ≥ 3.5)
-Boundary violations: [N]  (files importing across module lines)
+High-risk hotspots:  [N]  (risk ≥ 3.5)
 Test coverage est.:  [N]% (files with co-located tests)
-Patterns captured:   [N]
+Local support:       YES / PARTIAL / NO
+Locale support:      YES / PARTIAL / NO
+
+Knowledge files written:
+  .buildflow/codebase/MAP.md
+  .buildflow/codebase/STACK.md
+  .buildflow/codebase/STRUCTURE.md
+  .buildflow/codebase/PATTERNS.md
+  .buildflow/codebase/FEATURES.md
+  .buildflow/codebase/GRAPH.md
+  .buildflow/codebase/HOTSPOTS.md
+  .buildflow/codebase/DEPENDENCIES.md
+  .buildflow/codebase/CONCERNS.md
+  .buildflow/codebase/TESTING.md
+  .buildflow/codebase/intel.json
 
 ⚠ Caution zones: [top 3 highest-risk files]
 ✓ Safe to modify:  [modules with low risk scores]
-
-Next steps:
-  /buildflow-modify  — make targeted changes
-  /buildflow-spec    — define a new phase
-  /buildflow-refactor — improve code quality
 ```
 
-## Token cost report (print at end of onboard)
+## Token cost report
 
 Measure actual cost before printing:
-1. Sum character counts of all files read during onboarding ÷ 4 = input tokens
-2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+1. Sum character counts of all source files read during onboarding ÷ 4 = input tokens
+2. Sum character counts of all files written ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used`
 
 Default output (minimal):
 ```
-Onboard complete — [N] files · [N] modules · [N] hotspots · intel.json written
+Onboard complete — [N] files · [N] modules · [N] hotspots · 11 knowledge files written
 Session: ~[N]K tokens
 ```
 
@@ -1055,9 +1023,9 @@ Verbose output (only if `verbose_context: true` in preferences.md):
 ```
 Token Cost — /buildflow-onboard
 ────────────────────────────────
-Files analyzed: [N]  Modules: [N]  Hotspots: [N]  Lenses: 5
-Context loaded:    ~[N]K tokens   ([N] source files scanned)
-Output generated:  ~[N]K tokens   (MAP.md + STACK.md + STRUCTURE.md + INTEGRATIONS.md + TESTING.md + CONCERNS.md + GRAPH.md + FEATURES.md + intel.json + HOTSPOTS.md)
+Files analyzed: [N]  Modules: [N]  Hotspots: [N]
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens  (MAP.md + STACK.md + STRUCTURE.md + PATTERNS.md + FEATURES.md + GRAPH.md + HOTSPOTS.md + DEPENDENCIES.md + CONCERNS.md + TESTING.md + intel.json)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
@@ -1068,29 +1036,10 @@ Update `light.md`: `last_onboard_tokens: ~[N]K`
 
 ```
 ──────────────────────────────────────────────────
-→ Next:  /buildflow-modify  (or /buildflow-plan if starting a new phase)
-   Why:  Codebase is now indexed — surgical changes have full impact tracing
+→ Next:  /buildflow-spec  (or /buildflow-modify for a targeted change)
+   Why:  Codebase is now fully indexed — spec your next phase or make surgical changes with full impact tracing
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```
-
-If this is a first-time onboard on an existing project: `→ Next: /buildflow-spec` to define what to build next.
-
-## Acceptance Criteria for Onboarding Quality
-
-Before declaring onboarding complete, verify:
-- `FEATURES.md` exists and lists at least every route/screen/CLI command/workflow discovered in Lens E.
-- `FEATURES.md` has a `## Local Support` section with status YES/PARTIAL/NO and evidence.
-- `FEATURES.md` has a `## Locale Support` section when locale catalogs, i18n imports, or translation JSON files are present.
-- `STACK.md`, `STRUCTURE.md`, `INTEGRATIONS.md`, `TESTING.md`, and `CONCERNS.md` exist with non-empty sections and YAML frontmatter.
-- `intel.json.features[]` is non-empty unless the repo is a pure library; if pure library, explain why.
-- `intel.json.local_support.status` is present.
-- `intel.json.locale_support.status` is present when locale/i18n evidence exists.
-- `intel.json.map_documents`, `structure`, `integrations`, and `testing` are present.
-- Every feature has at least one evidence path or is explicitly marked `documented_missing`.
-- MAP.md includes a Feature Inventory Summary.
-- Secret scan over generated map files passed or user confirmed false positives.
-
-If any item is missing, do not say "Onboarding Complete." Fix the map first.
 
 ## Token Budget: ~45K (one-time — pays back on every subsequent session)

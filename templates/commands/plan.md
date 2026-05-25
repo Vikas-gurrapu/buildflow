@@ -351,7 +351,7 @@ When `--strict` is active:
 ---
 
 ## Step 8: Write Plan
-Write `.buildflow/phases/[N]/PLAN.md`:
+Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Create the directory first if needed. Do not output the plan as text — write it to disk.
 
 ```markdown
 # Phase [N] Plan

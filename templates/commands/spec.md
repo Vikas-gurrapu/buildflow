@@ -80,7 +80,7 @@ Ask only what vision.md left unanswered. Max 5 questions:
 ---
 
 ## Step 3: Generate PRD
-Write `.buildflow/specs/PRD.md`:
+Use the **Write tool** to create `.buildflow/specs/PRD.md`. Do not output the content as text — write it to disk. Create `.buildflow/specs/` directory first if it doesn't exist.
 
 ```markdown
 # Product Requirements Document
@@ -123,7 +123,7 @@ Write `.buildflow/specs/PRD.md`:
 ---
 
 ## Step 4: Generate TDD
-Write `.buildflow/specs/TDD.md`:
+Use the **Write tool** to create `.buildflow/specs/TDD.md`. Do not output the content as text — write it to disk.
 
 If `PATTERNS.md` exists: components and API shapes must follow existing conventions.
 
@@ -178,7 +178,7 @@ All errors follow:
 ---
 
 ## Step 5: Generate Acceptance Criteria
-Write `.buildflow/specs/acceptance.md`:
+Use the **Write tool** to create `.buildflow/specs/acceptance.md`. Do not output the content as text — write it to disk.
 
 **Rules for every AC:**
 - Binary — pass or fail only, no partial credit

@@ -107,8 +107,8 @@ Check if `.buildflow/codebase/MAP.md` exists.
 - If YES: Load MAP.md summary only (not full file). Ask about goals for this session.
 
 ## Step 3: Save Vision
-Write to `.buildflow/core/vision.md`.
-Initialize `light.md` with:
+Use the **Write tool** to create `.buildflow/core/vision.md` — do not just output the content as text, write it to disk.
+Use the **Write tool** to create or update `.buildflow/memory/light.md` with:
 ```yaml
 app_name: [name]
 framework: [detected or stated]
