@@ -544,4 +544,19 @@ Session total:     ~[N]K tokens   (since [session_start])
 
 Update `light.md`: `last_ship_tokens: ~[N]K`
 
+## Guided Next Step
+
+The post-ship advisor (Step 6b) already surfaced the top suggestion. Close with:
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-spec "[suggested phase name]"
+   Why:  Phase [N] shipped ✓ — start defining what to build next
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+Use the suggested phase name from the post-ship advisor output as the argument.
+If debt > 5 items: `Or: /buildflow-think --debt` (address tech debt before next feature).
+
 ## Token Budget: ~26K (gates) / ~40K (with post-ship market research in Step 6b)

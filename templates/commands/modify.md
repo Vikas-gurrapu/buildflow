@@ -269,4 +269,41 @@ impact_level: [direct/level1/level2]
 Runs Steps 1–5 only. Shows full impact analysis and contract changes without modifying any file.
 Use this before a risky change to understand blast radius first.
 
+## Token cost report (print at end of modify)
+
+Measure actual cost before printing:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output from text generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
+Default output (minimal):
+```
+Modify complete — [description] · [N] files changed · impact: [direct/level1/level2]
+Session: ~[N]K tokens
+```
+
+Verbose output (only if `verbose_context: true` in preferences.md):
+```
+Token Cost — /buildflow-modify
+────────────────────────────────
+Analysis mode: [symbol-level / file-level fallback]
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+```
+
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-check
+   Why:  Change applied — verify spec compliance and no regressions
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If this was a `--dry-run`: `→ Next: /buildflow-modify` (re-run without --dry-run to apply the change).
+If impact level was high (level2 or deeper): `→ Next: /buildflow-test` (targeted test run before full check).
+
 ## Token Budget: ~30K (more if impact chain is deep)

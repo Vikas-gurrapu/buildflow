@@ -142,4 +142,41 @@ Time: fast-path (no planning)
 
 If no test coverage existed: "⚠ No test covers this area. Consider adding one."
 
+## Token cost report (print at end of hotfix)
+
+Measure actual cost before printing:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output from text generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
+Default output (minimal):
+```
+Hotfix complete — [description] · [N] files changed
+Session: ~[N]K tokens
+```
+
+Verbose output (only if `verbose_context: true` in preferences.md):
+```
+Token Cost — /buildflow-hotfix
+────────────────────────────────
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+```
+
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-check
+   Why:  Hotfix applied — verify no regressions before resuming normal workflow
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If the hotfix was in a shipped phase: `→ Next: /buildflow-ship` (re-tag the fixed version).
+
+## Token Budget: ~10K
+
 ## Token Budget: ~10K

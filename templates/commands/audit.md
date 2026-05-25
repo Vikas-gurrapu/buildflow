@@ -150,6 +150,41 @@ ship_safe: true/false
 - 🟠 Medium: Moderate risk, fix this sprint
 - 🔵 Low: Minor, fix when nearby
 
+## Token cost report (print at end of audit)
+
+Measure actual cost before printing:
+1. Sum character counts of all files scanned ÷ 4 = input tokens
+2. Estimate output ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used`
+
+Default output (minimal):
+```
+Audit complete — [N] critical · [N] high · [N] medium · ship_safe: [yes/no]
+Session: ~[N]K tokens
+```
+
+Verbose (only if `verbose_context: true`):
+```
+Token Cost — /buildflow-audit
+──────────────────────────────
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+```
+
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-ship
+   Why:  Audit passed — all gates clear, ready to ship
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If critical/high findings: `→ Next: fix [finding] in [file], then re-run /buildflow-audit`.
+
 ## Token Budget
 - Full audit: ~30-40K
 - Quick audit: ~15K

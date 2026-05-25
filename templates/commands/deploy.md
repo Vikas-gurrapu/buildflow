@@ -146,4 +146,40 @@ docker_image: [registry/app_name:tag if Docker deploy]
 ## --dry-run Flag
 Shows the pre-flight checklist results and what deploy command would run — without deploying.
 
+## Token cost report (print at end of deploy)
+
+Measure actual cost before printing:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used`
+
+Default output (minimal):
+```
+Deployed — Phase [N] → [environment] · [url if available]
+Session: ~[N]K tokens
+```
+
+Verbose (only if `verbose_context: true`):
+```
+Token Cost — /buildflow-deploy
+──────────────────────────────
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+```
+
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-spec "[next phase name]"
+   Why:  Phase [N] is live — start the next phase with a fresh spec
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If deployed to staging only: `→ Next: /buildflow-deploy production` (promote after smoke-test).
+If deploy failed: `→ Next: /buildflow-debug` (diagnose the failure, check deploy logs).
+
 ## Token Budget: ~15K

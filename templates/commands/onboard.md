@@ -562,6 +562,13 @@ Measure actual cost before printing:
 2. Estimate output from text generated ÷ 4 = output tokens
 3. Update `state.md → session_tokens_used` by adding this command's cost
 
+Default output (minimal):
+```
+Onboard complete — [N] files · [N] modules · [N] hotspots · intel.json written
+Session: ~[N]K tokens
+```
+
+Verbose output (only if `verbose_context: true` in preferences.md):
 ```
 Token Cost — /buildflow-onboard
 ────────────────────────────────
@@ -570,10 +577,20 @@ Context loaded:    ~[N]K tokens   ([N] source files scanned)
 Output generated:  ~[N]K tokens   (MAP.md + GRAPH.md + intel.json + HOTSPOTS.md)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
-
-intel.json written to .buildflow/codebase/intel.json
 ```
 
 Update `light.md`: `last_onboard_tokens: ~[N]K`
+
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-modify  (or /buildflow-plan if starting a new phase)
+   Why:  Codebase is now indexed — surgical changes have full impact tracing
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If this is a first-time onboard on an existing project: `→ Next: /buildflow-spec` to define what to build next.
 
 ## Token Budget: ~40K (one-time — pays back on every subsequent session)

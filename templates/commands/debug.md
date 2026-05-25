@@ -65,4 +65,40 @@ git stash  # safe fallback before making changes
 - Add a test that would have caught this bug
 - Note the fix in `.buildflow/learnings/decisions.md` if it reveals a systemic issue
 
+## Token cost report (print at end of debug)
+
+Measure actual cost before printing:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output from text generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
+Default output (minimal):
+```
+Debug complete — root cause: [description] · fix applied: [yes/no]
+Session: ~[N]K tokens
+```
+
+Verbose output (only if `verbose_context: true` in preferences.md):
+```
+Token Cost — /buildflow-debug
+──────────────────────────────
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+```
+
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-test
+   Why:  Fix applied — re-run tests to confirm the root cause is resolved
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If root cause could not be isolated: `→ Next: /buildflow-debug` (re-run with a narrower hypothesis).
+If the bug traced to a spec gap: `→ Next: /buildflow-spec --review` (amend the AC before proceeding).
+
 ## Token Budget: ~20K

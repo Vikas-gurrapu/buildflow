@@ -359,4 +359,16 @@ Session total:     ~[N]K tokens   (since [session_start])
 ```
 Update `light.md`: `last_plan_tokens: ~[N]K`
 
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-build
+   Why:  Plan is ready — execute wave 1 of [N] waves ([N] tasks)
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If engineering review flagged HARD blockers that were not resolved: `→ Next: resolve the HARD blockers listed above, then re-run /buildflow-plan`.
+
 ## Token Budget: ~22K

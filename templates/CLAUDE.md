@@ -15,10 +15,10 @@ Before doing anything else at the start of every session:
      Then display the contents of UPDATE.md.
    - If the file does not exist, proceed silently.
 
-2. **Prune memory** — read `.buildflow/memory/light.md`. If over 3K tokens, prune it:
+2. **Prune memory** — read `.buildflow/memory/light.md`. If over 3K tokens, prune it silently:
    - Archive phase task lists and build timestamps to `phases/[last phase]/retro.md`
    - Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
-   - Report: "Context pruned: light.md [X] → [Y] tokens"
+   - Do NOT report this to the user unless `verbose_context: true` in `preferences.md`. Context management is invisible by default.
 
 3. **Load state** — read `.buildflow/core/state.md` for current phase and status
 
@@ -80,13 +80,35 @@ Before doing anything else at the start of every session:
 ## Core Rules
 
 - Each agent receives a **minimal context packet** — only what it needs, nothing else
-- `light.md` must stay under 3K tokens — prune at session start if over
+- `light.md` must stay under 3K tokens — prune silently at session start if over
 - Ask confidence (1-5) before locking major decisions
 - Run `/buildflow-spec` before `/buildflow-plan` — no spec, no plan
 - `/buildflow-ship` blocks if any Acceptance Criterion is unsatisfied
 - Create restore points before destructive operations (git stash OR file snapshot — see no-git mode)
 - Run `/buildflow-audit` before every `/buildflow-ship`
 - No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
+
+## Guided Mode
+
+**Every command ends with a `→ Next step:` block** — one specific, actionable recommendation based on current state. This is not optional and not a lookup table. It is a single instruction the developer can follow immediately without thinking.
+
+Format (printed as the very last thing before the token line):
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-[command] [args if needed]
+   Why:  [one sentence — what this will do for you right now]
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If multiple valid paths exist (e.g., fix an AC vs ship anyway): show the recommended path first with `→ Next:`, then show the alternative as `   Or:`.
+
+Context management events (pruning, drift detection, token accumulation) are **never surfaced** unless they require action. The developer should never think about `light.md`.
+
+The only context events that surface:
+- `⚠ Onboard data may be stale` — when a load-bearing file or schema changed since last onboard
+- `⚠ light.md is near limit` — only when pruning cannot be done silently (manual decision needed)
+- Update available notification
 
 ## Token Cost Tracking
 
@@ -99,22 +121,30 @@ Every command measures and reports its actual token usage at the end:
 4. **Add to running total** in `state.md → session_tokens_used`
 5. Print the cost report at command end
 
-**Token cost report format (used by all commands):**
+**Token cost report format — two modes:**
+
+**Default (minimal — one line):**
+```
+Session: ~[N]K tokens used this session
+```
+
+**Verbose (only if `verbose_context: true` in preferences.md):**
 ```
 Token Cost — /buildflow-[command]
 ──────────────────────────────────
-Context loaded: ~[N]K tokens   ([list of files with char counts])
-Output generated: ~[N]K tokens
-This command: ~[N]K tokens
-Session total: ~[N]K tokens   (since [session_start])
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
 ```
 
-**Why this is accurate:**
-- Context loading is the dominant cost. Measuring actual loaded file sizes gives real numbers, not guesses.
-- Output estimation (chars ÷ 4) is accurate to ±10% for prose and code.
-- Session total accumulates across all commands — you see total spend for the session.
+The session line is always shown at the end of every command output — a single number, not a breakdown. The full breakdown is available any time via `/buildflow-status`.
 
-**To check session total at any time:** `/buildflow-status` shows `Session tokens: ~[N]K` from state.md.
+**Why minimal is the default:**
+- Developers care that costs are measured, not that they read them after every command.
+- The number is always there when they want it. It is never in their way when they don't.
+
+**To check session total at any time:** `/buildflow-status` shows full token spend breakdown.
 
 ## Agents
 

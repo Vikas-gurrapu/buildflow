@@ -194,4 +194,40 @@ Verdict: FEASIBLE / RISKY / OVER-SCOPED
 
 ---
 
+## Token cost report (print at end of think)
+
+Measure actual cost before printing:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used`
+
+Default output (minimal):
+```
+Think complete — [topic] · verdict: [FEASIBLE/RISKY/OVER-SCOPED]
+Session: ~[N]K tokens
+```
+
+Verbose (only if `verbose_context: true`):
+```
+Token Cost — /buildflow-think
+──────────────────────────────
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+```
+
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-spec
+   Why:  Research complete — translate findings into spec ACs and constraints
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If verdict is OVER-SCOPED: `→ Next: /buildflow-start` (revise the vision scope before speccing).
+If this was `--arch`: `→ Next: /buildflow-plan` (architecture decided — ready to plan implementation).
+
 ## Token Budget: ~30K (standard) / ~35K (--arch or --build-vs-buy) / ~20K (--debt or --complexity)

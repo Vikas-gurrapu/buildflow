@@ -410,6 +410,13 @@ Measure actual cost:
 2. Estimate output from PRD.md + TDD.md + acceptance.md generated ÷ 4 = output tokens
 3. Update `state.md → session_tokens_used` by adding this command's cost
 
+Default output (minimal):
+```
+Spec locked — Phase [N] v[N]  ·  [N] ACs  ·  [N] revision cycles
+Session: ~[N]K tokens
+```
+
+Verbose output (only if `verbose_context: true` in preferences.md):
 ```
 Token Cost — /buildflow-spec
 ─────────────────────────────
@@ -421,5 +428,20 @@ This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
 Update `light.md`: `last_spec_tokens: ~[N]K`
+
+## Guided Next Step
+
+After printing the token line, always close with:
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-plan
+   Why:  Your spec is locked — translate it into an executable wave plan
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If spec is NOT locked yet (still in review): `→ Next: /buildflow-spec` (continue review and lock).
+If spec was amended and plan is now stale: `→ Next: /buildflow-plan` (regenerate plan against new spec version).
 
 ## Token Budget: ~20K (full) / ~8K (--fast)

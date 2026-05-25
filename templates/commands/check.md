@@ -268,4 +268,18 @@ This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
 
+## Guided Next Step
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-ship
+   Why:  All [N] ACs passing, no blockers — ready to run ship gates
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If any AC failed: `→ Next: /buildflow-build` to fix the failing tasks (specify which wave).
+If schema drift detected: `→ Next: resolve schema drift (run pending migrations or add migration file), then re-run /buildflow-check`.
+If spec coverage below threshold and no exception recorded: the smart prompt in Step 4c already captured user decision — next step is whatever was chosen.
+
 ## Token Budget: ~26K (includes schema drift + coverage traceability)

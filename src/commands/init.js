@@ -478,6 +478,15 @@ token_tracking:
   enabled:          true    # Track token usage per command and session
   report_at_end:    true    # Print token cost at end of each command
   session_running_total: true  # Accumulate session total in state.md
+
+verbose_context: false
+# false (default) — context management is invisible:
+#   • light.md pruning happens silently, no report shown
+#   • Token cost shows as one line: "Session: ~NK tokens"
+#   • Drift detection only surfaces actionable warnings
+# true — show full detail:
+#   • "Context pruned: light.md X → Y tokens" reported
+#   • Full token breakdown per command (context/output/this/total)
 \`\`\`
 
 ---

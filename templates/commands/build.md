@@ -831,4 +831,20 @@ Session total:     ~[N]K tokens   (since [session_start])
 
 ---
 
+## Guided Next Step
+
+After all waves complete:
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-check
+   Why:  All waves complete — verify every AC is satisfied before shipping
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If a wave failed and stopped: `→ Next: /buildflow-debug` (root-cause before retrying).
+If all waves complete but tests are borderline: `→ Next: /buildflow-check` (check will surface what needs fixing).
+
+After each individual wave (not final): print only the session token line — no next step until all waves are done.
+
 ## Token Budget: ~50K per wave (context packets keep individual Builder costs low)

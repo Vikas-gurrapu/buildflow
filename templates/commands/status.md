@@ -136,21 +136,26 @@ Token costs are measured from actual loaded file sizes (chars ÷ 4) + generated 
 
 ---
 
-## Step 6: Recommended Next Action
+## Step 6: Next Step (always shown last, always prominent)
 
-| Situation | Next command |
-|-----------|-------------|
-| No spec | `/buildflow-spec` |
-| Spec draft, not locked | `/buildflow-spec` (continue review) |
-| Spec locked, no plan | `/buildflow-plan` |
-| Plan ready, not built | `/buildflow-build` |
-| Build in progress | `/buildflow-build wave-[N]` (continue) |
-| All waves done, not checked | `/buildflow-check` |
-| Check passed | `/buildflow-ship` |
-| Shipped, no next spec | `/buildflow-help next` — discover what to build |
-| Debt > 4 items | `/buildflow-think --debt` before next feature |
-| Tests failing | `/buildflow-debug` |
-| Coverage dropping | `/buildflow-test` + fix uncovered functions |
+Determine the single most valuable next action from the state loaded in Steps 1–5. Print it as:
+
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-[command] [args if needed]
+   Why:  [one sentence — what this does right now]
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+If there is a blocking issue (failing tests, schema drift, AC failures), the next step addresses the blocker — not the normal workflow step.
+
+If debt > 4 items and user is about to start a new spec: add a second line:
+```
+   Or:   /buildflow-think --debt  (address [N] open debt items first)
+```
+
+Never show a table. One recommendation. One sentence of why. That's it.
 
 ---
 

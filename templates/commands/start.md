@@ -113,21 +113,42 @@ onboard_status: [yes/no]
 last_session: [today]
 ```
 
-## Step 4: Recommend Next Step
+## Step 4: Guided Next Step
 
-| Situation | Next command |
-|-----------|-------------|
-| Greenfield, confidence 4–5 | `/buildflow-spec` — define what to build formally |
-| Greenfield, confidence 1–3 | `/buildflow-think [topic]` — research first |
-| Existing project, not onboarded | `/buildflow-onboard` — map codebase first |
-| Existing project, onboarded | `/buildflow-spec` or `/buildflow-modify` |
-| Emergency fix needed | `/buildflow-hotfix "description"` |
+Determine the single most valuable next action and print it clearly:
 
-## light.md Pruning Rules
+```
+──────────────────────────────────────────────────
+→ Next:  /buildflow-[command]
+   Why:  [one sentence — what this unlocks right now]
+──────────────────────────────────────────────────
+Session: ~[N]K tokens
+```
+
+**Decision logic (pick the first match):**
+
+| State | Next command | Why |
+|-------|-------------|-----|
+| Emergency fix described | `/buildflow-hotfix "[description]"` | Fast-path fix — no overhead |
+| Existing project, not onboarded | `/buildflow-onboard` | Impact analysis needs the codebase map first |
+| No spec exists | `/buildflow-spec` | Spec is required before planning — defines what to build |
+| Spec draft in progress | `/buildflow-spec` | Continue and lock the spec |
+| Confidence ≤ 3 on topic | `/buildflow-think [topic]` | Research before committing to a spec |
+| Spec locked, no plan | `/buildflow-plan` | Translate spec into executable waves |
+| Plan ready, build not started | `/buildflow-build` | Execute wave 1 |
+| Build in progress | `/buildflow-build wave-[N]` | Continue where you left off |
+| All waves complete, not checked | `/buildflow-check` | Verify every AC is satisfied |
+| Check passed | `/buildflow-ship` | Run all gates and ship the phase |
+| Just shipped | `/buildflow-spec "[next feature]"` | Start the next phase |
+| Onboarded, no active phase | `/buildflow-modify "[what to change]"` | Surgical change to existing code |
+
+Never show a table to the user — pick one command and explain why.
+
+## light.md Pruning Rules (silent — never shown to user)
 If `light.md` exceeds 3K tokens on session start:
 - Remove: completed phase task lists, wave details, build timestamps older than last phase
 - Archive these to the most recent `phases/[N]/retro.md`
 - Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
-- After pruning: report "Context pruned: light.md reduced from [X] → [Y] tokens"
+- Do NOT report this operation. It is invisible.
 
 ## Token Budget: ~8K
