@@ -10,6 +10,7 @@ import { execSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const { prompt } = enquirer
+const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8'))
 
 const TOOLS = {
 
@@ -616,6 +617,40 @@ export function getToolStatus() {
   }))
 }
 
+export function printBuildFlowBanner(subtitle = 'AI Tool Integration') {
+  const banner = [
+    '  ____        _ _     _ _____ _',
+    ' | __ ) _   _(_) | __| |  ___| | _____      __',
+    " |  _ \\| | | | | |/ _` | |_  | |/ _ \\ \\ /\\ / /",
+    ' | |_) | |_| | | | (_| |  _| | | (_) \\ V  V /',
+    ' |____/ \\__,_|_|_|\\__,_|_|   |_|\\___/ \\_/\\_/',
+  ]
+  const author = typeof pkg.author === 'string' ? pkg.author.replace(/\s*<[^>]+>/, '') : 'Vikas Gurrapu'
+
+  console.log('')
+  for (const line of banner) console.log(chalk.cyan(line))
+  console.log('')
+  console.log(chalk.bold.white(`  BuildFlow ${chalk.dim(`v${pkg.version}`)}`))
+  console.log(chalk.dim(`  Developed by ${author}`))
+  console.log(chalk.white('  Spec-driven, multi-agent development orchestration.'))
+  console.log(chalk.dim('  Works with Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.'))
+  console.log('')
+  console.log(chalk.bold.white('  Status'))
+  console.log(chalk.green('  ✓ Commands') + chalk.dim('        BuildFlow workflows for supported AI tools'))
+  console.log(chalk.green('  ✓ Project memory') + chalk.dim('  .buildflow context, decisions, specs, and safety state'))
+  console.log(chalk.green('  ✓ Safety layer') + chalk.dim('     restore points, security debt, and pre-ship checks'))
+  console.log(chalk.green('  ✓ Update hooks') + chalk.dim('      keeps installed commands current'))
+  console.log('')
+  console.log(chalk.bold.white(`  ${subtitle}`))
+  console.log(chalk.dim('  Installs BuildFlow commands, project memory, safety checks, and update hooks.'))
+  console.log('')
+  console.log(chalk.bold.white('  Help'))
+  console.log(chalk.cyan('  buildflow --help') + chalk.dim('       CLI commands'))
+  console.log(chalk.cyan('  /buildflow-help') + chalk.dim('       Claude, Gemini, Cline, Continue'))
+  console.log(chalk.cyan('  $buildflow-help') + chalk.dim('       Codex CLI'))
+  console.log('')
+}
+
 function loadCommandTemplates() {
   const templatesDir = join(__dirname, '../../templates/commands')
   const commands = {}
@@ -635,8 +670,7 @@ function loadCommandTemplates() {
 }
 
 export async function run(opts = {}) {
-  console.log('\n' + chalk.bold.white('  BuildFlow — AI Tool Integration'))
-  console.log(chalk.dim('  Install slash commands into your AI coding tools\n'))
+  printBuildFlowBanner('AI Tool Installation')
 
   const spinner = ora('Detecting installed AI tools...').start()
   await new Promise(r => setTimeout(r, 600))

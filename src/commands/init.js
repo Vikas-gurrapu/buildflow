@@ -4,7 +4,7 @@ import enquirer from 'enquirer'
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { execSync } from 'child_process'
-import { run as runInstall, registerProject } from './install.js'
+import { run as runInstall, registerProject, printBuildFlowBanner } from './install.js'
 
 const { prompt } = enquirer
 
@@ -788,7 +788,7 @@ function ensureGit() {
 }
 
 export async function run(opts = {}) {
-  console.log('\n' + chalk.bold.white('  BuildFlow v3.0 — Project Setup') + '\n')
+  printBuildFlowBanner('Project Setup')
 
   const spinner = ora('Analyzing project...').start()
   const projectInfo = detectProjectInfo()
