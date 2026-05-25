@@ -80,7 +80,7 @@ function scaffoldBuildflow(appName, projectInfo) {
   const dirs = [
     'core', 'you', 'memory', 'phases',
     'learnings', 'research', 'codebase',
-    'specs',
+    'specs', 'snapshots',
     'security/reports', 'security/rules',
     'security/suppressions',
   ]
@@ -283,9 +283,25 @@ learning:
 
 \`\`\`yaml
 safety:
-  enable_undo:     true   # /buildflow-back restores to git checkpoints
-  restore_points:  true   # Auto-commit before destructive operations
+  enable_undo:     true   # /buildflow-back restores to restore points
+  restore_points:  true   # Auto-snapshot before destructive operations
 \`\`\`
+
+---
+
+## Git Permissions
+
+\`\`\`yaml
+git:
+  permission:   ${projectInfo.gitPermission || 'approved'}   # approved | denied | denied_permanent | unavailable
+  # approved          — BuildFlow uses git for commits, tags, restore points
+  # denied            — using file snapshots; can re-enable with /buildflow-help git-enable
+  # denied_permanent  — always use file snapshots, never ask again
+  # unavailable       — git not installed on this system
+\`\`\`
+
+To change: edit \`permission\` above and restart your AI session.
+To enable git after denying: set \`permission: approved\` and ensure git is installed.
 
 ---
 
@@ -332,13 +348,16 @@ security:
 ## Session Data
 
 \`\`\`yaml
-app:          ${appName}
-type:         ${projectInfo.projectType}
-framework:    ${projectInfo.framework}
-phase:        0
-last_session: ${today}
-buildflow:    3.0
-onboarded:    ${projectInfo.projectType === 'greenfield' ? 'n/a  # greenfield project — no onboarding needed' : 'false  # run /buildflow-onboard to analyze your codebase'}
+app:               ${appName}
+type:              ${projectInfo.projectType}
+framework:         ${projectInfo.framework}
+phase:             0
+last_session:      ${today}
+buildflow:         4.0
+onboarded:         ${projectInfo.projectType === 'greenfield' ? 'n/a  # greenfield project — no onboarding needed' : 'false  # run /buildflow-onboard to analyze your codebase'}
+git_permission:    ${projectInfo.gitPermission || 'approved'}
+git_available:     ${projectInfo.gitPermission === 'approved' ? 'true' : 'false'}
+parked_changes:    []   # files with un-pushed changes — checked before each new phase
 \`\`\`
 
 ---
@@ -454,6 +473,18 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start\` to begin.
 *New decisions are appended below by \`/buildflow-think\` and \`/buildflow-plan\`.*
 `)
 
+  // ── learnings/feature-suggestions.md ────────────────────────────────────────
+  writeFileSync(join(base, 'learnings', 'feature-suggestions.md'),
+    `# Feature Suggestions
+
+> Auto-populated by \`/buildflow-ship\` and \`/buildflow-help next\` after each milestone.
+> Each entry includes market gap analysis and engineering standards check for your app type.
+
+---
+
+*No suggestions yet — ship your first phase to generate market and standards analysis.*
+`)
+
   // ── specs/ ──────────────────────────────────────────────────────────────────
   writeFileSync(join(base, 'specs', 'README.md'),
     `# Specs
@@ -464,12 +495,25 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start\` to begin.
 |------|---------|
 | \`PRD.md\` | Product Requirements — what, for whom, success criteria |
 | \`TDD.md\` | Technical Design — architecture, API contracts, decisions |
-| \`acceptance.md\` | Acceptance Criteria — testable pass/fail conditions per feature |
+| \`acceptance.md\` | Acceptance Criteria — versioned, testable pass/fail conditions per feature |
+| \`approvals.md\` | Permanent approval audit trail — who approved each spec version and when |
 
 These files are the source of truth for planning and verification.
 \`/buildflow-plan\` traces every task to an AC.
 \`/buildflow-check\` verifies every AC is satisfied.
 \`/buildflow-ship\` blocks if any AC is unmet.
+`)
+
+  // ── specs/approvals.md ──────────────────────────────────────────────────────
+  writeFileSync(join(base, 'specs', 'approvals.md'),
+    `# Spec Approvals
+
+> Permanent audit trail. Never delete or overwrite entries.
+> Appended automatically by \`/buildflow-spec\` on each approval or amendment.
+
+---
+
+*No approvals yet — run \`/buildflow-spec\` to generate and lock your first spec.*
 `)
 
   // ── security/DEBT.md ────────────────────────────────────────────────────────
@@ -514,7 +558,7 @@ These files are the source of truth for planning and verification.
 
 function patchGitignore() {
   const gitignorePath = join(process.cwd(), '.gitignore')
-  const entry = '\n# BuildFlow security reports (may contain sensitive findings)\n.buildflow/security/reports/\n'
+  const entry = '\n# BuildFlow security reports (may contain sensitive findings)\n.buildflow/security/reports/\n# BuildFlow file snapshots (restore points — not needed in version control)\n.buildflow/snapshots/\n'
 
   if (existsSync(gitignorePath)) {
     const existing = readFileSync(gitignorePath, 'utf8')
@@ -602,10 +646,90 @@ export async function run(opts = {}) {
     wantSecurity = security
   }
 
+  // ── Git permission ──────────────────────────────────────────────────────────
+  let gitPermission = 'approved' // default when --yes flag used
+  const gitAvailable = (() => {
+    try { execSync('git --version', { stdio: 'ignore' }); return true } catch { return false }
+  })()
+
+  if (!opts.yes) {
+    if (!gitAvailable) {
+      console.log(chalk.dim('  ℹ Git not found on this system.'))
+      console.log(chalk.dim('    BuildFlow will use file snapshots for restore points and phase tracking.'))
+      console.log(chalk.dim('    Install git later and re-run `npx buildflow-dev init` to enable git features.\n'))
+      gitPermission = 'unavailable'
+    } else if (projectInfo.hasGit) {
+      console.log(chalk.green('  ✓ Git repository detected'))
+      const { gitAccess } = await prompt({
+        type: 'select',
+        name: 'gitAccess',
+        message: 'Allow BuildFlow to use git? (commits, tags, restore points)',
+        choices: [
+          {
+            name: 'approved',
+            message: 'Yes — use git for commits, wave tracking, and restore points',
+            hint: 'Recommended',
+          },
+          {
+            name: 'denied',
+            message: 'No, not now — use file snapshots instead',
+            hint: 'Can enable later with /buildflow-help git-enable',
+          },
+          {
+            name: 'denied_permanent',
+            message: 'No, never ask again — always use file snapshots',
+            hint: 'Stored permanently in preferences',
+          },
+        ],
+        initial: 0,
+      })
+      gitPermission = gitAccess
+    } else {
+      // No git repo exists — ask if they want one initialized
+      const { initGit } = await prompt({
+        type: 'select',
+        name: 'initGit',
+        message: 'No git repository found. Allow BuildFlow to initialize one?',
+        choices: [
+          {
+            name: 'approved',
+            message: 'Yes — initialize git and use it for tracking',
+            hint: 'Recommended',
+          },
+          {
+            name: 'denied',
+            message: 'No, not now — use file snapshots instead',
+            hint: 'Can enable later with /buildflow-help git-enable',
+          },
+          {
+            name: 'denied_permanent',
+            message: 'No, never ask again — always use file snapshots',
+          },
+        ],
+        initial: 0,
+      })
+      gitPermission = initGit
+    }
+  }
+
+  if (gitPermission === 'approved') {
+    if (!projectInfo.hasGit) {
+      try { execSync('git init -q', { cwd: process.cwd() }); console.log(chalk.green('  ✓ Git repository initialized')) } catch {}
+    }
+    console.log(chalk.dim('  Git: enabled — commits, tags, and restore points active'))
+  } else if (gitPermission === 'denied') {
+    console.log(chalk.yellow('  Git: declined for now — using file snapshots'))
+    console.log(chalk.dim('  To enable later: run /buildflow-help git-enable in your AI tool'))
+  } else if (gitPermission === 'denied_permanent') {
+    console.log(chalk.yellow('  Git: permanently declined — using file snapshots'))
+  } else if (gitPermission === 'unavailable') {
+    // already messaged above
+  }
+  console.log('')
+
   const sp2 = ora('Setting up .buildflow/ folder...').start()
-  scaffoldBuildflow(appName, { ...projectInfo, projectType })
+  scaffoldBuildflow(appName, { ...projectInfo, projectType, gitPermission })
   patchGitignore()
-  ensureGit()
   registerProject(process.cwd())
   await new Promise(r => setTimeout(r, 300))
   sp2.succeed(chalk.green('  ✓ .buildflow/ scaffold created'))

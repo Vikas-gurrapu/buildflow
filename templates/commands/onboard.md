@@ -414,4 +414,14 @@ Next steps:
   /buildflow-refactor — improve code quality
 ```
 
+## Token cost report (print at end of onboard)
+```
+Onboard complete
+────────────────
+Files: [N]  Modules: [N]  Hotspots: [N]  Lenses: 4
+Token cost: ~[N]K  (budget: ~40K — one-time cost)
+intel.json written to .buildflow/codebase/intel.json
+```
+Update `light.md`: `last_onboard_tokens: ~[N]K`
+
 ## Token Budget: ~40K (one-time — pays back on every subsequent session)

@@ -43,11 +43,26 @@ Count files that need to change.
   - Ask: "Proceed as hotfix anyway? (yes/no)"
 
 ## Step 3: Create Restore Point
+
+**If `git_available: true`:**
 ```bash
 git stash push -m "hotfix restore point: [description]"
 # or if clean working tree:
 git tag "pre-hotfix-[timestamp]"
 ```
+
+**If `git_available: false` (no-git mode):**
+Copy every file that will be modified into `.buildflow/snapshots/pre-hotfix-[timestamp]/`:
+```
+.buildflow/snapshots/pre-hotfix-20240115-143200/
+└── src/auth/service.ts   ← copy of file BEFORE the fix
+```
+Log in `state.md`:
+```yaml
+last_restore_point: .buildflow/snapshots/pre-hotfix-20240115-143200/
+last_restore_reason: "hotfix: [description]"
+```
+To roll back: copy files from the snapshot back to their original paths.
 
 ## Step 4: Apply Fix
 Make the minimal change:
@@ -91,9 +106,20 @@ npm test        # or pytest / go test etc.
 If tests fail: fix and re-test. Max 3 attempts before stopping and asking the user.
 
 ## Step 6: Ship
+
+**If `git_available: true`:**
 ```bash
 git add [changed files only]
 git commit -m "hotfix: [description]"
+```
+
+**If `git_available: false` (no-git mode):**
+Take a post-fix snapshot of changed files into `.buildflow/snapshots/post-hotfix-[timestamp]/`.
+Record in `state.md`:
+```yaml
+last_hotfix: [today]
+last_hotfix_desc: [description]
+last_hotfix_snapshot: .buildflow/snapshots/post-hotfix-[timestamp]/
 ```
 
 Do not create a phase, do not update state.md phase number.

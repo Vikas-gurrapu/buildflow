@@ -30,11 +30,23 @@ Do NOT load: full codebase, old phase plans, research files, retros.
 ---
 
 ## Step 1: Validate Specs
-Check `spec_status: locked` in `light.md` and that `acceptance.md` exists.
-If not: "Run `/buildflow-spec` first. No spec, no plan."
+
+**Check 1 — Spec locked:**
+Read `spec_status` from `light.md` and `status` from `acceptance.md` frontmatter.
+If either is not `locked`: "Run `/buildflow-spec` first. No spec, no plan."
+
+**Check 2 — Version consistency:**
+Read `spec_version` from `acceptance.md` frontmatter.
+Read `spec_version` from `light.md`.
+If they differ: "Spec version mismatch — `acceptance.md` is v[A] but `light.md` records v[B]. Re-run `/buildflow-spec` to reconcile."
+
+**Check 3 — No active amendment in progress:**
+Read `acceptance.md` frontmatter. If `status: AMENDING` exists: "Spec amendment in progress. Complete or cancel it in `/buildflow-spec` before planning."
+
+Record the locked `spec_version` in `PLAN.md` header — this is the version this plan was built against.
 
 Read all ACs. Count: [N] features, [N] user stories, [N] ACs total.
-Confirm: "Planning to satisfy [N] ACs across [N] features."
+Confirm: "Planning to satisfy [N] ACs across [N] features (spec v[N])."
 
 ---
 
@@ -287,6 +299,7 @@ Write `.buildflow/phases/[N]/PLAN.md`:
 # Phase [N] Plan
 **Goal:** [one sentence — what the user can DO after this phase that they can't do now]
 **ACs:** [N]  **Tasks:** [N]  **Waves:** [N]  **Est. total:** [sum of estimates]
+**Spec version:** v[N]  ← amendment gate uses this to detect drift
 **Engineering Review:** APPROVED (cycles: [N])
 **Thin-slice order:** ENFORCED
 **File conflicts:** NONE
@@ -326,5 +339,14 @@ wave_count: [N]
 task_count: [N]
 est_total: [size]
 ```
+
+## Token cost report (print at end of plan)
+```
+Plan ready — Phase [N]
+──────────────────────
+Waves: [N]  Tasks: [N]  ACs: [N]  Engineering review cycles: [N]
+Token cost: ~[N]K  (budget: ~22K)
+```
+Update `light.md`: `last_plan_tokens: ~[N]K`
 
 ## Token Budget: ~22K

@@ -27,6 +27,78 @@ Do NOT load: full specs, full codebase, research, retros, old phases.
 Read `.buildflow/phases/[N]/PLAN.md`.
 Report: "Phase [N] — [N] waves, [N] tasks, [N] ACs. Est: [total]. Starting Wave [N]."
 
+**Parked-changes conflict check — runs before every build start:**
+
+Read `parked_changes` array from `light.md`. If it is non-empty, cross-reference against the new phase's PLAN.md file lists:
+
+For every file in the new plan's tasks, check if that file appears in `parked_changes`:
+
+```
+Parked Changes Conflict Detected
+──────────────────────────────────
+The following files have unresolved parked changes from a previous phase
+AND are also listed in this phase's plan:
+
+  src/auth/service.ts
+    Parked: Phase 1, Wave 2 (2024-01-14)
+    Reason: git commit failed
+    Snapshot: .buildflow/snapshots/phase-1-wave-2-parked/
+    New plan task: "Add refresh token logic" (Wave 2, this phase)
+
+Building on top of parked changes means both features will be combined
+in a single future git commit — you lose the ability to review or revert
+them independently.
+
+Options:
+  [G] Resolve git first (recommended)
+      Fix the git issue, commit Phase 1 changes, then start this phase.
+      Run: /buildflow-help git-enable  OR  check your git remote/auth.
+
+  [S] Stack and continue (acknowledged)
+      BuildFlow will take a "stack snapshot" separating Phase 1 and Phase 2
+      changes on these files before Phase 2 modifies them.
+      When git is restored, you will see one combined diff — that is expected.
+      Your PLAN.md will note which commits belong to which phase.
+
+  [A] Abort this phase
+      Come back after resolving the parked changes.
+```
+
+**If user chooses Stack and continue:**
+1. Before Phase 2 writes anything to the overlapping files, copy their current state (which includes Phase 1's parked changes) into `.buildflow/snapshots/phase-[N-1]-final-state/`
+2. Add a note to the new phase's PLAN.md:
+   ```markdown
+   ## Parked Changes Notice
+   Files inherited with unresolved parked changes from Phase [N-1]:
+     - src/auth/service.ts (parked wave 2, 2024-01-14)
+   Stack snapshot: .buildflow/snapshots/phase-1-final-state/
+   When git is restored: commit phase-1-final-state/ first, then commit current state.
+   ```
+3. Continue the build normally.
+
+If `parked_changes` is empty: skip this check silently.
+
+**Spec amendment gate — runs before every build start:**
+1. Read `spec_version` from `PLAN.md` header (the version this plan was built against)
+2. Read `spec_version` from `.buildflow/specs/acceptance.md` frontmatter (current version)
+3. If they differ:
+   ```
+   🔴 BUILD BLOCKED — Spec Amended Since Plan Was Created
+
+   Plan was built against spec v[plan version].
+   Current spec is v[acceptance.md version].
+
+   The spec changed after this plan was locked. Some plan tasks may reference
+   outdated ACs. Building against a stale plan risks implementing the wrong thing.
+
+   Options:
+     A) Run /buildflow-plan to regenerate the plan against the new spec (recommended)
+     B) Run /buildflow-spec --review to see what changed between versions
+     C) Continue anyway: /buildflow-build --accept-stale-spec
+        (logs to security/DEBT.md: "Built against stale spec v[N] — current is v[M]")
+   ```
+4. If versions match: proceed silently.
+
 Check external dependency checklist if present. If unchecked items: "Verify these before building: [list]"
 
 ---
@@ -203,29 +275,23 @@ The "closest existing example" is the most important field. Builders replicate p
 
 ### 3b — Parallel Build (with serialization where overlap detected)
 
-**Git worktree isolation (when git repo exists and multiple Builders run in parallel):**
+**Git worktree isolation — check `git_available` in `light.md` first:**
 
-Before spawning parallel Builders, create an isolated worktree per Builder:
+**If `git_available: true`:**
 ```bash
-# For each parallel task in this wave:
 git worktree add .buildflow/worktrees/wave-[N]-task-[name] -b buildflow/wave-[N]-[name]
 ```
-
-Each Builder works in its own worktree — parallel Builders never touch the same working tree, so there are no merge conflicts mid-wave.
-
-After all parallel Builders complete:
+Each Builder works in its own worktree. After all complete:
 ```bash
-# Merge each worktree branch into main working tree
 git merge buildflow/wave-[N]-[task-A] --no-ff -m "merge: wave [N] task [A]"
 git merge buildflow/wave-[N]-[task-B] --no-ff -m "merge: wave [N] task [B]"
-# Clean up worktrees
 git worktree remove .buildflow/worktrees/wave-[N]-task-[name]
 git branch -d buildflow/wave-[N]-[name]
 ```
+Merge conflicts = undeclared ownership violation → log as SCOPE deviation, update ownership map.
 
-If a merge conflict occurs during merge-back: this means the File Ownership Map had an undeclared overlap — resolve the conflict, log it as a SCOPE deviation (Step 3g), and update the ownership map in PLAN.md.
-
-**If no git repo exists:** skip worktree isolation. Builders write directly to the working tree. Serialization (Step 3a overlap detection) is the fallback safety net.
+**If `git_available: false` (no-git mode):**
+Skip worktree isolation entirely. Use Step 3a serialization as the sole safety net — overlapping tasks run sequentially, not in parallel. Note in wave report: "Worktree isolation skipped (no git) — serial execution applied to overlapping tasks."
 
 Spawn one Builder per task. Each Builder receives ONLY its context packet.
 
@@ -352,7 +418,54 @@ cargo clippy -- -D warnings
 - **Errors** (exit code non-zero) → fix before proceeding
 - **Warnings only** → log to wave report as `⚠ LINT WARN: [N] warnings` — non-blocking
 
-**3. Bundle Size Check (JS/TS only, if build cmd exists)**
+**3. Test Coverage Check**
+```bash
+# JS/TS — Jest/Vitest
+npx jest --coverage --coverageReporters=json-summary --passWithNoTests 2>/dev/null
+npx vitest run --coverage 2>/dev/null
+# Python
+pytest --cov=src --cov-report=term-missing 2>/dev/null
+# Go
+go test ./... -cover 2>/dev/null | grep "coverage:"
+# Rust
+cargo tarpaulin --out Stdout 2>/dev/null
+```
+
+Extract total coverage % and compare against `last_ship_coverage` in `light.md`:
+
+| Delta | Action |
+|-------|--------|
+| First run — no baseline | Record as baseline, non-blocking |
+| Coverage dropped 0–5% | `⚠ COVERAGE WARN: [N]% → [M]% (-[X]%). Non-blocking.` |
+| Coverage dropped 5–15% | Prompt user (see below) |
+| Coverage dropped >15% | Prompt user (see below) |
+
+**Coverage drop prompt (5%+ drop):**
+```
+Coverage Report  Wave [N]
+─────────────────────────
+Previous:  [N]%
+Current:   [M]%
+Drop:      -[X]%  [MODERATE / SIGNIFICANT]
+
+Uncovered files added this wave:
+  src/auth/helper.ts  — 0% covered
+  src/utils/crypto.ts — 40% covered
+
+Options:
+  [F] Fix now   — pause and add tests before committing this wave
+  [P] Proceed   — commit this wave as-is, log coverage debt
+  [S] Skip coverage check for this wave only
+```
+
+Wait for user response:
+- **F (Fix):** pause build, list uncovered functions per file, help user write tests, re-run coverage, then continue
+- **P (Proceed):** commit wave, log to `security/DEBT.md`: "Wave [N] coverage drop: [N]% → [M]% — [files] uncovered"
+- **S (Skip):** skip for this wave only, do NOT log as debt
+
+Record current coverage in Build Telemetry Report regardless of choice.
+
+**4. Bundle Size Check (JS/TS only, if build cmd exists)**
 ```bash
 npm run build 2>&1 | grep -E "dist/|bundle|chunk|asset"
 ```
@@ -368,10 +481,11 @@ Build Telemetry  Wave [N]
 ────────────────────────
 Type-check:   ✓ PASS  (0 errors)
 Lint:         ⚠ WARN  (3 warnings — non-blocking)
+Coverage:     ⚠ WARN  (74% → 71%, -3% — user chose: proceed)
 Bundle size:  ✓ PASS  (142 KB → 144 KB, +1.4%)
 ```
 
-Only proceed to Step 3e after type-check is PASS and lint errors (not warnings) are fixed.
+Only proceed to Step 3e after type-check is PASS, lint errors (not warnings) are fixed, and the user has responded to any coverage prompt.
 
 ### 3e — Test + Fix Loop
 Run the full test suite:
@@ -455,7 +569,8 @@ When a Builder hits a deviation:
 ```
 
 ### 3h — Wave Commit
-When all tests pass, commit this wave atomically:
+
+**If `git_available: true`:**
 ```bash
 git add [changed files — explicit list, not -A]
 git commit -m "[type](scope): [what changed]
@@ -464,19 +579,66 @@ git commit -m "[type](scope): [what changed]
 [AC refs: AC-001, AC-003]
 [Wave: N of M]"
 ```
-
 Commit types: `feat` / `fix` / `test` / `refactor` / `chore`
 
-Example:
+**If the commit or push fails (git error):**
 ```
-feat(auth): add JWT middleware and login route
+⚠ Git operation failed
+────────────────────────
+Error: [exact git error message]
+Wave [N] code changes are complete and tested, but could not be committed/pushed.
 
-Implements token validation for all protected routes.
-Satisfies: AC-001 (valid login), AC-002 (invalid password rejection), AC-003 (expired token)
-Wave: 2 of 4
+Options:
+  [R] Retry     — try the git operation again (use if transient network/auth issue)
+  [P] Park      — save changes as a file snapshot, mark wave as "parked", continue working
+  [W] Wait      — pause here until you resolve the git issue manually, then re-run /buildflow-build
 ```
 
-Mark wave complete in `phases/[N]/PLAN.md`. Proceed to next wave.
+**If user chooses Park:**
+1. Take file snapshot into `.buildflow/snapshots/phase-[N]-wave-[N]-parked/`
+2. Mark wave in `PLAN.md`:
+   ```markdown
+   ### Wave 2 — Auth Services  ⚠ PARKED [2024-01-15 14:32]
+   Code complete and tested. Git commit failed — changes saved to snapshot.
+   Snapshot: .buildflow/snapshots/phase-1-wave-2-parked/
+   Files parked: [list]
+   ```
+3. Update `parked_changes` in `light.md`:
+   ```yaml
+   parked_changes:
+     - file: src/auth/service.ts
+       phase: 1
+       wave: 2
+       snapshot: .buildflow/snapshots/phase-1-wave-2-parked/
+       reason: "git commit failed"
+       parked_at: [ISO datetime]
+   ```
+4. Continue to next wave — the code is safe, only the git record is missing.
+
+**If user chooses Wait:** pause build. Resume with `/buildflow-build wave-[N]` once git is resolved.
+
+**If `git_available: false` (no-git mode):**
+1. Take a file snapshot — copy all files modified this wave into `.buildflow/snapshots/phase-[N]-wave-[N]-complete/`:
+   ```
+   .buildflow/snapshots/
+   └── phase-1-wave-2-complete/
+       ├── src/auth/service.ts
+       ├── src/auth/service.test.ts
+       └── src/routes/auth.ts
+   ```
+2. Mark the wave complete in `phases/[N]/PLAN.md` under the wave header:
+   ```markdown
+   ### Wave 2 — Auth Services  ✓ COMPLETE [2024-01-15 14:32]
+   Snapshot: .buildflow/snapshots/phase-1-wave-2-complete/
+   ```
+3. Record in `state.md`:
+   ```yaml
+   last_wave_completed: 2
+   last_wave_date: [today]
+   phase_progress: wave 2 of 4 complete
+   ```
+
+In both modes: mark wave complete in `phases/[N]/PLAN.md` and proceed to next wave.
 
 ---
 
@@ -506,9 +668,22 @@ last_build_date: [today]
 plan_status: built
 test_status: passing
 waves_completed: [N]
-passing_test_count: [N]   ← baseline for cross-phase regression check at ship time
+passing_test_count: [N]      ← baseline for cross-phase regression check at ship time
+last_build_coverage: [N]%    ← baseline for coverage drop detection
+last_build_tokens: ~[N]K     ← actual token cost of this build run
 ```
 Remove from `light.md`: per-task details from previous builds.
+
+**Token cost report (print at end of every build):**
+```
+Build complete
+──────────────
+Waves: [N]  Tasks: [N]  ACs satisfied: [N/N]
+Token cost: ~[N]K  (budget: ~50K per wave × [N] waves = ~[N]K)
+[Under / Over / On] budget
+```
+
+Estimate token cost as: context packets loaded (KB) × waves + fix loop iterations × 2K each. This is an approximation — actual cost depends on the AI tool's counter if available.
 
 ---
 

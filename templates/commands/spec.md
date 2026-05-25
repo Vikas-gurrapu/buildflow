@@ -36,6 +36,17 @@ The TDD must align with these — don't invent new patterns unless explicitly as
 
 ---
 
+## Step 1b: Load Phase History
+If `phases/*/SHIPPED.md` files exist, load the last 2. Extract:
+- Already-shipped features → exclude from this spec's scope (don't re-spec shipped ACs)
+- Open debt from prior phases → surface as constraints in new spec
+- Prior architecture decisions → TDD must not contradict them
+
+Print: "Prior phases: [N]. Already shipped: [brief list]. Open debt: [N items]."
+If no history: skip silently.
+
+---
+
 ## Step 2: Clarify (one round, all questions at once)
 Ask only what vision.md left unanswered. Max 5 questions:
 - What does success look like for the **user** — as a measurable outcome, not a feature list?
@@ -154,6 +165,21 @@ Write `.buildflow/specs/acceptance.md`:
 - Covers both happy path AND at least one failure/edge case per feature
 
 ```markdown
+---
+spec_version: 1
+phase: [N]
+status: DRAFT
+created: [today]
+last_revised: [today]
+approved_by: null
+approved_at: null
+changelog:
+  - version: 1
+    date: [today]
+    author: buildflow-spec
+    summary: "Initial spec generated"
+---
+
 # Acceptance Criteria
 **App:** [name]  **Phase:** [N]  **Date:** [today]
 
@@ -224,17 +250,146 @@ Show summary of all three specs + Critic Report. Ask:
 > "Specs ready for review. Critic score: [STRONG / NEEDS REVISION]
 > Approve to lock, or tell me what to revise."
 
-- **Approve:** lock specs. Update `light.md`:
-  ```yaml
-  spec_status: locked
-  spec_phase: [N]
-  ac_count: [N]
-  us_count: [N]
-  spec_critic: strong/revised
-  ```
-- **Revise:** apply changes to the named section, re-run Critic pass, repeat Step 7.
+- **Revise:** apply changes to the named section, increment `spec_version` in `acceptance.md` frontmatter, append a changelog entry, re-run Critic pass, repeat Step 7.
 
-Do not proceed until user approves.
+- **Approve:** lock specs.
+  1. Update `acceptance.md` frontmatter:
+     ```yaml
+     status: LOCKED
+     approved_by: [user identifier — name or "user" if unknown]
+     approved_at: [ISO datetime]
+     ```
+  2. Append approval record to `.buildflow/specs/approvals.md` (create if not exists):
+     ```markdown
+     ## Phase [N] — v[spec_version] — [datetime]
+     - **Approved by:** [user]
+     - **AC count:** [N]
+     - **Critic score:** STRONG / REVISED
+     - **Revision cycles:** [N]
+     - **Summary:** [one line — what this spec covers]
+     ```
+  3. Update `light.md`:
+     ```yaml
+     spec_status: locked
+     spec_version: [N]
+     spec_phase: [N]
+     ac_count: [N]
+     us_count: [N]
+     spec_critic: strong/revised
+     ```
+
+Do not proceed until user approves. The approval record in `approvals.md` is permanent — never delete or overwrite prior entries.
+
+---
+
+## Step 7b: Spec Amendment (when spec must change after locking)
+
+If the user requests a spec change AFTER `spec_status: locked` (mid-phase amendment):
+
+1. Show what is changing and why:
+   ```
+   Spec Amendment Request
+   ──────────────────────
+   Phase: [N]  Current version: v[N]
+   Requesting: [what the user wants to change]
+
+   Impact analysis:
+   - ACs affected: [list AC IDs that will change or be removed]
+   - Plan tasks that reference these ACs: [list from PLAN.md if it exists]
+   - Waves that will need re-planning: [list]
+
+   Risk: [LOW / MEDIUM / HIGH — based on how many plan tasks are invalidated]
+   ```
+
+2. Ask for explicit confirmation:
+   > "This amendment affects [N] ACs and [N] plan tasks. Confirm to proceed. Type 'amend' to continue."
+
+3. On confirmation:
+   - Increment `spec_version` in frontmatter
+   - Update the affected ACs
+   - Append to changelog:
+     ```yaml
+     - version: [N+1]
+       date: [today]
+       author: [user]
+       summary: "Amendment: [brief description of change]"
+       amended_acs: [AC-003, AC-007]
+       reason: "[user's stated reason]"
+     ```
+   - Update `approved_at` to now (re-approval of amended version)
+   - Append to `approvals.md`:
+     ```markdown
+     ## Phase [N] — v[N+1] — [datetime] — AMENDMENT
+     - **Amended by:** [user]
+     - **Changed ACs:** [AC-003, AC-007]
+     - **Reason:** [user's stated reason]
+     - **Plan impact:** [N tasks invalidated]
+     ```
+   - Update `light.md`: `spec_version: [N+1]`
+
+4. If a PLAN.md exists for this phase: flag it as stale.
+   ```
+   ⚠ PLAN STALE — spec amended to v[N+1]
+   Tasks referencing [AC-003, AC-007] may no longer be valid.
+   Run /buildflow-plan to regenerate affected waves before building.
+   ```
+
+---
+
+## --review Mode (`/buildflow-spec --review`)
+
+Critiques existing specs without regenerating. Also shows version diff if the spec has been amended.
+
+### Review steps:
+
+**1. Load and parse current spec:**
+Read `acceptance.md` frontmatter: `spec_version`, `status`, `changelog`.
+
+**2. Spec diff (if spec_version > 1):**
+Read the `changelog` array from `acceptance.md` frontmatter. For each version after v1, reconstruct what changed:
+
+```
+Spec Version History  Phase [N]
+────────────────────────────────
+v1 → v2  (amended 2024-01-15 by user)
+  Changed ACs: AC-003, AC-007
+  Reason: "Password reset flow redesigned — now uses magic link instead of email code"
+
+  AC-003 before: "Given a registered email, when reset requested, then 6-digit code sent"
+  AC-003 after:  "Given a registered email, when reset requested, then magic link sent valid 15min"
+
+  AC-007 before: "Given a valid code, when submitted within 10min, then password updated"
+  AC-007 after:  "Given a valid magic link, when clicked within 15min, then password updated"
+
+v2 → v3  (amended 2024-01-18 by user)
+  Changed ACs: AC-NF-001
+  Reason: "Performance target revised after load test results"
+
+  AC-NF-001 before: "login endpoint responds in < 100ms at 100 rps"
+  AC-NF-001 after:  "login endpoint responds in < 200ms at 500 rps"
+```
+
+If `spec_version` is 1 (no amendments): "Spec is at v1 — no amendments made."
+
+**3. Re-run Critic pass on current spec** (same as Step 6 in full spec flow):
+- Vague language scan
+- Coverage check
+- Testability check
+- Consistency check
+
+**4. Plan staleness check:**
+If a `PLAN.md` exists for this phase, compare its recorded `spec_version` against current `acceptance.md` version. If stale, say so and list which tasks reference changed ACs.
+
+**5. Report:**
+```
+Spec Review  Phase [N]  v[N]
+─────────────────────────────
+Amendments: [N versions — show brief list]
+Critic score: STRONG / NEEDS REVISION
+Plan staleness: UP TO DATE / STALE (v[plan] vs v[current])
+
+[Critic findings if any]
+```
 
 ---
 
@@ -247,5 +402,14 @@ For single-feature additions:
 - Token budget: ~8K
 
 ---
+
+## Token cost report (print at end of spec lock)
+```
+Spec locked — Phase [N] v[N]
+─────────────────────────────
+Features: [N]  User stories: [N]  ACs: [N]  Revision cycles: [N]
+Token cost: ~[N]K  (budget: ~20K full / ~8K --fast)
+```
+Update `light.md`: `last_spec_tokens: ~[N]K`
 
 ## Token Budget: ~20K (full) / ~8K (--fast)

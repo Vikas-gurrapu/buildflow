@@ -22,7 +22,16 @@ Before doing anything else at the start of every session:
 
 3. **Load state** — read `.buildflow/core/state.md` for current phase and status
 
-4. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
+4. **Detect git availability** — run silently:
+   ```bash
+   git rev-parse --git-dir 2>/dev/null && echo "GIT_OK" || echo "NO_GIT"
+   ```
+   - `GIT_OK` → set `git_available: true` in `light.md`. All git operations work normally.
+   - `NO_GIT` → set `git_available: false` in `light.md`. Show **once per session**:
+     > "⚠ Git not detected. BuildFlow is running in **no-git mode**: restore points use file snapshots, wave commits are tracked in PLAN.md, and phase tags are recorded in state.md instead. All core features still work."
+   - If `git_available` was already set in `light.md`, skip this check and use the stored value.
+
+5. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
 
 ---
 
@@ -67,8 +76,9 @@ Before doing anything else at the start of every session:
 - Ask confidence (1-5) before locking major decisions
 - Run `/buildflow-spec` before `/buildflow-plan` — no spec, no plan
 - `/buildflow-ship` blocks if any Acceptance Criterion is unsatisfied
-- Create git restore points before destructive operations
+- Create restore points before destructive operations (git stash OR file snapshot — see no-git mode)
 - Run `/buildflow-audit` before every `/buildflow-ship`
+- No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
 
 ## Agents
 
@@ -110,6 +120,7 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 │   ├── DEBT.md
 │   └── reports/
 ├── phases/             ← Per-phase work and retros
+├── snapshots/          ← File-based restore points (used when git unavailable)
 └── learnings/
     ├── glossary.md
     └── decisions.md

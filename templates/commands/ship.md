@@ -17,11 +17,25 @@ Finalize current phase. Three gates run before shipping: spec compliance, securi
 
 ## MANDATORY Gate 0: Spec Compliance Check
 
+**0a — Version consistency check:**
+Read `spec_version` from `acceptance.md` frontmatter and from `PLAN.md` header.
+If they differ:
+```
+🔴 SHIP BLOCKED — Plan Built Against Old Spec
+
+Plan was built against spec v[N], current spec is v[M].
+The code may implement outdated requirements.
+
+Run /buildflow-plan to regenerate the plan, then /buildflow-build for affected waves.
+Override: /buildflow-ship --skip-spec (logs to DEBT.md)
+```
+
+**0b — Full AC compliance:**
 Read `.buildflow/specs/acceptance.md`. Verify every AC is satisfied.
 
 ```
-Spec Gate
-─────────
+Spec Gate (v[spec_version])
+────────────────────────────
 AC-001 ✓
 AC-002 ✓
 AC-003 ✗  FAIL — password reset not implemented
@@ -38,14 +52,16 @@ Fix them with /buildflow-build or /buildflow-modify, then re-run /buildflow-ship
 Override (skips spec gate only): /buildflow-ship --skip-spec
 ```
 
-**If all ACs pass → proceed to Gate 1.**
+**If versions match and all ACs pass → proceed to Gate 1.**
 
 ---
 
 ## MANDATORY Gate 1: Pre-Ship Security Scan
 
 Spawn Security Auditor in `--pre-ship` mode:
-- Scan changed files only (git diff since last commit)
+- Scan changed files only:
+  - **Git available:** `git diff --name-only HEAD~1..HEAD -- src/`
+  - **No-git mode:** use file list from completed wave tasks in `PLAN.md` (same source as check.md)
 - Check for secrets
 - Check critical injection patterns
 - Check auth bypass risks
@@ -170,6 +186,43 @@ Build command exited with errors.
 Fix compilation errors before shipping.
 ```
 
+### Test Coverage
+Run coverage and compare against `last_ship_coverage` in `light.md`:
+```bash
+npx jest --coverage --coverageReporters=json-summary --passWithNoTests 2>/dev/null
+pytest --cov=src --cov-report=term-missing 2>/dev/null
+go test ./... -cover 2>/dev/null
+```
+
+| Coverage state | Action |
+|----------------|--------|
+| No baseline yet | Record current %, proceed |
+| Drop 0–5% | WARN — non-blocking |
+| Drop 5–15% | Prompt user (see below) |
+| Drop > 15% | Prompt user (see below) |
+| Increased | PASS silently |
+
+**Coverage drop prompt:**
+```
+Coverage at Ship
+────────────────
+Last shipped:  [N]%
+Current:       [M]%
+Drop:          -[X]%
+
+Uncovered areas:
+  [file] — [N] uncovered functions
+
+Options:
+  [F] Fix now   — address coverage before shipping
+  [P] Ship anyway — log to DEBT.md and proceed
+```
+
+- **F:** pause ship, add tests, re-run gates from Gate 2
+- **P:** proceed to ship, log: "Shipped with coverage drop [N]% → [M]% on [date]" to `security/DEBT.md`
+
+Coverage never hard-blocks ship — the decision belongs to the developer.
+
 ### Bundle Size (JS/TS only)
 Compare final bundle size against baseline from `Build Toolchain Profile` (recorded during last `/buildflow-build`):
 - Delta ≤ +10% → PASS
@@ -182,6 +235,7 @@ Build Telemetry Gate
 ────────────────────
 Type-check:   ✓ PASS
 Lint:         ⚠ WARN  (4 warnings — logged, non-blocking)
+Coverage:     ⚠ WARN  (74% → 71%, -3% — proceeding)
 Compile:      ✓ PASS
 Bundle size:  ✓ PASS  (148 KB → 151 KB, +2%)
 
@@ -191,7 +245,8 @@ Gate 3: ✓ PASS
 ---
 
 ## Step 1: Pre-Ship Checklist (summary)
-- [ ] All ACs satisfied (Gate 0)
+- [ ] Spec version consistent — plan matches current spec (Gate 0a)
+- [ ] All ACs satisfied (Gate 0b)
 - [ ] Security gate passed (Gate 1)
 - [ ] All tests passing — current phase (Gate 2a)
 - [ ] No cross-phase regressions (Gate 2b)
@@ -225,9 +280,14 @@ After a successful ship, prune `light.md` to stay lean for the next phase:
 - app_name, framework, language
 - current_phase (update to N+1 or "complete")
 - spec_status (reset to "none" for next phase)
+- spec_version (reset to 0 — next phase starts fresh)
 - style_fingerprint
 - last 2 architectural decisions
 - onboard_status
+
+**Never archive or delete:**
+- `.buildflow/specs/approvals.md` — permanent audit trail, never pruned
+- `.buildflow/phases/[N]/PLAN.md` `## Deviations` section — permanent record
 
 **Target:** `light.md` must be under 3K tokens after pruning.
 
@@ -235,31 +295,160 @@ Update `light.md`:
 ```yaml
 current_phase: [N+1 or complete]
 last_ship_date: [today]
+last_ship_spec_version: [N]   ← record what version shipped
+last_ship_coverage: [N]%      ← baseline for next phase coverage drop detection
 spec_status: none
+spec_version: 0
 plan_status: none
 context_pruned: [today]
 ```
 
 ---
 
-## Step 4: Update Docs
+## Step 4: Write Phase History (cross-phase continuity)
+
+Write `.buildflow/phases/[N]/SHIPPED.md` — a compact, permanent record future phases can load as context:
+
+```markdown
+# Phase [N] — Shipped [date]
+
+## What was built
+[2–3 sentences. What the user can now DO that they couldn't before this phase.]
+
+## ACs satisfied
+[N] total: AC-001 (login), AC-002 (invalid password), AC-003 (password reset), ...
+
+## Key files changed
+| File | What changed | AC |
+|------|--------------|----|
+| src/auth/service.ts | new — JWT login logic | AC-001, AC-002 |
+| src/routes/auth.ts | new — /login, /reset endpoints | AC-001, AC-003 |
+
+## Architecture decisions made
+- [decision]: [why — one line]
+
+## Technical debt opened this phase
+[N items — brief list from DEBT.md entries added this phase]
+
+## Spec version shipped
+v[N] (approved [date])
+
+## Coverage at ship
+[N]% ([N] passing tests)
+```
+
+This file is ≤500 tokens. It is the only cross-phase context future `/buildflow-start` sessions load — not the full plan or spec.
+
+---
+
+## Step 5: Update Docs
 - README if public-facing features shipped
 - `vision.md` if pivots occurred during the phase
 
 ---
 
 ## Step 5: Tag Release
+
+**If `git_available: true`:**
 ```bash
 git add .
 git commit -m "ship: phase [N] complete"
 git tag "phase-[N]-complete"
 ```
 
+**If `git_available: false` (no-git mode):**
+Take a full snapshot of `src/` into `.buildflow/snapshots/phase-[N]-shipped/`.
+Record phase completion in `state.md`:
+```yaml
+phase_[N]_status: shipped
+phase_[N]_shipped_at: [ISO datetime]
+phase_[N]_snapshot: .buildflow/snapshots/phase-[N]-shipped/
+phase_[N]_ac_count: [N]
+phase_[N]_spec_version: v[N]
+```
+This snapshot is the authoritative record of what was shipped — equivalent to a git tag.
+
 ---
 
-## Step 6: Next Phase
-Suggest next phase based on remaining roadmap items.
-"Phase [N] shipped. Run `/buildflow-spec` to define the next phase."
+## Step 6a: Git Status Message (always shown at ship time)
+
+**If `git_permission: denied` or `git_permission: denied_permanent` (no-git mode):**
+```
+✓ Phase [N] complete — [N] ACs satisfied
+──────────────────────────────────────────────────────────────
+Your feature is built, tested, and all acceptance criteria are satisfied.
+
+Code snapshot:   .buildflow/snapshots/phase-[N]-shipped/
+Phase record:    .buildflow/phases/[N]/SHIPPED.md
+State:           .buildflow/core/state.md  (phase_[N]_status: shipped)
+
+To add version control at any time:
+  1. Install git: https://git-scm.com/downloads
+  2. Run in terminal: git init && git add . && git commit -m "feat: phase [N] complete"
+  3. Enable in BuildFlow: edit .buildflow/you/preferences.md
+     set: git.permission: approved
+  4. In your AI tool run: /buildflow-help git-enable
+
+Your work is safe — the snapshot is a full record of everything shipped this phase.
+```
+
+**If `git_available: true` AND `parked_changes` is non-empty:**
+```
+⚠ Parked Changes — Action Needed
+──────────────────────────────────
+These changes from earlier phases were never committed to git:
+
+  Phase [N], Wave [W] — [date parked]
+  Files: [list]
+  Snapshot: .buildflow/snapshots/phase-[N]-wave-[W]-parked/
+
+Options:
+  [C] Commit now  — run git commit for each parked snapshot in order
+  [L] Leave       — continue to next phase (parked changes remain in working tree)
+  [H] Help        — run /buildflow-help git-resolve-parked for step-by-step guide
+```
+Clear resolved entries from `parked_changes` in `light.md` after the user commits them.
+
+---
+
+## Step 6b: Post-Ship Advisor
+
+After shipping, automatically run the feature advisor from `/buildflow-help next` — no need for the user to ask separately.
+
+### 6a — What's left in the roadmap
+If `vision.md` contains a roadmap or future features list: surface the next 2–3 items.
+"Remaining from your vision: [items]"
+
+### 6b — Market & standards gap (auto-runs, parallel)
+Spawn two quick Researchers (same as `/buildflow-help next` Step 5b):
+
+**Researcher A** — top 3 features users of this app type expect that aren't shipped yet
+**Researcher B** — engineering standards for this app type that are missing
+
+Time-box each to a fast search (3–5 queries). This runs automatically — user doesn't need to trigger it.
+
+Print the summary:
+```
+Phase [N] shipped ✓
+────────────────────────────────────────────
+What you just built: [one-line summary of shipped ACs]
+
+What to consider next:
+─────────────────────
+Standard features missing:
+  → [feature 1] — [why it matters for this app type]
+  → [feature 2] — [why it matters]
+
+Engineering standards to address:
+  → [standard 1] — [e.g., "health check endpoint — standard for any deployed service"]
+  → [standard 2]
+
+Your debt right now: [N items in DEBT.md] — consider a cleanup phase if > 5
+
+Suggested next: /buildflow-spec "[suggested phase name]"
+```
+
+Save to `.buildflow/learnings/feature-suggestions.md` (appends, doesn't overwrite).
 
 ---
 
@@ -270,4 +459,14 @@ Suggest next phase based on remaining roadmap items.
 
 No flag skips the test gate (Gate 2) or type errors in Gate 3. Type safety and green tests are non-negotiable.
 
-## Token Budget: ~26K (including gates)
+## Token cost report (print at end of ship)
+```
+Ship complete — Phase [N]
+─────────────────────────
+Gates: 0a ✓  1 ✓  2a ✓  2b ✓  3 ✓
+ACs verified: [N/N]
+Token cost: ~[N]K  (budget: ~26K gates / ~40K with market research)
+```
+Update `light.md`: `last_ship_tokens: ~[N]K`
+
+## Token Budget: ~26K (gates) / ~40K (with post-ship market research in Step 6b)

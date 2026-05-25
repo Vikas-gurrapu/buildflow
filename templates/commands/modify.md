@@ -136,11 +136,18 @@ Only proceed on explicit confirmation.
 ---
 
 ## Step 6: Restore Point
+
+**If `git_available: true`:**
 ```bash
 git stash push -m "pre-modify: [description]"
 # or if nothing to stash:
 git tag "pre-modify-$(date +%Y%m%d-%H%M)"
 ```
+
+**If `git_available: false` (no-git mode):**
+Copy all files in the impact chain (from Step 2) into `.buildflow/snapshots/pre-modify-[timestamp]/` before writing any changes.
+Log in `state.md`: `last_restore_point: .buildflow/snapshots/pre-modify-[timestamp]/`
+To roll back: copy snapshot files back to their original paths.
 
 ---
 

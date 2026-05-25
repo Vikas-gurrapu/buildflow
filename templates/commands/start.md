@@ -28,12 +28,18 @@ If `intel.json` exists at `.buildflow/codebase/intel.json`, run a fast drift che
 ```bash
 # 1. File count drift — did the number of files change significantly?
 find src/ -type f | wc -l
+# Compare against intel.json file_count field
 
-# 2. Schema file changes — were schema-defining files modified since last onboard?
+# 2. Schema file changes (git available):
 git diff $(git log --format="%H" --after="[onboarded_at from intel.json]" | tail -1) HEAD -- "*.prisma" "*.entity.ts" "models.py" "schema.sql" 2>/dev/null
+# Schema file changes (no-git mode):
+# Hash each schema file listed in intel.json drift_baseline.file_hashes
+# Compare against stored hash — any mismatch = changed
 
-# 3. Load-bearing file changes — were high-risk files touched?
+# 3. Load-bearing file changes (git available):
 git log --since="[onboarded_at]" --name-only --format="" -- [load_bearing files from intel.json] 2>/dev/null | head -10
+# Load-bearing file changes (no-git mode):
+# Compare modification timestamp of each load_bearing file in intel.json against drift_baseline.recorded_at
 ```
 
 **Drift signals and responses:**
@@ -49,6 +55,31 @@ git log --since="[onboarded_at]" --name-only --format="" -- [load_bearing files 
 Only report warnings — never block session start. The user may already know about the changes.
 
 **Fast path (no git):** compare file count in `intel.json` against current `find src/ -type f | wc -l`. If delta > 10 files, warn.
+
+---
+
+## Step 1c: Load Phase History (cross-phase continuity)
+
+If any `phases/*/SHIPPED.md` files exist, load the last 3 (sorted by phase number descending). Each is ≤500 tokens, so 3 together cost ≤1.5K tokens — worth it for full project continuity.
+
+```bash
+ls .buildflow/phases/*/SHIPPED.md 2>/dev/null | sort -t/ -k3 -rn | head -3
+```
+
+From these, extract:
+- What was built in prior phases (prevents re-speccing already-shipped features)
+- Open technical debt inherited from prior phases
+- Architecture decisions that constrain the current phase
+
+Print a one-line history summary per phase:
+```
+Phase history
+─────────────
+Phase 1 (shipped 2024-01-10): Auth — login, password reset, JWT [6 ACs, 74% coverage]
+Phase 2 (shipped 2024-01-20): User profiles — avatar, bio, preferences [8 ACs, 79% coverage]
+```
+
+If no SHIPPED.md files: skip silently (first phase or pre-continuity project).
 
 ---
 
