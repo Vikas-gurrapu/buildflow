@@ -14,6 +14,7 @@ const loadAudit   = () => import('../src/commands/audit.js')
 const loadFix     = () => import('../src/commands/fix.js')
 const loadStatus  = () => import('../src/commands/status.js')
 const loadUpdate  = () => import('../src/commands/update.js')
+const loadUninstall = () => import('../src/commands/uninstall.js')
 
 program
   .name('buildflow')
@@ -40,6 +41,19 @@ program
   .option('--local', 'Install locally (current project only)')
   .action(async (opts) => {
     const { run } = await loadInstall()
+    await run(opts)
+  })
+
+program
+  .command('uninstall')
+  .description('Remove BuildFlow commands from AI tools')
+  .option('-y, --yes', 'Skip confirmation')
+  .option('--tool <name>', 'AI tool to remove from (claude|gemini|codex|cursor|cline|continue|all)')
+  .option('--global', 'Remove global installation')
+  .option('--local', 'Remove local installation (default)')
+  .option('--project-data', 'Also remove .buildflow project data from the current directory')
+  .action(async (opts) => {
+    const { run } = await loadUninstall()
     await run(opts)
   })
 

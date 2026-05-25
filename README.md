@@ -162,6 +162,10 @@ buildflow install --tool claude     # Install into a specific tool
 buildflow install --tool all        # Install into all detected tools
 buildflow install --global          # Install to home directory (all projects)
 buildflow install --local           # Install to current project only (default)
+buildflow uninstall --local         # Remove local BuildFlow tool integrations
+buildflow uninstall --global        # Remove global BuildFlow tool integrations
+buildflow uninstall --tool gemini   # Remove BuildFlow from one tool
+buildflow uninstall --project-data  # Also remove .buildflow/ in this project
 buildflow audit                     # Pattern-based security scan, saves report
 buildflow audit --quick             # Scan recent changes only
 buildflow audit --target src/api/   # Scan a specific directory
@@ -183,6 +187,8 @@ buildflow update --check            # Check current version without updating
 ```bash
 mkdir my-app && cd my-app
 npx buildflow-dev init
+npx buildflow-dev uninstall --global
+npx buildflow-dev uninstall --local --project-data
 ```
 
 BuildFlow will:
