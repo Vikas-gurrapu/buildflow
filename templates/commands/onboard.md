@@ -24,11 +24,20 @@ Deep one-time analysis of an existing codebase. Goes beyond folder structure —
 ---
 
 ## Step 1: Prior State Check
+Ensure output directories exist before analysis:
+
+```bash
+mkdir -p .buildflow/codebase .buildflow/memory
+```
+
+If `.buildflow/` does not exist yet, create it. `/buildflow-onboard` is allowed to run before `/buildflow-start` or `/buildflow-init`; it must still write `.buildflow/codebase/*` outputs.
+
 If `.buildflow/codebase/MAP.md` exists:
 - `--update` flag: run the Incremental Refresh rules below, then continue with affected steps only
 - `--paths` flag: validate path scope first, then run the same affected-step refresh only inside those paths
 - `--query` flag: search `.buildflow/codebase/*.md` and `.buildflow/codebase/intel.json`; print matching file/section/line snippets and exit without rewriting maps
 - Otherwise ask: "Full re-onboard or incremental update?"
+- If running in a non-interactive context and no answer is available, default to incremental update when existing maps are present.
 
 ### Scoped Path Rules (`--paths`)
 
@@ -463,6 +472,8 @@ utils/format.ts   risk: 1.0  ← pure functions, low coupling
 ---
 
 ## Step 9: Write Knowledge Files
+
+This step is mandatory. Do not return only an analysis summary. Create or update the files listed below using the Write tool. If any write fails, report the exact file and error instead of saying onboarding is complete.
 
 All `.buildflow/codebase/*.md` knowledge files must start with YAML frontmatter:
 
