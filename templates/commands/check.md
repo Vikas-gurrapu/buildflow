@@ -22,6 +22,10 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
   - **If `git.permission: approved`:** `git diff --name-only HEAD~[wave-count]..HEAD -- src/`
   - **If `git.permission` is not `approved`:** read the file list from wave completion records in `PLAN.md` (the `Files to create/modify` field per completed task) — this is the authoritative list of what changed
 - `.buildflow/codebase/PATTERNS.md` (if exists)
+- `.buildflow/codebase/STRUCTURE.md` (if exists — structural drift and expected paths)
+- `.buildflow/codebase/TESTING.md` (if exists — expected test commands/layout)
+- `.buildflow/codebase/CONCERNS.md` (if exists — known fragile areas)
+- `.buildflow/codebase/INTEGRATIONS.md` (if exists — env/webhook/external service contracts)
 
 Do NOT load: PRD, TDD, old phases, research files, retros.
 
@@ -53,12 +57,15 @@ AC-NF-001 ⚠ PARTIAL — [what works, what doesn't]
 - Is the code readable?
 - Are there unnecessary duplications?
 - Does it match `.buildflow/codebase/PATTERNS.md`?
+- Does it fit the paths/modules documented in `.buildflow/codebase/STRUCTURE.md`?
+- Does it avoid known fragile areas or include guards from `.buildflow/codebase/CONCERNS.md`?
 - Are functions appropriately sized?
 
 **Reviewer D — Security:**
 - No hardcoded secrets?
 - No obvious injection risks?
 - No sensitive data in logs?
+- External service/env/webhook changes match `.buildflow/codebase/INTEGRATIONS.md` or include map-update notes.
 - Relevant ACs for auth/security satisfied?
 
 ## Step 3: Schema Drift Detection
@@ -118,6 +125,33 @@ Missing migration:    NONE / schema.prisma changed but no migration added
 ```
 
 If any drift detected: **BLOCK ship readiness.** "Schema drift found — resolve before shipping."
+
+---
+
+## Step 3b: Codebase Map Drift Detection
+
+If `.buildflow/codebase/STRUCTURE.md` exists, classify changed files against the last mapped structure:
+
+| Category | Trigger |
+|----------|---------|
+| `new_dir` | new directory/path not represented in `STRUCTURE.md` |
+| `route` | new route/API/page/screen file |
+| `migration` | schema/migration file |
+| `barrel` | new `index.ts/js` public export |
+| `dependency` | package/lock/build config changed |
+| `integration` | API client/webhook/auth/env contract changed |
+| `test` | test framework/config/fixture layout changed |
+| `copy_locale` | locale catalog, label/copy catalog, or localized docs changed |
+
+This is non-blocking unless `--strict` is active.
+
+Output:
+```
+Codebase map drift: NONE / [N elements]
+Suggested refresh: /buildflow-onboard --paths [affected paths]
+```
+
+If `--strict` and drift affects files changed in this phase, mark check as FAIL until the map is refreshed or the user explicitly waives mapping freshness.
 
 ---
 

@@ -19,6 +19,11 @@ Works for features and bugfixes equally.
 
 ## Context Packet
 - `.buildflow/codebase/MAP.md`
+- `.buildflow/codebase/STACK.md`
+- `.buildflow/codebase/STRUCTURE.md`
+- `.buildflow/codebase/INTEGRATIONS.md`
+- `.buildflow/codebase/TESTING.md`
+- `.buildflow/codebase/CONCERNS.md`
 - `.buildflow/codebase/GRAPH.md` (import dependency graph — essential for impact analysis)
 - `.buildflow/codebase/HOTSPOTS.md`
 - `.buildflow/codebase/PATTERNS.md`
@@ -49,8 +54,15 @@ Read `.buildflow/codebase/intel.json`.
 Also read `features[]`, `local_support`, and `locale_support` if present:
 - Identify whether the target file appears in any feature evidence or owned modules.
 - Identify whether the target file is part of local support (scripts, config, env, mocks, fixtures, local services, docs).
-- Identify whether the target file is part of locale support (translation JSON, message catalogs, i18n imports/loaders/providers, locale routing, fallback config).
+- Identify whether the target file is part of locale support (translation JSON, message catalogs, label/copy catalogs, localized docs, i18n imports/loaders/providers, locale routing, fallback config).
 - Add those capabilities to the impact summary so the change preserves them deliberately.
+
+Also read focused map docs if present:
+- `STRUCTURE.md`: confirm target path belongs to a known module or flag structural drift if adding a new directory/route/barrel.
+- `STACK.md`: check dependency/runtime compatibility before adding imports or packages.
+- `INTEGRATIONS.md`: detect env/webhook/external service contracts touched by the change.
+- `TESTING.md`: choose the targeted test command and test file location.
+- `CONCERNS.md`: flag known fragile areas before editing.
 
 **If `symbol_callers` exists in intel.json** (onboarded with GAP-H symbol tracking):
 - Identify the **specific functions/methods** being changed (from Step 1)
@@ -96,9 +108,10 @@ For each affected file, annotate:
 - **Test coverage**: does a test file cover this file?
 - **Contract sensitivity**: does this file export a public API? If yes, callers may break.
 - **Module boundary**: does this change cross a module boundary?
+- **Structural drift**: does this add a new directory, route, migration, barrel export, dependency, integration, test convention, or locale/copy asset not represented in codebase maps?
 - **Feature ownership**: which `FEATURES.md` capability or `intel.json.features[]` entry this file supports, if any.
 - **Local-support sensitivity**: whether this affects local run/dev workflows, local config, mocks, seed data, fixtures, compose/devcontainer files, or documented setup.
-- **Locale-support sensitivity**: whether this affects locale JSON catalogs, message keys, i18n imports/loaders/providers, route prefixes, language switchers, or fallback/default locale behavior.
+- **Locale-support sensitivity**: whether this affects locale JSON catalogs, static labels/copy, localized docs, message keys, i18n imports/loaders/providers, route prefixes, language switchers, or fallback/default locale behavior.
 
 **Impact Summary:**
 ```
@@ -123,6 +136,12 @@ Feature impact: Auth login, Local development support (if env/config touched)
 
 If any call site file has risk ≥ 4.0: flag as "Caution — high-risk transitive impact. Consider splitting this change."
 
+If structural drift is introduced, add a non-blocking post-change note:
+```
+Codebase map drift: [category] at [path]
+Suggested refresh: /buildflow-onboard --paths [affected path]
+```
+
 If local support is touched, add a preservation checklist before editing:
 ```
 Local Support Preservation
@@ -136,8 +155,10 @@ If locale support is touched, add a preservation checklist before editing:
 ```
 Locale Support Preservation
 - Existing locale JSON imports still resolve
+- Static label/copy catalogs still resolve and keep expected keys
 - Message keys added/renamed/removed are updated across all supported catalogs
 - Language-specific i18n dependencies/imports still resolve
+- Localized docs or README language links are updated when public-facing copy changes
 - Default/fallback locale behavior is unchanged unless explicitly requested
 - Language switchers/routes still point to valid locale catalogs
 - User-facing copy changes include locale test or snapshot updates when available

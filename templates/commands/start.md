@@ -23,6 +23,8 @@ If `light.md` is over 3K tokens: prune it now (see pruning rules below).
 
 If `intel.json` exists at `.buildflow/codebase/intel.json`, run a fast drift check against the recorded baseline. This takes seconds and catches silent codebase changes between sessions.
 
+Also read `.buildflow/codebase/STRUCTURE.md` frontmatter if present. Prefer `last_mapped_commit` from `STRUCTURE.md` for structural drift; fall back to `intel.json.drift_baseline.last_mapped_commit` or `onboarded_at`.
+
 **Drift checks:**
 
 ```bash
@@ -40,6 +42,10 @@ git diff $(git log --format="%H" --after="[onboarded_at from intel.json]" | tail
 git log --since="[onboarded_at]" --name-only --format="" -- [load_bearing files from intel.json] 2>/dev/null | head -10
 # Load-bearing file changes (no-git mode):
 # Compare modification timestamp of each load_bearing file in intel.json against drift_baseline.recorded_at
+
+# 4. Structural drift (git available):
+git diff --name-status [last_mapped_commit]..HEAD 2>/dev/null
+# Classify additions as new_dir / route / migration / barrel / dependency / integration / test / copy_locale
 ```
 
 **Drift signals and responses:**
@@ -49,6 +55,7 @@ git log --since="[onboarded_at]" --name-only --format="" -- [load_bearing files 
 | New files added | > 5 new source files | Warn: "N files added since onboard — run `/buildflow-onboard --update`" |
 | Schema file changed | Any change | Warn: "Schema changed since onboard — run `/buildflow-onboard --update` to refresh drift baseline" |
 | Load-bearing file changed | Any of top-5 risk files | Warn: "[file] changed — impact analysis may be stale. Run `/buildflow-onboard --update`" |
+| Structural map drift | 3+ drift elements or any new route/migration/dependency | Warn: "Codebase map drift detected — run `/buildflow-onboard --paths [affected paths]`" |
 | File count delta > 20% | Absolute | Alert: "Codebase changed significantly — recommend full `/buildflow-onboard` re-run" |
 | No drift detected | — | Silent. Do not mention. |
 

@@ -23,6 +23,11 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `.buildflow/specs/TDD.md`
 - `.buildflow/specs/acceptance.md`
 - `.buildflow/codebase/MAP.md` (if exists)
+- `.buildflow/codebase/STACK.md` (if exists — runtime, frameworks, critical dependencies)
+- `.buildflow/codebase/STRUCTURE.md` (if exists — physical layout and entry points)
+- `.buildflow/codebase/INTEGRATIONS.md` (if exists — external services, env contracts, webhooks)
+- `.buildflow/codebase/TESTING.md` (if exists — test framework and validation patterns)
+- `.buildflow/codebase/CONCERNS.md` (if exists — risks, debt, blind spots)
 - `.buildflow/codebase/FEATURES.md` (if exists — existing capabilities, local support, and locale support)
 - `.buildflow/codebase/GRAPH.md` (if exists — for dependency chain reasoning)
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
@@ -55,7 +60,14 @@ If `FEATURES.md` or `intel.json.features[]` exists:
 - Mark already-implemented capabilities as "existing support" and avoid recreating them.
 - If a task touches a feature listed in `features[]`, reference that feature in the task.
 - If `local_support.status` is YES or PARTIAL, preserve local run/dev scripts, local config, mocks, seed data, Docker/dev compose, and documented local workflows unless explicitly out of scope.
-- If `locale_support.status` is YES or PARTIAL, preserve locale JSON catalogs, translation imports/loaders, fallback/default locale config, language routes/switchers, and i18n provider/middleware unless explicitly out of scope.
+- If `locale_support.status` is YES or PARTIAL, preserve locale JSON catalogs, static label/copy catalogs, localized docs, translation imports/loaders, fallback/default locale config, language routes/switchers, and i18n provider/middleware unless explicitly out of scope.
+
+If focused codebase maps exist:
+- Use `STACK.md` to avoid adding incompatible dependencies or runtime assumptions.
+- Use `STRUCTURE.md` to choose existing folders/entry points and to plan scoped remaps for new directories/routes.
+- Use `INTEGRATIONS.md` to add env/webhook/setup tasks when external contracts change.
+- Use `TESTING.md` to select targeted test commands and create tests in the repo's expected location.
+- Use `CONCERNS.md` to front-load tasks touching known fragile areas.
 
 ---
 
@@ -269,11 +281,16 @@ Before writing the plan file, review the plan as an Engineering Lead:
 
 **Architecture smell check:**
 - Does the plan introduce new patterns that conflict with `PATTERNS.md`?
+- Does the plan introduce paths/layers that conflict with `STRUCTURE.md`?
+- Does the plan add dependencies or runtime assumptions that conflict with `STACK.md`?
+- Does the plan change external services/env/webhooks without tasks to update `INTEGRATIONS.md` and setup docs?
+- Does the plan's test strategy match `TESTING.md`?
+- Does the plan address any relevant known risk from `CONCERNS.md`?
 - Does any task modify a HOTSPOT file? If yes, flag with: "⚠ This task touches [file] (risk: [N]) — verify test coverage before proceeding."
 - Are there tasks that cross module boundaries inappropriately?
 - Does any task unintentionally remove or bypass an existing feature from `FEATURES.md`, especially local support?
 - If local support exists, does the plan preserve or update the local workflow docs/scripts/config when runtime behavior changes?
-- If locale support exists, does the plan preserve or update static JSON catalogs, import paths, fallback locale behavior, and language-specific tests/docs when user-facing copy or routes change?
+- If locale support exists, does the plan preserve or update static JSON catalogs, label/copy catalogs, localized docs, import paths, fallback locale behavior, and language-specific tests/docs when user-facing copy or routes change?
 
 **Engineering Review Report:**
 ```

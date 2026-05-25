@@ -17,6 +17,8 @@ Deep one-time analysis of an existing codebase. Goes beyond folder structure —
 ## Usage
 - `/buildflow-onboard` — full analysis
 - `/buildflow-onboard --update` — refresh changed files, affected feature evidence, and local-support metadata
+- `/buildflow-onboard --paths src/auth,packages/ui` — scoped remap of specific repo-relative paths
+- `/buildflow-onboard --query locale` — search codebase map documents and `intel.json` for a term
 - `/buildflow-onboard --depth imports` — focus on dependency graph only
 
 ---
@@ -24,7 +26,27 @@ Deep one-time analysis of an existing codebase. Goes beyond folder structure —
 ## Step 1: Prior State Check
 If `.buildflow/codebase/MAP.md` exists:
 - `--update` flag: run the Incremental Refresh rules below, then continue with affected steps only
+- `--paths` flag: validate path scope first, then run the same affected-step refresh only inside those paths
+- `--query` flag: search `.buildflow/codebase/*.md` and `.buildflow/codebase/intel.json`; print matching file/section/line snippets and exit without rewriting maps
 - Otherwise ask: "Full re-onboard or incremental update?"
+
+### Scoped Path Rules (`--paths`)
+
+Use scoped remaps for structural drift, large monorepos, or focused updates after a feature area changes.
+
+Accept only repo-relative paths that:
+- Do not start with `/`, drive letters, or `~`
+- Do not contain `..`
+- Do not contain shell metacharacters: `;`, `` ` ``, `$`, `&`, `|`, `<`, `>`
+- Use only path components made from letters, numbers, `_`, `-`, `.`
+
+If all supplied paths are invalid, stop and ask for valid repo-relative paths. If some are invalid, ignore invalid paths and report which were skipped.
+
+When scoped paths are active:
+- Every scan command must restrict itself to those paths.
+- Every generated document must state `Scope: [paths]`.
+- `intel.json.scope` must record the paths refreshed.
+- Only update feature/local/locale evidence that references the scoped paths, unless a scoped dependency proves a wider update is needed.
 
 ### Incremental Refresh Rules (`--update`)
 
@@ -35,7 +57,7 @@ For `--update`, first identify changed files since the last `drift_baseline.reco
 - UI/route metadata: route files, page files, screen files, component entry files
 - CLI/workflow metadata: `bin/`, command registries, scripts, task runners, CI workflows
 - Local support: `package.json`, lockfiles, `.env*`, Docker/Compose files, devcontainer files, seed/fixture/mock directories, local DB config, emulator config
-- Locale/i18n support: locale JSON/static catalogs, translation imports, message bundles, language config, i18n middleware/providers
+- Locale/i18n support: locale JSON/static catalogs, translation imports, message bundles, localized docs, label/copy metadata, language config, i18n middleware/providers
 - Docs that describe runnable behavior: `README*`, `docs/**`, install/setup files
 - Tests/specs that name user capabilities
 
@@ -48,6 +70,23 @@ Then refresh:
 - `drift_baseline` after all refreshed data is written
 
 If changed files include docs/config/scripts but no source files, still update `FEATURES.md`; those files may represent operator-facing or local-support capabilities.
+
+### Structural Drift Categories
+
+When deciding whether a map is stale, classify changed files before refreshing:
+
+| Category | Examples | Refresh |
+|----------|----------|---------|
+| `new_dir` | new top-level or module directory not mentioned in `STRUCTURE.md` | `STRUCTURE.md`, `MAP.md`, `intel.json.modules` |
+| `route` | new route/API/page/screen file | `FEATURES.md`, `MAP.md`, `GRAPH.md`, `intel.json.features[]` |
+| `migration` | Prisma/Drizzle/Supabase/SQL migration or schema file | `DEPENDENCIES.md`, `STACK.md`, `HOTSPOTS.md`, schema drift baseline |
+| `barrel` | new `index.ts/js` public export in `src/`, `apps/*/src`, `packages/*/src` | `GRAPH.md`, `STRUCTURE.md`, symbol exports |
+| `dependency` | package/lock/build config changes | `STACK.md`, `DEPENDENCIES.md`, `INTEGRATIONS.md` |
+| `integration` | API client, webhook, auth provider, env contract | `INTEGRATIONS.md`, `FEATURES.md`, security surface |
+| `test` | test framework/config/fixture changes | `TESTING.md`, `PATTERNS.md` |
+| `copy_locale` | labels, localized docs, locale catalogs | `FEATURES.md`, `locale_support` |
+
+If 3 or more structural drift elements are found, recommend `/buildflow-onboard --paths [affected paths]`. This warning is non-blocking; do not interrupt build/check workflows unless the user asks for strict mapping freshness.
 
 ---
 
@@ -118,9 +157,14 @@ grep -rn "command(\|program\.\|commander\|click\.command\|argparse\|cobra.Comman
 grep -rn "localhost\|127.0.0.1\|offline\|localStorage\|IndexedDB\|sqlite\|file://\|dev server\|hot reload\|watch\|docker-compose\|compose.dev\|mock\|fixture\|seed" . 2>/dev/null | grep -v node_modules | head -120
 
 # Locale/i18n support signals
-find . -type f \( -path "*/locales/*" -o -path "*/locale/*" -o -path "*/i18n/*" -o -path "*/messages/*" -o -path "*/translations/*" -o -name "*.locale.json" -o -name "*.messages.json" \) 2>/dev/null | grep -v node_modules | head -120
-grep -rn "i18n\|locale\|locales\|translations\|messages\|Intl\|useTranslation\|t(\|formatMessage\|next-intl\|react-i18next\|vue-i18n" src app pages lib components public 2>/dev/null | head -120
+find . -type f \( -path "*/locales/*" -o -path "*/locale/*" -o -path "*/i18n/*" -o -path "*/messages/*" -o -path "*/translations/*" -o -name "*.locale.json" -o -name "*.messages.json" -o -name "README.*.md" -o -name "*.i18n.md" \) 2>/dev/null | grep -v node_modules | head -120
+grep -rn "i18n\|locale\|locales\|translations\|messages\|language\|languages\|Intl\|useTranslation\|t(\|formatMessage\|next-intl\|react-i18next\|vue-i18n" src app pages lib components public docs README.md 2>/dev/null | head -120
 grep -rn "import .*\\.json\|require(.*\\.json\|assert.*json\|with .*json" src app pages lib components 2>/dev/null | head -120
+
+# UI copy, command labels, localized docs, and static label catalogs
+find . -type f \( -name "README.*.md" -o -name "*.locale.md" -o -name "*.labels.json" -o -name "*labels*.json" -o -name "*copy*.json" -o -name "*strings*.json" -o -name "*messages*.json" \) 2>/dev/null | grep -v node_modules | head -120
+grep -rn "\"label\"[[:space:]]*:\|label:[[:space:]]*['\"]\|labels:[[:space:]]*\\[\|displayName\|title:[[:space:]]*['\"]\|aria-label\|placeholder" src app pages lib components commands templates docs README*.md 2>/dev/null | head -120
+grep -rn "English.*Português\|English.*日本語\|English.*한국어\|English.*中文\|language selector\|language switcher" README*.md docs 2>/dev/null | head -80
 
 # Cross-language locale/i18n dependency and import signals
 grep -rn "ResourceBundle\|MessageSource\|LocaleContextHolder\|spring.messages\|messages_.*\\.properties" src main app 2>/dev/null | head -80
@@ -169,9 +213,12 @@ Blind spots:
 Feature discovery rules:
 - Treat docs + config + scripts as feature evidence, not just `src/` code.
 - Treat static JSON assets as feature evidence when they are imported, loaded by config, or stored under known feature directories such as `locales/`, `i18n/`, `messages/`, `translations/`, `fixtures/`, or `data/`.
+- Treat static label/copy files as feature evidence when they define UI labels, command labels, option labels, placeholders, display names, accessibility labels, or translated documentation. These often live in JSON, Markdown, templates, command definitions, or framework metadata rather than route handlers.
 - A feature is real if at least one of these exists: route/handler, UI entry point, CLI command, background job, config flag, documented workflow, test scenario.
 - Always look for local support explicitly: local dev scripts, Docker Compose, seed data, mocks, offline mode, localhost callbacks, local file storage, emulator support, dev credentials placeholders, hot reload.
 - Always look for locale/i18n support explicitly: locale catalogs, imported JSON translations, message bundles, language switchers, i18n providers/middleware, translation helper calls, route prefixes such as `/en` or `/fr`, and fallback/default locale config.
+- Always look for localized documentation explicitly: `README.*.md`, translated docs, language link bars, language selector text, and docs that mirror the same product capability in multiple languages.
+- Always look for label/copy catalogs explicitly: `label`, `labels`, `displayName`, `title`, `placeholder`, `aria-label`, command option labels, form labels, menu labels, and static JSON/Markdown files whose primary purpose is user-facing text.
 - Detect locale/i18n dependencies and imports across stacks, not only JavaScript:
   - Java/Spring: `ResourceBundle`, `MessageSource`, `LocaleContextHolder`, `messages*.properties`, `spring.messages.*`
   - Go: `golang.org/x/text`, `language.Tag`, `message.Printer`, `go-i18n`
@@ -417,6 +464,19 @@ utils/format.ts   risk: 1.0  ← pure functions, low coupling
 
 ## Step 9: Write Knowledge Files
 
+All `.buildflow/codebase/*.md` knowledge files must start with YAML frontmatter:
+
+```yaml
+---
+generated_by: buildflow-onboard
+last_mapped_at: [ISO date]
+last_mapped_commit: [git HEAD sha or unknown]
+scope: [full repo or comma-separated paths]
+---
+```
+
+Preserve existing frontmatter keys when updating a document. This keeps the drift baseline attached to the document instead of only in `intel.json`.
+
 ### `.buildflow/codebase/MAP.md`
 ```markdown
 # Codebase Map
@@ -439,6 +499,112 @@ utils/format.ts   risk: 1.0  ← pure functions, low coupling
 
 ## Key Patterns
 - [pattern name]: [brief description]
+```
+
+### `.buildflow/codebase/STACK.md`
+Technology foundation. This is the human-readable stack map that complements `intel.json.tech_stack`.
+
+```markdown
+# Stack
+
+## Languages & Runtimes
+| Language/Runtime | Version | Evidence |
+|------------------|---------|----------|
+
+## Frameworks & Build Tools
+| Tool | Purpose | Evidence |
+|------|---------|----------|
+
+## Package Managers & Lockfiles
+- [npm/pnpm/yarn/pip/poetry/maven/gradle/go/cargo/etc.] — [evidence path]
+
+## Critical Dependencies
+| Dependency | Purpose | Runtime/Dev | Evidence |
+|------------|---------|-------------|----------|
+
+## Platform Requirements
+- Development: [OS/tooling/runtime requirements]
+- Production: [deployment/runtime requirements]
+```
+
+### `.buildflow/codebase/STRUCTURE.md`
+Physical layout map used for structural drift detection.
+
+```markdown
+# Structure
+
+## Directory Map
+| Path | Responsibility | Owner Module | Notes |
+|------|----------------|--------------|-------|
+
+## Entry Points
+- [path] — [why it starts or wires the system]
+
+## Generated / Static Assets
+- [path] — [locale labels, fixtures, generated clients, public assets, etc.]
+
+## Path Conventions
+- [source layout, test layout, route layout, package layout]
+```
+
+### `.buildflow/codebase/INTEGRATIONS.md`
+External systems, runtime services, and environment contracts.
+
+```markdown
+# Integrations
+
+## External Services
+| Service | Purpose | SDK/Client | Auth/Env Contract | Evidence |
+|---------|---------|------------|-------------------|----------|
+
+## Data Stores
+| Store | Client/ORM | Migrations | Evidence |
+|-------|------------|------------|----------|
+
+## Webhooks / Callbacks
+| Direction | Service | Endpoint | Verification | Evidence |
+|-----------|---------|----------|--------------|----------|
+
+## Environment Contracts
+- [ENV_VAR] — [purpose, required/optional, evidence path; never include secret values]
+```
+
+### `.buildflow/codebase/TESTING.md`
+Dedicated test and validation map.
+
+```markdown
+# Testing
+
+## Frameworks
+| Framework | Type | Command | Evidence |
+|-----------|------|---------|----------|
+
+## Test Layout
+- [path pattern] — [unit/integration/e2e/fixture]
+
+## Targeted Test Strategy
+- Source file → likely test file convention
+- Dependency-neighborhood test command
+
+## Gaps
+- [missing test framework/coverage/e2e/fixtures]
+```
+
+### `.buildflow/codebase/CONCERNS.md`
+Risk, debt, fragile flows, and map blind spots.
+
+```markdown
+# Concerns
+
+## High-Risk Areas
+| Area/File | Concern | Evidence | Suggested Guard |
+|-----------|---------|----------|-----------------|
+
+## Security / Performance / Reliability Concerns
+- [concern] — [evidence]
+
+## Mapping Blind Spots
+- [generated routes, dynamic imports, runtime plugin loading, feature flags, missing tests]
 ```
 
 ### `.buildflow/codebase/GRAPH.md`
@@ -497,6 +663,8 @@ Confidence: high / medium / low
 Default locale: [locale code or UNKNOWN]
 Supported locales: [en, fr, ... or UNKNOWN]
 Detected stacks: [Java/Spring, Go, Python, Rails, Laravel, .NET, Flutter, iOS, Android, JS/TS, or UNKNOWN]
+Localized docs: YES / PARTIAL / NO
+Label/copy catalogs: YES / PARTIAL / NO
 
 Evidence:
 - [path:line] i18n provider/middleware/config
@@ -504,12 +672,20 @@ Evidence:
 - [path:line] locale/message bundle
 - [path:line] language switcher or route prefix
 - [path:line] language-specific i18n dependency/import
+- [path:line] localized README/docs language link or translated doc
+- [path:line] label/copy catalog or command/UI label definition
 
 Static assets:
 - [path] [locale/catalog purpose]
 
 Dependencies/imports:
 - [dependency/import/API] [language/framework] [evidence path]
+
+Labels and copy:
+- [path:line] [label/copy purpose, e.g., "command option labels", "form labels", "menu labels"]
+
+Localized docs:
+- [path] [locale/language and purpose]
 
 Gaps:
 - [missing fallback/default locale/tests if any]
@@ -554,6 +730,11 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
 ```json
 {
   "onboarded_at": "[ISO date]",
+  "last_mapped_commit": "[git HEAD sha or unknown]",
+  "scope": {
+    "mode": "full",
+    "paths": []
+  },
   "file_count": 0,
   "modules": [
     {
@@ -601,6 +782,8 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
     "default_locale": "en",
     "supported_locales": ["en"],
     "detected_stacks": ["TypeScript"],
+    "localized_docs": ["README.ja-JP.md", "README.ko-KR.md"],
+    "label_catalogs": ["src/labels.json"],
     "catalog_files": ["src/locales/en.json"],
     "importers": [
       { "file": "src/i18n/index.ts", "line": 3, "note": "imports locale JSON catalog" }
@@ -608,6 +791,9 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
     "provider_files": ["src/i18n/index.ts"],
     "dependencies_or_apis": [
       { "name": "react-i18next", "language": "TypeScript", "evidence_file": "package.json" }
+    ],
+    "labels_or_copy": [
+      { "file": "src/labels.json", "line": 1, "note": "static UI label catalog" }
     ],
     "evidence": [
       { "file": "src/locales/en.json", "line": 1, "note": "static translation catalog" }
@@ -684,6 +870,38 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
     "orm": "Prisma",
     "bundler": "esbuild"
   },
+  "integrations": [
+    {
+      "name": "Stripe",
+      "type": "external_api",
+      "purpose": "payments",
+      "sdk_or_client": "stripe",
+      "env_contract": ["STRIPE_SECRET_KEY"],
+      "evidence": [{ "file": "src/payments/stripe.ts", "line": 1 }]
+    }
+  ],
+  "testing": {
+    "framework": "Jest",
+    "commands": ["npm test"],
+    "test_file_patterns": ["*.test.ts"],
+    "fixture_paths": ["test/fixtures"],
+    "gaps": []
+  },
+  "structure": {
+    "directories": [
+      { "path": "src/routes", "responsibility": "HTTP route handlers", "module": "API" }
+    ],
+    "entry_points": ["src/main.ts"],
+    "static_assets": ["public/"]
+  },
+  "map_documents": {
+    "MAP.md": { "purpose": "summary", "last_mapped_commit": "[sha]" },
+    "STACK.md": { "purpose": "tech stack", "last_mapped_commit": "[sha]" },
+    "STRUCTURE.md": { "purpose": "physical layout", "last_mapped_commit": "[sha]" },
+    "INTEGRATIONS.md": { "purpose": "external systems", "last_mapped_commit": "[sha]" },
+    "TESTING.md": { "purpose": "test profile", "last_mapped_commit": "[sha]" },
+    "CONCERNS.md": { "purpose": "risk and blind spots", "last_mapped_commit": "[sha]" }
+  },
   "security_surface": {
     "auth_files": ["src/auth/middleware.ts"],
     "secret_ref_files": [],
@@ -697,6 +915,9 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
   },
   "drift_baseline": {
     "recorded_at": "[ISO date]",
+    "last_mapped_commit": "[git HEAD sha or unknown]",
+    "structure_paths": ["src/", "app/", "packages/ui/"],
+    "drift_categories": ["new_dir", "route", "migration", "barrel", "dependency", "integration", "test", "copy_locale"],
     "file_hashes": {
       "prisma/schema.prisma": "[sha256]",
       "src/db/schema.ts": "[sha256]"
@@ -712,8 +933,20 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
 - `/buildflow-build` reads `hotspots` to warn before touching high-risk files
 - `/buildflow-check` reads `schema.drift_baseline` to detect schema file changes
 - `/buildflow-start` reads `tech_stack` to populate context packet fields
+- `/buildflow-onboard --query` searches `intel.json` plus all `.buildflow/codebase/*.md` files for terms without loading the whole source tree
+- `/buildflow-build` and `/buildflow-check` use `STRUCTURE.md` + frontmatter `last_mapped_commit` to warn about structural drift and suggest scoped remaps
 
-Update `intel.json` on every `--update` run, not just full re-onboards.
+Update `intel.json` on every `--update` or `--paths` run, not just full re-onboards.
+
+### Secret Scan Generated Maps
+
+Before declaring onboarding complete, scan generated map files for likely secrets:
+
+```bash
+grep -E "(sk-[a-zA-Z0-9]{20,}|sk_live_[a-zA-Z0-9]+|ghp_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9_-]+|AKIA[A-Z0-9]{16}|xox[baprs]-[a-zA-Z0-9-]+|-----BEGIN.*PRIVATE KEY|eyJ[a-zA-Z0-9_-]+\\.eyJ[a-zA-Z0-9_-]+\\.)" .buildflow/codebase/*.md .buildflow/codebase/intel.json 2>/dev/null
+```
+
+If matches are found, stop and show the file/line references. Do not include secret values in summaries. Ask the user to confirm false positive or redact before continuing.
 
 ---
 
@@ -813,7 +1046,7 @@ Token Cost — /buildflow-onboard
 ────────────────────────────────
 Files analyzed: [N]  Modules: [N]  Hotspots: [N]  Lenses: 5
 Context loaded:    ~[N]K tokens   ([N] source files scanned)
-Output generated:  ~[N]K tokens   (MAP.md + GRAPH.md + FEATURES.md + intel.json + HOTSPOTS.md)
+Output generated:  ~[N]K tokens   (MAP.md + STACK.md + STRUCTURE.md + INTEGRATIONS.md + TESTING.md + CONCERNS.md + GRAPH.md + FEATURES.md + intel.json + HOTSPOTS.md)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
@@ -838,11 +1071,14 @@ Before declaring onboarding complete, verify:
 - `FEATURES.md` exists and lists at least every route/screen/CLI command/workflow discovered in Lens E.
 - `FEATURES.md` has a `## Local Support` section with status YES/PARTIAL/NO and evidence.
 - `FEATURES.md` has a `## Locale Support` section when locale catalogs, i18n imports, or translation JSON files are present.
+- `STACK.md`, `STRUCTURE.md`, `INTEGRATIONS.md`, `TESTING.md`, and `CONCERNS.md` exist with non-empty sections and YAML frontmatter.
 - `intel.json.features[]` is non-empty unless the repo is a pure library; if pure library, explain why.
 - `intel.json.local_support.status` is present.
 - `intel.json.locale_support.status` is present when locale/i18n evidence exists.
+- `intel.json.map_documents`, `structure`, `integrations`, and `testing` are present.
 - Every feature has at least one evidence path or is explicitly marked `documented_missing`.
 - MAP.md includes a Feature Inventory Summary.
+- Secret scan over generated map files passed or user confirmed false positives.
 
 If any item is missing, do not say "Onboarding Complete." Fix the map first.
 

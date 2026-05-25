@@ -71,7 +71,7 @@ Classify the error:
 | Wrong files modified | `/buildflow-back` to restore, then `/buildflow-modify` with narrower scope |
 | DEBT.md is growing fast | Stop and do a debt-clearing phase: `/buildflow-think --debt` first |
 | Lost track of what's done | `/buildflow-status` for current state, `/buildflow-check` for AC verification |
-| Onboard feels stale | `/buildflow-onboard --update` to refresh changed modules only |
+| Onboard feels stale | `/buildflow-onboard --update` or `/buildflow-onboard --paths <paths>` to refresh changed map areas |
 | Build is very slow | Check if context packets are loading too much — read CLAUDE.md "Context Packet" rules |
 
 ### Safe abandon (current phase only):

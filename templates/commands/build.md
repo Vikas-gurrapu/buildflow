@@ -17,6 +17,9 @@ Execute the current phase plan. Each Builder receives a precise context packet �
 ## Context Packet for this command (load only these)
 - `.buildflow/phases/[N]/PLAN.md`
 - `.buildflow/codebase/PATTERNS.md` (if exists)
+- `.buildflow/codebase/STRUCTURE.md` (if exists — only relevant sections for touched paths)
+- `.buildflow/codebase/TESTING.md` (if exists — targeted test command and test layout)
+- `.buildflow/codebase/CONCERNS.md` (if exists — only concerns relevant to touched paths)
 - `.buildflow/memory/light.md` (app_name, framework, style_fingerprint only)
 - `.buildflow/you/preferences.md` (git.permission only)
 
@@ -830,6 +833,31 @@ Options:
    ```
 
 In both modes: mark wave complete in `phases/[N]/PLAN.md` and proceed to next wave.
+
+---
+
+### 3i — Codebase Map Drift Note (non-blocking)
+
+After the wave's file changes are known, classify structural changes against `.buildflow/codebase/STRUCTURE.md` if it exists:
+
+| Category | Trigger |
+|----------|---------|
+| `new_dir` | new directory not represented in `STRUCTURE.md` |
+| `route` | new route/API/page/screen file |
+| `migration` | schema/migration file |
+| `barrel` | new `index.ts/js` public export |
+| `dependency` | package/lock/build config changed |
+| `integration` | API client/webhook/auth/env contract changed |
+| `test` | test framework/config/fixture layout changed |
+| `copy_locale` | locale catalog, label/copy catalog, or localized docs changed |
+
+If drift exists, do not fail the wave. Add a short note to the wave report:
+```
+Codebase map drift detected: [categories] at [paths]
+Suggested refresh: /buildflow-onboard --paths [affected top-level paths]
+```
+
+If 3 or more drift elements exist, show the note to the user after the wave completes. Do not auto-run onboarding unless the user asks.
 
 ---
 
