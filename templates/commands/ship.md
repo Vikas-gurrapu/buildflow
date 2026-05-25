@@ -13,7 +13,7 @@ Finalize current phase. Three gates run before shipping: spec compliance, securi
 - `.buildflow/specs/acceptance.md`
 - `.buildflow/core/state.md`
 - `.buildflow/memory/light.md`
-- Git diff of changed files (not full codebase)
+- Changed file list only: git diff if `git.permission: approved`; otherwise completed wave file lists from `PLAN.md`
 
 ## MANDATORY Gate 0: Spec Compliance Check
 
@@ -95,8 +95,8 @@ No override flag exists for strict violations. Strict mode means the spec is law
 
 Spawn Security Auditor in `--pre-ship` mode:
 - Scan changed files only:
-  - **Git available:** `git diff --name-only HEAD~1..HEAD -- src/`
-  - **No-git mode:** use file list from completed wave tasks in `PLAN.md` (same source as check.md)
+  - **If `git.permission: approved`:** `git diff --name-only HEAD~1..HEAD -- src/`
+  - **If `git.permission` is not `approved`:** use file list from completed wave tasks in `PLAN.md` (same source as check.md)
 - Check for secrets
 - Check critical injection patterns
 - Check auth bypass risks
@@ -449,14 +449,20 @@ This file is ≤500 tokens. It is the only cross-phase context future `/buildflo
 
 ## Step 5: Tag Release
 
-**If `git_available: true`:**
+Before any git command, read `.buildflow/you/preferences.md`.
+
+- If `git.permission` is `approved`: git operations are allowed.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use no-git snapshot mode, even if `.git/` exists or `light.md` says `git_available: true`.
+- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+
+**If `git.permission: approved`:**
 ```bash
 git add .
 git commit -m "ship: phase [N] complete"
 git tag "phase-[N]-complete"
 ```
 
-**If `git_available: false` (no-git mode):**
+**If `git.permission` is not `approved` (no-git mode):**
 Take a full snapshot of `src/` into `.buildflow/snapshots/phase-[N]-shipped/`.
 Record phase completion in `state.md`:
 ```yaml
@@ -492,7 +498,7 @@ To add version control at any time:
 Your work is safe — the snapshot is a full record of everything shipped this phase.
 ```
 
-**If `git_available: true` AND `parked_changes` is non-empty:**
+**If `git.permission: approved` AND `parked_changes` is non-empty:**
 ```
 ⚠ Parked Changes — Action Needed
 ──────────────────────────────────

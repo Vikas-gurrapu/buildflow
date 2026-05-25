@@ -17,10 +17,16 @@ Undo recent changes and restore to a known-good state.
 
 ## Step 1: List Restore Points
 
+Before listing or using git restore points, read `.buildflow/you/preferences.md`.
+
+- If `git.permission` is `approved`: git restore points may be listed and used.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. List only BuildFlow file snapshots and named phase checkpoints.
+- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+
 Check available options in order:
-1. Git commits (most reliable)
-2. Named BuildFlow checkpoints in `.buildflow/phases/`
-3. Git stash entries
+1. Named BuildFlow checkpoints in `.buildflow/phases/`
+2. File snapshots in `.buildflow/snapshots/`
+3. Git commits and stash entries (only if `git.permission: approved`)
 
 Show numbered list with timestamps and descriptions.
 
@@ -38,15 +44,18 @@ If there are uncommitted changes:
 
 ## Step 4: Restore
 
-For git restore:
+For git restore (only if `git.permission: approved`):
 ```bash
 git reset --hard [commit-hash]
 ```
 
-For named checkpoint:
+For named checkpoint (only if `git.permission: approved` and checkpoint is a git tag):
 ```bash
 git checkout [checkpoint-tag]
 ```
+
+For file snapshot restore:
+Copy files from the selected `.buildflow/snapshots/...` directory back to their original paths.
 
 ## Step 5: Update State
 Update `.buildflow/core/state.md` to reflect restored phase.

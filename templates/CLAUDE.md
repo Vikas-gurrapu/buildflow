@@ -22,14 +22,16 @@ Before doing anything else at the start of every session:
 
 3. **Load state** — read `.buildflow/core/state.md` for current phase and status
 
-4. **Detect git availability** — run silently:
+4. **Detect git permission and availability** — read `.buildflow/you/preferences.md` first:
+   - If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: set `git_available: false` in `light.md` and **do not run git commands** this session, even if `.git/` exists.
+   - If `git.permission` is `approved`: git operations are allowed. Then run:
    ```bash
    git rev-parse --git-dir 2>/dev/null && echo "GIT_OK" || echo "NO_GIT"
    ```
-   - `GIT_OK` → set `git_available: true` in `light.md`. All git operations work normally.
+   - `GIT_OK` + `git.permission: approved` → set `git_available: true` in `light.md`. Git operations work normally.
    - `NO_GIT` → set `git_available: false` in `light.md`. Show **once per session**:
      > "⚠ Git not detected. BuildFlow is running in **no-git mode**: restore points use file snapshots, wave commits are tracked in PLAN.md, and phase tags are recorded in state.md instead. All core features still work."
-   - If `git_available` was already set in `light.md`, skip this check and use the stored value.
+   - Never let `light.md` override `preferences.md`. If `git.permission` is not `approved`, no-git mode wins.
 
 5. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
 
@@ -66,7 +68,7 @@ Before doing anything else at the start of every session:
 | `/buildflow-test` | Re-verify a wave or test a manual change |
 | `/buildflow-check` | Verify all ACs satisfied + code quality |
 | `/buildflow-check --strict` | Structural spec-to-code mirroring: contract names, component map, critical symbol coverage, AC branches |
-| `/buildflow-ship` | Spec gate + security gate + context prune + git tag |
+| `/buildflow-ship` | Spec gate + security gate + context prune + git tag only when `git.permission: approved` |
 | `/buildflow-deploy` | Pre-flight checks + deploy staging/production |
 | `/buildflow-hotfix` | Fast-path fix — no planning, no waves |
 | `/buildflow-debug` | Root-cause analysis when tests fail |
@@ -85,7 +87,7 @@ Before doing anything else at the start of every session:
 - Ask confidence (1-5) before locking major decisions
 - Run `/buildflow-spec` before `/buildflow-plan` — no spec, no plan
 - `/buildflow-ship` blocks if any Acceptance Criterion is unsatisfied
-- Create restore points before destructive operations (git stash OR file snapshot — see no-git mode)
+- Create restore points before destructive operations (file snapshot unless `git.permission: approved`)
 - Run `/buildflow-audit` before every `/buildflow-ship`
 - No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
 - **Strict mode** — when `strict_mode: true` or phase planned with `--strict`: `/buildflow-check --strict` is mandatory before ship; strict violations have no override flag

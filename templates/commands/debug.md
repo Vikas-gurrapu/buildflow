@@ -47,9 +47,19 @@ Before fixing:
 - Will fixing this break anything else?
 
 ## Step 5: Create Restore Point
+
+Before any git command, read `.buildflow/you/preferences.md`.
+
+- If `git.permission` is `approved`: git operations are allowed.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
+- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+
+If `git.permission: approved`:
 ```bash
 git stash  # safe fallback before making changes
 ```
+
+If `git.permission` is not `approved`, copy files likely to be changed into `.buildflow/snapshots/pre-debug-[timestamp]/`.
 
 ## Step 6: Apply Fix
 - Fix only the root cause, not the symptom

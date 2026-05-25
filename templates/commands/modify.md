@@ -163,14 +163,20 @@ Only proceed on explicit confirmation.
 
 ## Step 6: Restore Point
 
-**If `git_available: true`:**
+Before any git command, read `.buildflow/you/preferences.md`.
+
+- If `git.permission` is `approved`: git operations are allowed.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
+- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+
+**If `git.permission: approved`:**
 ```bash
 git stash push -m "pre-modify: [description]"
 # or if nothing to stash:
 git tag "pre-modify-$(date +%Y%m%d-%H%M)"
 ```
 
-**If `git_available: false` (no-git mode):**
+**If `git.permission` is not `approved` (no-git mode):**
 Copy all files in the impact chain (from Step 2) into `.buildflow/snapshots/pre-modify-[timestamp]/` before writing any changes.
 Log in `state.md`: `last_restore_point: .buildflow/snapshots/pre-modify-[timestamp]/`
 To roll back: copy snapshot files back to their original paths.

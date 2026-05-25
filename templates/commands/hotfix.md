@@ -44,14 +44,20 @@ Count files that need to change.
 
 ## Step 3: Create Restore Point
 
-**If `git_available: true`:**
+Before any git command, read `.buildflow/you/preferences.md`.
+
+- If `git.permission` is `approved`: git operations are allowed.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
+- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+
+**If `git.permission: approved`:**
 ```bash
 git stash push -m "hotfix restore point: [description]"
 # or if clean working tree:
 git tag "pre-hotfix-[timestamp]"
 ```
 
-**If `git_available: false` (no-git mode):**
+**If `git.permission` is not `approved` (no-git mode):**
 Copy every file that will be modified into `.buildflow/snapshots/pre-hotfix-[timestamp]/`:
 ```
 .buildflow/snapshots/pre-hotfix-20240115-143200/
@@ -107,13 +113,13 @@ If tests fail: fix and re-test. Max 3 attempts before stopping and asking the us
 
 ## Step 6: Ship
 
-**If `git_available: true`:**
+**If `git.permission: approved`:**
 ```bash
 git add [changed files only]
 git commit -m "hotfix: [description]"
 ```
 
-**If `git_available: false` (no-git mode):**
+**If `git.permission` is not `approved` (no-git mode):**
 Take a post-fix snapshot of changed files into `.buildflow/snapshots/post-hotfix-[timestamp]/`.
 Record in `state.md`:
 ```yaml

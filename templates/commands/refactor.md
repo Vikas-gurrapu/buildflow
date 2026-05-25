@@ -33,9 +33,20 @@ Before refactoring:
 The refactor must NOT change this contract.
 
 ## Step 4: Restore Point
+
+Before any git command, read `.buildflow/you/preferences.md`.
+
+- If `git.permission` is `approved`: git operations are allowed.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
+- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+
+**If `git.permission: approved`:**
 ```bash
 git commit -m "pre-refactor restore point: [scope]"
 ```
+
+**If `git.permission` is not `approved` (no-git mode):**
+Copy the files in scope into `.buildflow/snapshots/pre-refactor-[timestamp]/` before writing changes.
 
 ## Step 5: Incremental Refactor
 Small, reviewable steps:

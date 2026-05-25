@@ -19,8 +19,8 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 - `.buildflow/specs/acceptance.md` — the source of truth for what must be true
 - `.buildflow/phases/[N]/PLAN.md` — what was supposed to be built
 - Changed files — detected as follows:
-  - **Git available:** `git diff --name-only HEAD~[wave-count]..HEAD -- src/`
-  - **No-git mode:** read the file list from wave completion records in `PLAN.md` (the `Files to create/modify` field per completed task) — this is the authoritative list of what changed
+  - **If `git.permission: approved`:** `git diff --name-only HEAD~[wave-count]..HEAD -- src/`
+  - **If `git.permission` is not `approved`:** read the file list from wave completion records in `PLAN.md` (the `Files to create/modify` field per completed task) — this is the authoritative list of what changed
 - `.buildflow/codebase/PATTERNS.md` (if exists)
 
 Do NOT load: PRD, TDD, old phases, research files, retros.
@@ -94,13 +94,15 @@ python manage.py showmigrations 2>/dev/null | grep "\[ \]"
 
 **3. Missing migration for schema change** — if schema file was modified in this phase but no new migration file was added:
 
-**If `git_available: true`:**
+Before any git command, read `.buildflow/you/preferences.md`.
+
+**If `git.permission: approved`:**
 ```bash
 git diff HEAD~1 -- "*.prisma" "schema.sql" "models.py" "*.entity.ts"
 git diff HEAD~1 --name-only -- "migrations/" "db/migrations/"
 ```
 
-**If `git_available: false` (no-git mode):**
+**If `git.permission` is not `approved` (no-git mode):**
 Compare current schema file hash against `drift_baseline.file_hashes` in `intel.json`.
 If hash differs AND no new file exists in `migrations/` newer than the last wave snapshot: FLAG.
 
@@ -134,9 +136,9 @@ If not set, use default threshold of **70%**.
 Get files changed this phase:
 
 ```bash
-# Git available:
+# If git.permission is approved:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/ 2>/dev/null
-# No-git mode: read from PLAN.md task "Files to create/modify" fields (all completed tasks)
+# If git.permission is not approved: read from PLAN.md task "Files to create/modify" fields (all completed tasks)
 grep -A2 "Files to create/modify:" .buildflow/phases/[N]/PLAN.md 2>/dev/null
 
 # For each changed file, check if any test file imports it
@@ -305,9 +307,9 @@ Read the Component Map table from `TDD.md`. For each row:
 
 Reverse check — for each file **created or modified this phase**, verify it appears in the TDD Component Map:
 ```bash
-# git mode:
+# git.permission approved:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/
-# no-git mode: read from PLAN.md task "Files to create/modify" fields
+# git.permission not approved: read from PLAN.md task "Files to create/modify" fields
 ```
 
 Report:

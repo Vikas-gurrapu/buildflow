@@ -76,12 +76,14 @@ Classify the error:
 
 ### Safe abandon (current phase only):
 
-**If `git_available: true`:**
+Before any git command, read `.buildflow/you/preferences.md`.
+
+**If `git.permission: approved`:**
 ```bash
 git stash push -m "abandoned phase [N] work"
 ```
 
-**If `git_available: false` (no-git mode):**
+**If `git.permission` is not `approved` (no-git mode):**
 The last wave snapshot in `.buildflow/snapshots/phase-[N]-wave-[M]-complete/` is your restore point.
 To roll back to before the current wave: copy files from that snapshot back to their original paths.
 To see what snapshots exist: `ls .buildflow/snapshots/`
@@ -114,6 +116,9 @@ Enable git after initially declining during setup:
 
 ### `/buildflow-help git-resolve-parked`
 Commit parked changes in the correct order once git is restored:
+
+Only run git commands here if `.buildflow/you/preferences.md` has `git.permission: approved`.
+If permission is denied, explain that the user must run `/buildflow-help git-enable` first or keep using snapshots.
 
 1. Read `parked_changes` from `light.md` — list all parked entries sorted by `parked_at` (oldest first)
 2. For each parked entry:

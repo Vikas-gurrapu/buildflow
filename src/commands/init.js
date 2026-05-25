@@ -611,7 +611,7 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start\` to begin.
 | **confidence-calibration** | Asking for a 1–5 confidence score before locking major decisions. Score below 3 triggers alternatives or research. |
 | **light memory** | The \`memory/light.md\` file — essential project context kept under 5K tokens, loaded at every session start. |
 | **wave** | A group of tasks that can run in parallel because they have no dependencies on each other. |
-| **restore point** | A git commit created before a destructive operation so \`/buildflow-back\` can undo it. |
+| **restore point** | A file snapshot, or a git checkpoint only when \`git.permission: approved\`, created before a destructive operation so \`/buildflow-back\` can undo it. |
 | **blast radius** | The set of files affected by a code change — mapped before modifying anything in Surgeon mode. |
 
 ---

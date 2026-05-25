@@ -349,9 +349,10 @@ ${commandDescriptions}
 2. Ask confidence (1-5) on major decisions
 3. Show alternatives before locking choices
 4. Add LEARN: comments for new concepts
-5. Create restore points before destructive changes
-6. Run security checks before shipping
-7. Cite sources with trust scores
+5. Respect \`.buildflow/you/preferences.md\` git.permission before any git command
+6. Create restore points before destructive changes (file snapshot unless git.permission is approved)
+7. Run security checks before shipping
+8. Cite sources with trust scores
 
 ## Agents
 
@@ -388,7 +389,8 @@ ${commandList}
 - Generate LEARN: comments for unfamiliar concepts
 - Run /buildflow-audit before shipping
 - Cite all research sources with trust scores (1-5)
-- Create git restore points before destructive operations
+- Respect \`.buildflow/you/preferences.md\` git.permission before any git command
+- Create restore points before destructive operations (file snapshot unless git.permission is approved)
 
 ## Memory
 
