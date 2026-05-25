@@ -97,7 +97,30 @@ After each step: verify behavior unchanged.
 
 ## Step 6: Quality Check (Reviewer agent)
 - Is the refactored code simpler?
-- Are existing tests still passing?
+- Run targeted tests for **refactored files and their direct dependents only** — not the full suite:
+  ```bash
+  npx jest --testPathPattern="[refactored-file-name]" --no-coverage   # JS/TS
+  npx vitest run [refactored-test-file] [caller-test-file]
+  pytest tests/[module]/test_[file].py -v                             # Python
+  go test ./[package]/... -run TestRefactoredFunction                 # Go
+  cargo test [module]::                                               # Rust
+  ./mvnw test -Dtest=RefactoredClassTest -q                           # Java/Maven
+  ./gradlew test --tests "*.RefactoredClassTest"                      # Java/Gradle
+  dotnet test --filter "FullyQualifiedName~RefactoredClass"           # C#
+  bundle exec rspec [refactored_spec] [caller_spec]                   # Ruby
+  ```
+  **Pure style/config fast path:** if ONLY `.css`/`.scss`/`.less`/`.styl` or config files were touched — skip test run entirely.
+
+**After targeted tests pass — ask once:**
+```
+──────────────────────────────────────────────────
+Targeted tests passed. Run full app-level test suite?
+  [Y] Yes — run full suite now
+  [N] No  — skip and proceed to Update Codebase Map
+──────────────────────────────────────────────────
+```
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
+- **[N]:** Skip. Proceed to Step 7. Full suite runs at `/buildflow-check`.
 - Does it match PATTERNS.md conventions?
 - Any new complexity introduced?
 

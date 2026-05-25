@@ -137,6 +137,8 @@ Make the minimal change:
 
 ## Step 4b: Write Regression Test (always — even in hotfix mode)
 
+**Catalog-only fast path:** If ALL files changed by the fix are pure data files — locale catalogs, label/copy JSON, `.properties`, `strings.xml`, `.arb`, `.po` — skip Steps 4b and 5 entirely. Static data files have no logic to regression test. Go directly to Step 6.
+
 ### First: check if a test framework exists
 ```bash
 cat package.json | grep -E "jest|vitest|mocha" 2>/dev/null
@@ -149,9 +151,22 @@ find . -name "*.test.ts" -o -name "*.test.js" -o -name "test_*.py" | head -3
 
 For the specific behavior being fixed:
 1. Write a test that reproduces the bug before applying the fix
-2. Run it — confirm it fails
+2. Run **only that specific test file** — confirm it fails:
+   ```bash
+   npx jest [specific-test-file] --no-coverage   # JS/TS
+   npx vitest run [specific-test-file]
+   pytest [specific-test-file] -v                # Python
+   go test ./[package]/... -run TestFunctionName # Go
+   cargo test specific_test_name                 # Rust
+   ./mvnw test -Dtest=SpecificTest -q            # Java/Maven
+   ./gradlew test --tests "*.SpecificTest"       # Java/Gradle
+   dotnet test --filter "FullyQualifiedName~X"   # C#
+   bundle exec rspec [specific_spec]             # Ruby
+   ```
 3. Apply the fix (Step 4)
-4. Run it again — confirm it passes
+4. Run **only that same test file again** — confirm it passes
+
+Do NOT run the full suite during TDD. Run only the single new test file each time.
 
 Name it after the exact bug:
 ```
@@ -166,10 +181,15 @@ If not: create a minimal test file covering this function only. Do not skip — 
 
 Run tests for **changed files and their direct dependents only** — not the full suite. The full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
-**Build the targeted test set:**
-1. Every file changed by the fix
-2. Direct test file for each changed file (same name, `.test.` / `_test.` / `_spec.` / `Test` suffix)
+**Catalog-only fast path (label/copy/locale files only):**
+If ALL changed files are catalog files (`.json` label catalogs, `.properties`, `strings.xml`, `.arb`, `.po`, `.strings`) — skip this step. Pure data changes carry no runnable logic. If i18n-specific snapshot tests exist (e.g., `locales.test.ts`, `i18n.test.ts`, `labels.test.ts`): run only those. Otherwise: skip and go to Step 6.
+
+**Build the targeted test set (for logic changes):**
+1. Every source file changed by the fix (exclude pure catalog files from this list)
+2. Direct test file for each changed source file (same name, `.test.` / `_test.` / `_spec.` / `Test` suffix)
 3. Any test that imports or calls the changed file (callers)
+
+Do NOT fall back to the nearest enclosing package/module test when no test file exists for a catalog file — that path runs the full suite. If no test exists for a changed source file, create one (Step 4b); if the changed file is a pure catalog, skip it.
 
 ```bash
 # JS / TS
@@ -210,8 +230,18 @@ xcodebuild test -scheme AppTests -only-testing "AppTests/AuthServiceTests"
 sbt "testOnly *.AuthServiceSpec"
 ```
 
-If no test file exists for the changed file: run the nearest enclosing package/module test.
 If tests fail: fix and re-run. Max 3 attempts, then stop and report what's unresolved.
+
+**After targeted tests pass — ask once:**
+```
+──────────────────────────────────────────────────
+Targeted tests passed. Run full app-level test suite?
+  [Y] Yes — run full suite now
+  [N] No  — skip and proceed to Ship
+──────────────────────────────────────────────────
+```
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
+- **[N]:** Skip. Proceed to Step 6. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ## Step 6: Ship
 

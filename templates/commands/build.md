@@ -458,16 +458,30 @@ Each Builder:
 - Adds `LEARN:` comment only for patterns not present elsewhere in the codebase
 
 **If the task is tagged `[TF]` (failing-test-first) in PLAN.md — mandatory protocol:**
+
+**Pure style/config/data fast path:** If this task ONLY touches `.css`, `.scss`, `.sass`, `.less`, `.styl`, locale/label catalogs (`.json` label catalogs, `.properties`, `strings.xml`, `.arb`, `.po`), or static assets — skip TF protocol entirely. There is no logic to test-drive.
+
 1. Write the test(s) for the linked ACs first
-2. Run them: `npm test -- --testPathPattern=[test file]` (or equivalent)
+2. Run **only the new test file** — not the full suite:
+   ```bash
+   npx jest [specific-test-file] --no-coverage   # JS/TS
+   npx vitest run [specific-test-file]
+   pytest [specific-test-file] -v                # Python
+   go test ./[package]/... -run TestFunctionName # Go
+   cargo test specific_test_name                 # Rust
+   ./mvnw test -Dtest=SpecificTest -q            # Java/Maven
+   ./gradlew test --tests "*.SpecificTest"       # Gradle
+   dotnet test --filter "FullyQualifiedName~X"   # C#
+   bundle exec rspec [specific_spec]             # Ruby
+   ```
 3. Confirm they FAIL — a meaningful assertion failure, not a syntax/import error
    - If they pass immediately: the test is wrong (too permissive) — fix the test before proceeding
    - If they error on import: the stub/scaffold is missing — create the empty stub first, then re-run
 4. Write the implementation
-5. Run the tests again — confirm they now PASS
+5. Run **only the same test file again** — confirm they now PASS
 6. Report: "TF verified: [test name] failed before, passes after"
 
-This proof-of-failure step is non-negotiable for `[TF]` tasks. Skip it only for SCAFFOLD/CONFIG/MIGRATION task types.
+This proof-of-failure step is non-negotiable for `[TF]` tasks. Skip it only for SCAFFOLD/CONFIG/MIGRATION task types or pure style/data files.
 
 #### Mandatory Test Writing Rules (enforced per Builder)
 
@@ -748,7 +762,16 @@ Fix:        [exactly what changed]
 Result:     PASS / still failing
 ```
 
-**After targeted tests pass: proceed directly to 3f (schema drift check) and then commit.** Do not run the full suite here — that is `/buildflow-check` and `/buildflow-ship`'s job.
+**After targeted tests pass — ask once:**
+```
+──────────────────────────────────────────────────
+Targeted tests passed. Run full app-level test suite?
+  [Y] Yes — run full suite now
+  [N] No  — skip and proceed to schema drift check
+──────────────────────────────────────────────────
+```
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
+- **[N]:** Skip. Proceed to 3f. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ### 3f — Schema Drift Check (runs after tests, before commit — if schema files exist)
 

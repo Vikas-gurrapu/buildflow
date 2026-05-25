@@ -113,9 +113,47 @@ If `git.permission` is not `approved`, copy files likely to be changed into `.bu
    ```
 
 ## Step 7: Verify Fix
-- Re-run the failing test — confirm it passes
-- Run full test suite — confirm no regressions
-- If UI bug: verify the flow works end-to-end
+
+**Pure style/config/data fast path:** If ALL changed files are pure style (`.css`, `.scss`, `.sass`, `.less`, `.styl`), config (`.json` non-catalog, `.env`, `.gitignore`, `tsconfig`, `.eslintrc`), or static assets — skip test run entirely. No logic changed, no tests to run.
+
+- Re-run the failing test — run **only that specific test file**, not the suite:
+  ```bash
+  # JS/TS
+  npx jest [specific-test-file] --no-coverage
+  npx vitest run [specific-test-file]
+  # Python
+  pytest [specific-test-file] -v
+  # Go
+  go test ./[package]/... -run TestFunctionName
+  # Java/Kotlin (Maven)
+  ./mvnw test -Dtest=SpecificTest#methodName -q
+  # Java/Kotlin (Gradle)
+  ./gradlew test --tests "*.SpecificTest.methodName"
+  # C#
+  dotnet test --filter "FullyQualifiedName~SpecificTest"
+  # Ruby
+  bundle exec rspec [specific_spec_file]
+  # Rust
+  cargo test specific_test_name
+  ```
+- Confirm the previously failing test now passes
+- Run direct dependent tests (files that import the changed file) — not the full suite:
+  ```bash
+  # JS/TS — only the touched file and its direct callers
+  npx jest --testPathPattern="[changed-file-name]|[caller-file-name]" --no-coverage
+  ```
+- If UI bug: verify the specific broken flow works — do not run the full E2E suite
+
+**After targeted tests pass — ask once:**
+```
+──────────────────────────────────────────────────
+Targeted tests passed. Run full app-level test suite?
+  [Y] Yes — run full suite now
+  [N] No  — skip and proceed to Prevent Recurrence
+──────────────────────────────────────────────────
+```
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
+- **[N]:** Skip. Proceed to Step 8. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ## Step 8: Prevent Recurrence
 - Add a test that would have caught this bug

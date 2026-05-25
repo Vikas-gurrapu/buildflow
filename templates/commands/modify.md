@@ -348,10 +348,23 @@ For each source file touched in Step 7:
 
 **For bugfixes specifically:**
 1. Write the regression test BEFORE applying the fix
-2. Run it — confirm it fails (proves the bug exists)
+2. Run **only that specific test file** — confirm it fails (proves the bug exists):
+   ```bash
+   npx jest [specific-test-file] --no-coverage   # JS/TS
+   npx vitest run [specific-test-file]
+   pytest [specific-test-file] -v                # Python
+   go test ./[package]/... -run TestFunctionName # Go
+   cargo test specific_test_name                 # Rust
+   ./mvnw test -Dtest=SpecificTest -q            # Java/Maven
+   ./gradlew test --tests "*.SpecificTest"       # Java/Gradle
+   dotnet test --filter "FullyQualifiedName~X"   # C#
+   bundle exec rspec [specific_spec]             # Ruby
+   ```
 3. Apply the fix
-4. Run again — confirm it passes (proves the fix works)
+4. Run **only that same test file again** — confirm it passes (proves the fix works)
 5. Name the test after the exact bug: `should not return null when profile photo is missing`
+
+Do NOT run the full suite during TDD — run only the single new test file each time.
 
 **Test coverage report after this step:**
 ```
@@ -370,10 +383,12 @@ Do not proceed to Step 8 until every touched source file has corresponding test 
 
 Run tests for **changed files and their dependents only** — not the full suite. The full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
+**Pure style/config/data fast path:** If ALL changed files are pure style (`.css`, `.scss`, `.sass`, `.less`, `.styl`), locale/label catalogs (`.json` label catalogs, `.properties`, `strings.xml`, `.arb`, `.po`, `.strings`), or static assets — skip this step entirely. No logic changed, no tests to run.
+
 **Targeted test set:**
-1. Direct test file(s) for every source file touched (same name + `.test.` / `_test.` / `spec` suffix)
+1. Direct test file(s) for every **source file** touched — exclude pure style/data/config files from this list
 2. Tests for callers of any changed contract (from `symbol_callers` in intel.json, or Step 2 impact chain)
-3. If no direct tests exist: run the nearest enclosing package/module
+3. If no direct test file exists for a source file: **create one** (Step 7b). Do NOT fall back to the nearest enclosing package/module — that path runs the full suite.
 
 ```bash
 # JS/TS
@@ -420,6 +435,17 @@ Also verify:
 - All files in the impact chain still compile
 - Callers of changed contracts still function
 - The regression test (for bugfixes) now passes
+
+**After targeted tests pass — ask once:**
+```
+──────────────────────────────────────────────────
+Targeted tests passed. Run full app-level test suite?
+  [Y] Yes — run full suite now
+  [N] No  — skip and proceed to Update Memory
+──────────────────────────────────────────────────
+```
+- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions here, they may be pre-existing.
+- **[N]:** Skip. Proceed to Step 9. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
 ---
 
