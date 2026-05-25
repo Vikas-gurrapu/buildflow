@@ -164,6 +164,69 @@ Locale Support Preservation
 - User-facing copy changes include locale test or snapshot updates when available
 ```
 
+### Step 2c: Locale Catalog Sync (mandatory when keys change — not optional)
+
+**Triggered when any of these is true:**
+- Change adds a new label/i18n key in source code (`t('new.key')`, `getString(R.string.newKey)`, `__('new_key')`, `NSLocalizedString("key", ...)`, `I18n.t("key")`)
+- Change renames an existing key
+- Change removes a key
+- Change directly edits a label/copy catalog file (`.json`, `.properties`, `.xml`, `.arb`)
+
+**Action — sync ALL catalog files, not just the one being edited:**
+
+1. Read `intel.json → locale_support`:
+   - `catalog_files[]` — all locale catalog paths (en.json, fr.json, messages_en.properties, etc.)
+   - `label_catalogs[]` — static label/copy JSON paths (labels.json, strings.json, etc.)
+   - `supported_locales[]` — all locale codes
+   - `catalog_type` — json / properties / xml / arb / strings / po
+
+2. For each key being added, renamed, or removed:
+
+   **Adding a new key:**
+   - Primary locale catalog (from `default_locale`): add the key with the real value from the change description
+   - Secondary locale catalogs: add the key with `[TRANSLATE: <primary-locale-value>]` as placeholder — never leave the key missing
+   - Static label/copy catalogs (`label_catalogs[]`): add the key with the real value directly (no locale variants)
+
+   **Renaming a key:**
+   - ALL catalogs: rename the key, preserve the existing value exactly
+   - Grep ALL source files for the old key name before renaming — update every reference
+   - Only then rename in all catalog files
+
+   **Removing a key:**
+   - Grep ALL source files first — verify no code still references the key before deleting
+   - If still referenced: block the removal, flag the remaining references
+   - If unreferenced: remove from ALL catalog files
+
+3. Write format per catalog type:
+
+   | Type | Format |
+   |------|--------|
+   | JSON | `"key": "value"` — match existing nesting structure exactly |
+   | Properties | `key=value` one per line — match existing whitespace/comment style |
+   | XML (`strings.xml`) | `<string name="key">value</string>` inside `<resources>` |
+   | ARB (Flutter) | `"key": "value"` — also add `"@key": {}` metadata if other keys have it |
+   | PO | `msgid "key"\nmsgstr "value"` block |
+   | `.strings` (iOS) | `"key" = "value";` |
+
+4. Use the **Write tool** to update each catalog file. Do not output the updated content as text — write it to disk.
+
+5. Report the sync before proceeding to Step 3:
+   ```
+   Locale Catalog Sync
+   ───────────────────
+   Keys added:   [key names]
+   Keys renamed: [old → new]
+   Keys removed: [key names]
+   Catalogs updated ([N]):
+     src/locales/en.json         — added [N] keys (primary values)
+     src/locales/fr.json         — added [N] keys ([TRANSLATE] placeholders)
+     src/locales/de.json         — added [N] keys ([TRANSLATE] placeholders)
+     assets/labels.json          — added [N] keys (static catalog)
+   Remaining [TRANSLATE] placeholders: [N] — require human translation
+   ```
+
+   If `catalog_files[]` is empty in intel.json but locale code was detected: grep for catalog files now using the same patterns from onboard Step 9c. If still not found: warn "⚠ Locale catalog files not found — update intel.json by running `/buildflow-onboard --update`."
+
 ---
 
 ## Step 3: API Contract Check
@@ -303,14 +366,60 @@ Do not proceed to Step 8 until every touched source file has corresponding test 
 
 ---
 
-## Step 8: Test + Verify
-Run full test suite. On failure: fix and retest (max 3 attempts).
+## Step 8: Targeted Test + Verify
+
+Run tests for **changed files and their dependents only** — not the full suite. The full suite runs at `/buildflow-check` and `/buildflow-ship`.
+
+**Targeted test set:**
+1. Direct test file(s) for every source file touched (same name + `.test.` / `_test.` / `spec` suffix)
+2. Tests for callers of any changed contract (from `symbol_callers` in intel.json, or Step 2 impact chain)
+3. If no direct tests exist: run the nearest enclosing package/module
+
+```bash
+# JS/TS
+npx jest --testPathPattern="[touched-file-name]"
+npx vitest run [test-file] [caller-test-file]
+
+# Python
+pytest tests/[module]/test_[file].py tests/[caller-module]/
+
+# Go
+go test ./[package]/...
+
+# Rust
+cargo test [module]::
+
+# Java/Kotlin (Maven)
+./mvnw test -Dtest=[TouchedClass]Test,[CallerClass]Test -q
+
+# Java/Kotlin (Gradle)
+./gradlew test --tests "*.TouchedClassTest" --tests "*.CallerClassTest"
+
+# C# / .NET
+dotnet test --filter "FullyQualifiedName~TouchedClass"
+
+# Ruby
+bundle exec rspec [touched_spec] [caller_spec]
+
+# PHP
+./vendor/bin/phpunit [TouchedTest] [CallerTest]
+
+# Dart / Flutter
+flutter test test/[touched_test].dart
+
+# Swift
+xcodebuild test -only-testing "[Target]/[TouchedClassTests]"
+
+# Scala
+sbt "testOnly *.[TouchedClassSpec]"
+```
+
+On failure: fix and re-run. Max 3 attempts.
 
 Also verify:
 - All files in the impact chain still compile
 - Callers of changed contracts still function
 - The regression test (for bugfixes) now passes
-- No previously passing tests were broken
 
 ---
 

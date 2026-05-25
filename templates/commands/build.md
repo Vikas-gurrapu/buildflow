@@ -423,6 +423,7 @@ Closest existing example: [path/to/similar/file.ts — "follow this structure"]
 Key pattern to follow: [specific convention from PATTERNS.md]
 Definition of done: [linked ACs that must pass]
 Serialized after: [task name, or "none — runs in parallel"]
+Locale context: [INCLUDE intel.json locale_support section if task type is copy_locale OR task description references label/copy/i18n keys — otherwise OMIT]
 ```
 
 The "closest existing example" is the most important field. Builders replicate proven patterns — they don't invent new ones unless the task explicitly requires it. Find the nearest analog in the codebase.
@@ -520,6 +521,63 @@ Test files written/updated: [list with case count]
 ACs addressed: [AC-001 ✓, AC-003 ✓]
 Pattern followed: [example file used]
 ```
+
+### 3b-locale — Locale Catalog Sync (runs after Builder, before Reviewer)
+
+**Triggered when any of these is true:**
+- Task description or ACs reference label, copy, text, or i18n key additions/changes
+- Task type in PLAN.md is `copy_locale`
+- Builder output added new i18n key references in source code (`t('...')`, `getString(R.string....)`, `__('...')`, `NSLocalizedString(...)`, `I18n.t('...')`)
+
+**If NOT triggered:** skip this step entirely.
+
+**Action — sync key values to ALL catalog files:**
+
+1. Read `intel.json → locale_support`:
+   - `catalog_files[]` — all locale catalog paths
+   - `label_catalogs[]` — static label/copy JSON paths
+   - `supported_locales[]` — all locale codes
+   - `catalog_type` — json / properties / xml / arb / strings / po
+
+2. Identify every new/changed/removed key from the Builder's source file output this task.
+
+3. For each key:
+
+   **New key:**
+   - Primary locale catalog: add with the real value from the task AC or description
+   - All other locale catalogs: add with `[TRANSLATE: <primary-value>]` placeholder
+   - Static label catalogs (`label_catalogs[]`): add with real value (no locale variants)
+
+   **Changed value (same key, updated text):**
+   - Primary locale catalog: update the value
+   - All other locale catalogs: update to `[TRANSLATE: <new-primary-value>]` unless the task explicitly provides translated values
+
+   **Removed key:**
+   - Grep ALL source files to verify no remaining references before removing
+   - Remove from ALL catalog files
+
+4. Write format per catalog type:
+
+   | Type | Format |
+   |------|--------|
+   | JSON | `"key": "value"` — match existing nesting structure |
+   | Properties | `key=value` — match existing line style |
+   | XML (`strings.xml`) | `<string name="key">value</string>` inside `<resources>` |
+   | ARB (Flutter) | `"key": "value"` + `"@key": {}` metadata if others have it |
+   | PO | `msgid "key"\nmsgstr "value"` block |
+   | `.strings` (iOS) | `"key" = "value";` |
+
+5. Use the **Write tool** to update each catalog file. Do not output content as text — write to disk.
+
+6. If `catalog_files[]` is empty in intel.json but locale code was detected: grep for catalog files now. If still not found: warn "⚠ Locale catalogs not located — run `/buildflow-onboard --update` to refresh intel.json."
+
+7. Add to Builder report:
+   ```
+   Locale Catalog Sync:
+     Keys added/changed: [N]
+     Catalogs updated: src/locales/en.json, src/locales/fr.json (+2 more)
+     [TRANSLATE] placeholders remaining: [N]
+   ```
 
 ### 3c — Reviewer Check
 Reviewer reads each Builder's output:
@@ -690,26 +748,7 @@ Fix:        [exactly what changed]
 Result:     PASS / still failing
 ```
 
-**After targeted tests pass, ask before broader verification:**
-
-```
-Targeted tests passed for Wave [N].
-
-Would you like me to run broader verification now?
-  [I] Impacted area tests — touched files plus nearby module/package tests
-  [A] App smoke check     — start app/dev server and verify core flow
-  [B] Both                — impacted area tests, then app smoke check
-  [S] Skip for now        — continue to next wave; full gates still run at /buildflow-ship
-```
-
-Wait for the user's choice.
-
-- **I:** run the broader touched-file impact set only. This may include nearby package/module tests, but should still avoid whole-repo test commands unless the touched area cannot be isolated.
-- **A:** if frontend or runtime behavior changed, start the app/dev server and verify the relevant core flow; otherwise explain why app smoke is unnecessary.
-- **B:** run impacted area tests, then app smoke check.
-- **S:** record in wave report: "Broader verification skipped by user after targeted tests passed."
-
-If the user does not answer, do not silently run whole-repo tests or the application.
+**After targeted tests pass: proceed directly to 3f (schema drift check) and then commit.** Do not run the full suite here — that is `/buildflow-check` and `/buildflow-ship`'s job.
 
 ### 3f — Schema Drift Check (runs after tests, before commit — if schema files exist)
 

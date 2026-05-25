@@ -57,6 +57,44 @@ Small, reviewable steps:
 
 After each step: verify behavior unchanged.
 
+## Step 5b: Locale Catalog Sync (runs after each rename step — only if i18n keys affected)
+
+**Triggered when Step 5 renames or moves:**
+- A symbol that is also an i18n key reference (`t('old.key')` → `t('new.key')`)
+- A file that is a locale catalog or label/copy JSON
+- A string constant used as a label key
+
+**If NOT triggered:** skip this step.
+
+**Action:**
+
+1. Read `intel.json → locale_support` to get `catalog_files[]`, `label_catalogs[]`, `supported_locales[]`, `catalog_type`.
+
+   If intel.json absent: grep for catalog files:
+   ```bash
+   find . -type f \( -path "*/locales/*" -o -path "*/i18n/*" -o -path "*/lang/*" -o -name "*labels*.json" -o -name "*strings*.json" -o -name "messages*.properties" -o -name "strings.xml" -o -name "*.arb" \) 2>/dev/null | grep -v node_modules | head -30
+   ```
+
+2. For each renamed key:
+   - Grep ALL source files for the old key name — update every reference to the new name
+   - Then rename the key in ALL catalog files, preserving values exactly
+   - Format per type: JSON `"new.key": "value"`, properties `new.key=value`, XML `<string name="new_key">`, ARB `"newKey": "value"`, PO `msgid "new.key"`, `.strings` `"new.key" = "value";`
+
+3. For each moved file that is a catalog:
+   - Update all import paths that reference the old catalog path
+   - Update `intel.json locale_support.catalog_files[]` with the new path
+
+4. Use the **Write tool** to update each affected catalog file — write to disk, not as text output.
+
+5. Report:
+   ```
+   Locale Catalog Sync (refactor)
+   ──────────────────────────────
+   Keys renamed: [old → new] across [N] catalogs
+   Files moved:  [old path → new path]
+   Source references updated: [N]
+   ```
+
 ## Step 6: Quality Check (Reviewer agent)
 - Is the refactored code simpler?
 - Are existing tests still passing?

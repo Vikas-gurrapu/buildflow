@@ -76,6 +76,65 @@ Make the minimal change:
 - Do not refactor, rename, or clean up surrounding code
 - Match existing code style
 
+## Step 4c: Locale Catalog Sync (runs after fix — only if label/i18n keys changed)
+
+**Triggered when the fix:**
+- Adds a new label/i18n key in source code (`t('new.key')`, `getString(R.string.newKey)`, `__('new_key')`, `NSLocalizedString("key", ...)`, `I18n.t("key")`)
+- Renames or removes an existing key
+- Directly edits a label/copy catalog file (`.json`, `.properties`, `strings.xml`, `.arb`)
+
+**If NOT triggered:** skip this step entirely and go to Step 4b.
+
+**Action — sync ALL catalog files, not just the one edited:**
+
+1. Read `intel.json → locale_support` (if onboarded):
+   - `catalog_files[]` — all locale catalog paths
+   - `label_catalogs[]` — static label/copy JSON paths
+   - `supported_locales[]` — all locale codes
+   - `catalog_type` — json / properties / xml / arb / strings / po
+
+   If intel.json is absent: grep for catalog files now:
+   ```bash
+   find . -type f \( -path "*/locales/*" -o -path "*/i18n/*" -o -path "*/lang/*" -o -name "*labels*.json" -o -name "*strings*.json" -o -name "messages*.properties" -o -name "strings.xml" -o -name "*.arb" \) 2>/dev/null | grep -v node_modules | head -30
+   ```
+
+2. For each key change from the fix:
+
+   **Adding a key:**
+   - Primary locale catalog: add with the real value from the fix description
+   - All other locale catalogs: add with `[TRANSLATE: <primary-value>]` placeholder
+   - Static label/copy catalogs: add with real value (no locale variants)
+
+   **Renaming a key:**
+   - Grep ALL source files for the old key name first — update every reference
+   - Then rename in ALL catalog files, preserving existing values
+
+   **Removing a key:**
+   - Grep ALL source files — if still referenced, block removal and flag the references
+   - If unreferenced: remove from ALL catalog files
+
+3. Write format per catalog type:
+
+   | Type | Format |
+   |------|--------|
+   | JSON | `"key": "value"` — match existing nesting structure |
+   | Properties | `key=value` — match existing line style |
+   | XML (`strings.xml`) | `<string name="key">value</string>` inside `<resources>` |
+   | ARB (Flutter) | `"key": "value"` + `"@key": {}` if others have it |
+   | PO | `msgid "key"\nmsgstr "value"` block |
+   | `.strings` (iOS) | `"key" = "value";` |
+
+4. Use the **Write tool** to update each catalog file — do not output content as text, write to disk.
+
+5. Report:
+   ```
+   Locale Catalog Sync
+   ───────────────────
+   Keys added/renamed/removed: [N]
+   Catalogs updated: [list of paths]
+   [TRANSLATE] placeholders: [N] — require human translation
+   ```
+
 ## Step 4b: Write Regression Test (always — even in hotfix mode)
 
 ### First: check if a test framework exists
@@ -103,13 +162,56 @@ it('should return 401 when session token is expired')
 If a test file already exists for the changed file: add the case there.
 If not: create a minimal test file covering this function only. Do not skip — a hotfix without a regression test will regress again.
 
-## Step 5: Test
-Run the full test suite:
+## Step 5: Targeted Test
+
+Run tests for **changed files and their direct dependents only** — not the full suite. The full suite runs at `/buildflow-check` and `/buildflow-ship`.
+
+**Build the targeted test set:**
+1. Every file changed by the fix
+2. Direct test file for each changed file (same name, `.test.` / `_test.` / `_spec.` / `Test` suffix)
+3. Any test that imports or calls the changed file (callers)
+
 ```bash
-npm test        # or pytest / go test etc.
+# JS / TS
+npx jest --testPathPattern="auth.service|auth.routes"
+npx vitest run src/auth/auth.service.test.ts
+
+# Python
+pytest tests/auth/test_service.py tests/api/test_auth_routes.py
+
+# Go
+go test ./internal/auth/...
+
+# Rust
+cargo test auth::
+
+# Java / Kotlin (Maven)
+./mvnw test -Dtest=AuthServiceTest,AuthControllerTest -q
+
+# Java / Kotlin (Gradle)
+./gradlew test --tests "*.AuthServiceTest" --tests "*.AuthControllerTest"
+
+# C# / .NET
+dotnet test --filter "FullyQualifiedName~AuthService"
+
+# Ruby
+bundle exec rspec spec/services/auth_service_spec.rb spec/controllers/auth_controller_spec.rb
+
+# PHP
+./vendor/bin/phpunit tests/AuthServiceTest.php tests/AuthControllerTest.php
+
+# Dart / Flutter
+flutter test test/auth_service_test.dart
+
+# Swift
+xcodebuild test -scheme AppTests -only-testing "AppTests/AuthServiceTests"
+
+# Scala
+sbt "testOnly *.AuthServiceSpec"
 ```
 
-If tests fail: fix and re-test. Max 3 attempts before stopping and asking the user.
+If no test file exists for the changed file: run the nearest enclosing package/module test.
+If tests fail: fix and re-run. Max 3 attempts, then stop and report what's unresolved.
 
 ## Step 6: Ship
 

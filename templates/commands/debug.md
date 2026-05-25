@@ -66,6 +66,52 @@ If `git.permission` is not `approved`, copy files likely to be changed into `.bu
 - Minimum footprint — do not refactor surrounding code
 - Match existing code style (PATTERNS.md)
 
+## Step 6b: Locale Catalog Sync (runs after fix — only if label/i18n keys changed)
+
+**Triggered when the fix:**
+- Adds a missing i18n key that was causing broken/undefined UI labels
+- Renames or removes a label key
+- Directly edits a catalog file (`.json`, `.properties`, `strings.xml`, `.arb`)
+
+**If NOT triggered:** skip this step.
+
+**Action — sync ALL catalog files:**
+
+1. Read `intel.json → locale_support` to get `catalog_files[]`, `label_catalogs[]`, `supported_locales[]`, `catalog_type`.
+
+   If intel.json absent: grep for catalog files:
+   ```bash
+   find . -type f \( -path "*/locales/*" -o -path "*/i18n/*" -o -path "*/lang/*" -o -name "*labels*.json" -o -name "*strings*.json" -o -name "messages*.properties" -o -name "strings.xml" -o -name "*.arb" \) 2>/dev/null | grep -v node_modules | head -30
+   ```
+
+2. For each key added/renamed/removed by the fix:
+
+   **Adding a missing key** (common debug scenario — label was undefined):
+   - Primary locale catalog: add with the correct value
+   - All other locale catalogs: add with `[TRANSLATE: <primary-value>]` placeholder
+   - Static label/copy catalogs: add with the correct value directly
+
+   **Renaming a key:**
+   - Grep ALL source files for old key name, update every reference
+   - Rename in ALL catalog files, preserving values
+
+   **Removing a key:**
+   - Grep ALL source files — if still referenced, block and flag
+   - If unreferenced: remove from ALL catalog files
+
+3. Format per type: JSON `"key": "value"`, properties `key=value`, XML `<string name="key">value</string>`, ARB `"key": "value"` + `"@key": {}`, PO `msgid "key"\nmsgstr "value"`, `.strings` `"key" = "value";`
+
+4. Use the **Write tool** to update each catalog file — write to disk, not as text output.
+
+5. Report:
+   ```
+   Locale Catalog Sync (debug fix)
+   ────────────────────────────────
+   Keys added/fixed: [N]
+   Catalogs updated: [list of paths]
+   [TRANSLATE] placeholders: [N]
+   ```
+
 ## Step 7: Verify Fix
 - Re-run the failing test — confirm it passes
 - Run full test suite — confirm no regressions
