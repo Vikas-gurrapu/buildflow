@@ -22,6 +22,8 @@ Works for features and bugfixes equally.
 - `.buildflow/codebase/GRAPH.md` (import dependency graph — essential for impact analysis)
 - `.buildflow/codebase/HOTSPOTS.md`
 - `.buildflow/codebase/PATTERNS.md`
+- `.buildflow/codebase/FEATURES.md` (existing capabilities, local support, locale support, feature ownership)
+- `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support`
 - Target file(s) if named in command
 
 If not onboarded: "Run `/buildflow-onboard` first — impact analysis requires the dependency graph."
@@ -43,6 +45,12 @@ If ambiguous: ask ONE clarifying question only.
 
 ### 2a: Check for Symbol-Level Data
 Read `.buildflow/codebase/intel.json`.
+
+Also read `features[]`, `local_support`, and `locale_support` if present:
+- Identify whether the target file appears in any feature evidence or owned modules.
+- Identify whether the target file is part of local support (scripts, config, env, mocks, fixtures, local services, docs).
+- Identify whether the target file is part of locale support (translation JSON, message catalogs, i18n imports/loaders/providers, locale routing, fallback config).
+- Add those capabilities to the impact summary so the change preserves them deliberately.
 
 **If `symbol_callers` exists in intel.json** (onboarded with GAP-H symbol tracking):
 - Identify the **specific functions/methods** being changed (from Step 1)
@@ -88,6 +96,9 @@ For each affected file, annotate:
 - **Test coverage**: does a test file cover this file?
 - **Contract sensitivity**: does this file export a public API? If yes, callers may break.
 - **Module boundary**: does this change cross a module boundary?
+- **Feature ownership**: which `FEATURES.md` capability or `intel.json.features[]` entry this file supports, if any.
+- **Local-support sensitivity**: whether this affects local run/dev workflows, local config, mocks, seed data, fixtures, compose/devcontainer files, or documented setup.
+- **Locale-support sensitivity**: whether this affects locale JSON catalogs, message keys, i18n imports/loaders/providers, route prefixes, language switchers, or fallback/default locale behavior.
 
 **Impact Summary:**
 ```
@@ -107,9 +118,30 @@ Transitive (file level):
 
 Blast radius: 3 files with call sites, 1 transitive
 Highest risk file touched: src/auth/login.ts (4.2)
+Feature impact: Auth login, Local development support (if env/config touched)
 ```
 
 If any call site file has risk ≥ 4.0: flag as "Caution — high-risk transitive impact. Consider splitting this change."
+
+If local support is touched, add a preservation checklist before editing:
+```
+Local Support Preservation
+- Existing local command still works: [npm run dev / docker compose ...]
+- Required env docs still match code: [.env.example / README]
+- Mocks/fixtures/seed data still align with changed behavior
+- Local-only defaults did not leak into production config
+```
+
+If locale support is touched, add a preservation checklist before editing:
+```
+Locale Support Preservation
+- Existing locale JSON imports still resolve
+- Message keys added/renamed/removed are updated across all supported catalogs
+- Language-specific i18n dependencies/imports still resolve
+- Default/fallback locale behavior is unchanged unless explicitly requested
+- Language switchers/routes still point to valid locale catalogs
+- User-facing copy changes include locale test or snapshot updates when available
+```
 
 ---
 

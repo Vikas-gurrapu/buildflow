@@ -22,6 +22,8 @@ Run after `/buildflow-start`, before `/buildflow-plan`.
 ## Context Packet
 - `.buildflow/core/vision.md`
 - `.buildflow/codebase/PATTERNS.md` (if exists — align spec with existing architecture)
+- `.buildflow/codebase/FEATURES.md` (if exists — existing capability inventory, including local and locale support)
+- `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
 - `.buildflow/memory/light.md` (app_name, framework, phase only)
 - `.buildflow/specs/` (if regenerating)
 
@@ -33,6 +35,14 @@ If empty: "Run `/buildflow-start` first."
 
 If `PATTERNS.md` exists: note the existing architectural style (component structure, naming, API patterns).
 The TDD must align with these — don't invent new patterns unless explicitly asked.
+
+If `FEATURES.md` or `intel.json.features[]` exists:
+- List existing implemented/partial/docs-only capabilities before writing scope.
+- Treat implemented features as existing system constraints, not new scope.
+- Preserve `local_support` unless the user explicitly asks to remove or replace it.
+- Preserve `locale_support` unless the user explicitly asks to remove or replace i18n/localization behavior.
+- If the requested phase touches local support, add explicit ACs for local run/dev workflow behavior.
+- If the requested phase touches locale support, add explicit ACs for default locale, supported locale catalogs, fallback behavior, and JSON translation imports.
 
 ---
 

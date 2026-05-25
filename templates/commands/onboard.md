@@ -1,13 +1,13 @@
 ---
 name: buildflow-onboard
-description: Deep codebase analysis — import graph, module boundaries, load-bearing files, risk scores
-allowed-tools: Read, Bash, Glob, Grep
+description: Deep codebase analysis — import graph, module boundaries, feature inventory, local support map, load-bearing files, risk scores
+allowed-tools: Read, Write, Bash, Glob, Grep
 agent: cartographer
 ---
 
 # /buildflow-onboard
 
-Deep one-time analysis of an existing codebase. Goes beyond folder structure — maps import graphs, identifies load-bearing modules, scores file risk, and establishes module boundaries. All other agents reference these outputs.
+Deep one-time analysis of an existing codebase. Goes beyond folder structure — maps import graphs, identifies load-bearing modules, scores file risk, establishes module boundaries, and inventories user-facing/operator-facing features including local support. All other agents reference these outputs.
 
 ## When to Run
 - First time using BuildFlow on an existing project
@@ -16,21 +16,44 @@ Deep one-time analysis of an existing codebase. Goes beyond folder structure —
 
 ## Usage
 - `/buildflow-onboard` — full analysis
-- `/buildflow-onboard --update` — refresh changed files only
+- `/buildflow-onboard --update` — refresh changed files, affected feature evidence, and local-support metadata
 - `/buildflow-onboard --depth imports` — focus on dependency graph only
 
 ---
 
 ## Step 1: Prior State Check
 If `.buildflow/codebase/MAP.md` exists:
-- `--update` flag: skip to Step 6 (incremental refresh)
+- `--update` flag: run the Incremental Refresh rules below, then continue with affected steps only
 - Otherwise ask: "Full re-onboard or incremental update?"
+
+### Incremental Refresh Rules (`--update`)
+
+Do not refresh only source files. Feature and local-support drift often lives in docs, scripts, config, test fixtures, generated command files, compose files, and package metadata.
+
+For `--update`, first identify changed files since the last `drift_baseline.recorded_at` or last onboard commit:
+- Source/runtime: `src/`, `app/`, `pages/`, `lib/`, `server/`, `api/`
+- UI/route metadata: route files, page files, screen files, component entry files
+- CLI/workflow metadata: `bin/`, command registries, scripts, task runners, CI workflows
+- Local support: `package.json`, lockfiles, `.env*`, Docker/Compose files, devcontainer files, seed/fixture/mock directories, local DB config, emulator config
+- Locale/i18n support: locale JSON/static catalogs, translation imports, message bundles, language config, i18n middleware/providers
+- Docs that describe runnable behavior: `README*`, `docs/**`, install/setup files
+- Tests/specs that name user capabilities
+
+Then refresh:
+- Any module touched by changed source files
+- Any feature whose evidence references a changed file
+- The entire `local_support` block if any local-support file changed
+- The entire `locale_support` block if any locale/i18n file changed
+- `FEATURES.md`, `MAP.md` Feature Inventory Summary, and `intel.json.features[]` on every update
+- `drift_baseline` after all refreshed data is written
+
+If changed files include docs/config/scripts but no source files, still update `FEATURES.md`; those files may represent operator-facing or local-support capabilities.
 
 ---
 
-## Step 2: Structural Analysis — 4 Parallel Lenses
+## Step 2: Structural Analysis — 5 Parallel Lenses
 
-Run these four analyses in parallel. Each lens produces a focused view that the others don't cover.
+Run these five analyses in parallel. Each lens produces a focused view that the others don't cover.
 
 ### Lens A — Architecture (entry points, layers, module boundaries)
 ```bash
@@ -76,14 +99,104 @@ grep -rn "findOne\|findMany\|query\|Model\.\|session\.query\|db\." src/ | wc -l
 ```
 Produce: data layer pattern (Prisma/SQLAlchemy/GORM/raw SQL), migration count, schema file locations.
 
-**Lens Summary (printed after all 4 complete):**
+### Lens E — Feature Inventory (user-facing capabilities, local support, locale/i18n support, workflows)
+
+This lens answers: **"What can this app do?"** Do not infer only from folder names. Use code evidence from routes, CLI commands, UI screens, handlers, tests, docs, config, and integration points.
+
+Scan for feature entry points:
+```bash
+# Routes / APIs
+grep -rn "router\.\|app\.\|Route\|Controller\|@Get\|@Post\|urlpatterns\|FastAPI\|Blueprint" src/ app/ pages/ api/ 2>/dev/null | head -80
+
+# UI screens / pages / views
+find src app pages screens views components lib -type f 2>/dev/null | grep -E "(page|screen|view|route|component)\.(ts|tsx|js|jsx|vue|svelte|dart|kt|swift)$" | head -80
+
+# CLI commands / jobs / workflows
+grep -rn "command(\|program\.\|commander\|click\.command\|argparse\|cobra.Command\|urfave/cli\|thor " . 2>/dev/null | head -80
+
+# Local/offline/dev support signals
+grep -rn "localhost\|127.0.0.1\|offline\|localStorage\|IndexedDB\|sqlite\|file://\|dev server\|hot reload\|watch\|docker-compose\|compose.dev\|mock\|fixture\|seed" . 2>/dev/null | grep -v node_modules | head -120
+
+# Locale/i18n support signals
+find . -type f \( -path "*/locales/*" -o -path "*/locale/*" -o -path "*/i18n/*" -o -path "*/messages/*" -o -path "*/translations/*" -o -name "*.locale.json" -o -name "*.messages.json" \) 2>/dev/null | grep -v node_modules | head -120
+grep -rn "i18n\|locale\|locales\|translations\|messages\|Intl\|useTranslation\|t(\|formatMessage\|next-intl\|react-i18next\|vue-i18n" src app pages lib components public 2>/dev/null | head -120
+grep -rn "import .*\\.json\|require(.*\\.json\|assert.*json\|with .*json" src app pages lib components 2>/dev/null | head -120
+
+# Cross-language locale/i18n dependency and import signals
+grep -rn "ResourceBundle\|MessageSource\|LocaleContextHolder\|spring.messages\|messages_.*\\.properties" src main app 2>/dev/null | head -80
+grep -rn "golang.org/x/text\|language\\.Tag\|message\\.NewPrinter\|go-i18n\|i18n.Bundle" . --include="*.go" 2>/dev/null | head -80
+grep -rn "gettext\|ngettext\|Babel\|flask_babel\|django.utils.translation\|LocaleMiddleware" . --include="*.py" 2>/dev/null | head -80
+grep -rn "I18n\\.t\|config/locales\|rails-i18n" . --include="*.rb" --include="*.yml" 2>/dev/null | head -80
+grep -rn "__([^_]\|trans(\|Lang::\|resources/lang\|symfony/translation" . --include="*.php" --include="*.yaml" --include="*.yml" 2>/dev/null | head -80
+grep -rn "CultureInfo\|IStringLocalizer\|ResourceManager\|\\.resx" . --include="*.cs" --include="*.resx" 2>/dev/null | head -80
+grep -rn "AppLocalizations\|Intl\\.message\|flutter_localizations\|arb-dir\|\\.arb" . --include="*.dart" --include="*.arb" --include="pubspec.yaml" 2>/dev/null | head -80
+grep -rn "NSLocalizedString\|Localizable\\.strings\|Locale\\.current" . --include="*.swift" --include="*.strings" 2>/dev/null | head -80
+grep -rn "getString(R\\.string\|strings\\.xml\|Locale\\.getDefault\|androidx.compose.ui.text.intl" . --include="*.kt" --include="*.java" --include="*.xml" 2>/dev/null | head -80
+find . -type f \( -name "messages*.properties" -o -name "*.po" -o -name "*.mo" -o -name "*.resx" -o -name "*.arb" -o -name "Localizable.strings" -o -name "strings.xml" \) 2>/dev/null | grep -v node_modules | head -120
+
+# Feature names in tests and docs
+grep -rn "describe(\|it(\|test(\|Feature:\|Scenario:\|User can\|should " test tests spec specs docs README.md src app 2>/dev/null | head -120
 ```
-4-Lens Analysis Complete
+
+Produce a **Feature Inventory** with one row per discovered capability:
+```
+Feature: Local development support
+Aliases:
+  - local mode
+  - dev environment
+  - offline/dev workflow
+Evidence:
+  - docker-compose.dev.yml: defines app + db + redis for local runs
+  - src/config/env.ts: LOCAL_MODE flag
+  - README.md: "Run locally" section
+Entry points:
+  - npm run dev
+  - /api/health
+Owned modules:
+  - Config
+  - Docker / runtime
+Status:
+  implemented / partial / docs-only / test-only
+Confidence:
+  high / medium / low
+Risk:
+  missed-by-architecture-scan if only config/docs touched
+Blind spots:
+  - runtime behavior not verified
+  - feature may be hidden behind env flag
+```
+
+Feature discovery rules:
+- Treat docs + config + scripts as feature evidence, not just `src/` code.
+- Treat static JSON assets as feature evidence when they are imported, loaded by config, or stored under known feature directories such as `locales/`, `i18n/`, `messages/`, `translations/`, `fixtures/`, or `data/`.
+- A feature is real if at least one of these exists: route/handler, UI entry point, CLI command, background job, config flag, documented workflow, test scenario.
+- Always look for local support explicitly: local dev scripts, Docker Compose, seed data, mocks, offline mode, localhost callbacks, local file storage, emulator support, dev credentials placeholders, hot reload.
+- Always look for locale/i18n support explicitly: locale catalogs, imported JSON translations, message bundles, language switchers, i18n providers/middleware, translation helper calls, route prefixes such as `/en` or `/fr`, and fallback/default locale config.
+- Detect locale/i18n dependencies and imports across stacks, not only JavaScript:
+  - Java/Spring: `ResourceBundle`, `MessageSource`, `LocaleContextHolder`, `messages*.properties`, `spring.messages.*`
+  - Go: `golang.org/x/text`, `language.Tag`, `message.Printer`, `go-i18n`
+  - Python: `gettext`, `Babel`, `flask_babel`, `django.utils.translation`, `.po`, `.mo`
+  - Ruby/Rails: `I18n.t`, `config/locales/*.yml`, `rails-i18n`
+  - PHP/Laravel/Symfony: `__()`, `trans()`, `Lang::`, `resources/lang`, `symfony/translation`
+  - .NET: `.resx`, `CultureInfo`, `IStringLocalizer`, `ResourceManager`
+  - Flutter/Dart: `.arb`, `AppLocalizations`, `Intl.message`, `flutter_localizations`
+  - Swift/iOS: `NSLocalizedString`, `Localizable.strings`, `Locale.current`
+  - Android/Kotlin/Java: `strings.xml`, `getString(R.string...)`, `Locale.getDefault`
+- Do not mark a feature complete unless there is executable code or runnable config behind it. Docs-only features must be marked `docs-only`.
+- If a feature is expected by docs but missing in code, record it as `documented_missing`.
+- Record aliases/synonyms when docs, tests, and code use different names for the same capability.
+- Record confidence. Use `high` only when at least two evidence types agree (for example code + test, code + docs, config + runnable script). Use `medium` for one strong executable signal. Use `low` for docs/test-only signals.
+- Record blind spots when static scanning cannot prove runtime behavior, permissions, environment-specific behavior, or generated routes.
+
+**Lens Summary (printed after all 5 complete):**
+```
+5-Lens Analysis Complete
 ────────────────────────
 Architecture:  [pattern detected — MVC / layered / flat / feature-based]
 Quality:       [N files, ~N% have tests, N TODO/FIXME markers]
 Security:      [N auth files, N potential secret refs, N dangerous patterns]
 Data:          [ORM: Prisma/SQLAlchemy/GORM, N migrations, schema at: path]
+Features:      [N implemented, N partial, N docs-only, local support: YES/NO/PARTIAL, locale support: YES/NO/PARTIAL]
 ```
 
 ---
@@ -309,6 +422,9 @@ utils/format.ts   risk: 1.0  ← pure functions, low coupling
 # Codebase Map
 **Project:** [name]  **Onboarded:** [date]  **Files analyzed:** [N]
 
+## Feature Inventory Summary
+[top-level user-facing capabilities from FEATURES.md, including local support status]
+
 ## Entry Points
 - [file]: [purpose]
 
@@ -347,6 +463,77 @@ DBClient.query         → src/auth/service.ts:34, src/users/service.ts:18, src/
 All conventions from Step 7. Used by Builder and Surgeon agents to match style.
 Each pattern has an example extracted from the actual codebase.
 
+### `.buildflow/codebase/FEATURES.md`
+User-facing and operator-facing capability map from Lens E. This is required output.
+
+```markdown
+# Feature Inventory
+
+## Summary
+| Feature | Status | Entry Points | Owned Modules | Evidence |
+|---------|--------|--------------|---------------|----------|
+| Local development support | implemented | npm run dev, docker-compose.dev.yml | Runtime, Config | README.md, package.json, docker-compose.dev.yml |
+
+## Discovery Notes
+- Confidence model: high = multiple evidence types, medium = one executable signal, low = docs/test-only signal
+- Blind spots: [generated routes / dynamic plugins / feature flags / external services / runtime-only behavior]
+
+## Local Support
+Status: YES / PARTIAL / NO
+Confidence: high / medium / low
+
+Evidence:
+- [path:line] local run script
+- [path:line] Docker/dev compose
+- [path:line] local env config
+- [path:line] seed/mock fixture
+
+Gaps:
+- [missing item if any]
+
+## Locale Support
+Status: YES / PARTIAL / NO
+Confidence: high / medium / low
+Default locale: [locale code or UNKNOWN]
+Supported locales: [en, fr, ... or UNKNOWN]
+Detected stacks: [Java/Spring, Go, Python, Rails, Laravel, .NET, Flutter, iOS, Android, JS/TS, or UNKNOWN]
+
+Evidence:
+- [path:line] i18n provider/middleware/config
+- [path:line] imported static JSON catalog
+- [path:line] locale/message bundle
+- [path:line] language switcher or route prefix
+- [path:line] language-specific i18n dependency/import
+
+Static assets:
+- [path] [locale/catalog purpose]
+
+Dependencies/imports:
+- [dependency/import/API] [language/framework] [evidence path]
+
+Gaps:
+- [missing fallback/default locale/tests if any]
+
+## Features
+### [Feature name]
+Aliases: [alternate names from docs/tests/code]
+Status: implemented / partial / docs-only / documented_missing / test-only
+Confidence: high / medium / low
+User value: [what this enables]
+Entry points:
+- [route / screen / command / script]
+Evidence:
+- [path:line] [why this proves the feature exists]
+Owned modules:
+- [module names]
+Tests:
+- [test paths or NONE]
+Risks:
+- [risk or NONE]
+Blind spots:
+- [what static mapping could not prove, or NONE]
+```
+
 ### `.buildflow/codebase/DEPENDENCIES.md`
 All dependencies from Step 3 with purpose, criticality, and security status.
 
@@ -377,6 +564,57 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
       "depended_on_by": ["API", "WebSocket"]
     }
   ],
+  "features": [
+    {
+      "name": "Local development support",
+      "aliases": ["local mode", "dev environment"],
+      "status": "implemented",
+      "confidence": "high",
+      "user_value": "Run the application and dependencies locally for development and testing",
+      "entry_points": ["npm run dev", "docker-compose.dev.yml"],
+      "owned_modules": ["Runtime", "Config"],
+      "evidence": [
+        { "file": "package.json", "line": 12, "note": "dev script" },
+        { "file": "docker-compose.dev.yml", "line": 1, "note": "local service stack" }
+      ],
+      "tests": [],
+      "risks": [],
+      "blind_spots": []
+    }
+  ],
+  "local_support": {
+    "status": "yes",
+    "confidence": "high",
+    "dev_scripts": ["npm run dev"],
+    "local_services": ["docker-compose.dev.yml"],
+    "env_files": [".env.example"],
+    "seed_or_fixture_files": [],
+    "evidence": [
+      { "file": "README.md", "line": 10, "note": "local run instructions" }
+    ],
+    "gaps": [],
+    "blind_spots": []
+  },
+  "locale_support": {
+    "status": "yes",
+    "confidence": "high",
+    "default_locale": "en",
+    "supported_locales": ["en"],
+    "detected_stacks": ["TypeScript"],
+    "catalog_files": ["src/locales/en.json"],
+    "importers": [
+      { "file": "src/i18n/index.ts", "line": 3, "note": "imports locale JSON catalog" }
+    ],
+    "provider_files": ["src/i18n/index.ts"],
+    "dependencies_or_apis": [
+      { "name": "react-i18next", "language": "TypeScript", "evidence_file": "package.json" }
+    ],
+    "evidence": [
+      { "file": "src/locales/en.json", "line": 1, "note": "static translation catalog" }
+    ],
+    "gaps": [],
+    "blind_spots": []
+  },
   "load_bearing": [
     { "file": "src/db/client.ts", "fan_in": 12, "risk": 4.8 }
   ],
@@ -469,6 +707,7 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
 
 **Usage by other commands:**
 - `/buildflow-modify` reads `file_index[].symbols` + `symbol_callers` to trace impact at function level — shows exactly which lines call a changing function
+- `/buildflow-spec` and `/buildflow-plan` read `features[]`, `local_support`, and `locale_support` to avoid re-specing shipped capabilities and to preserve local/dev/i18n support during changes
 - `/buildflow-modify` falls back to file-level `file_index` fan-in/fan-out if intel.json predates symbol tracking (built before this GAP-H version)
 - `/buildflow-build` reads `hotspots` to warn before touching high-risk files
 - `/buildflow-check` reads `schema.drift_baseline` to detect schema file changes
@@ -572,9 +811,9 @@ Verbose output (only if `verbose_context: true` in preferences.md):
 ```
 Token Cost — /buildflow-onboard
 ────────────────────────────────
-Files analyzed: [N]  Modules: [N]  Hotspots: [N]  Lenses: 4
+Files analyzed: [N]  Modules: [N]  Hotspots: [N]  Lenses: 5
 Context loaded:    ~[N]K tokens   ([N] source files scanned)
-Output generated:  ~[N]K tokens   (MAP.md + GRAPH.md + intel.json + HOTSPOTS.md)
+Output generated:  ~[N]K tokens   (MAP.md + GRAPH.md + FEATURES.md + intel.json + HOTSPOTS.md)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
@@ -593,4 +832,18 @@ Session: ~[N]K tokens
 
 If this is a first-time onboard on an existing project: `→ Next: /buildflow-spec` to define what to build next.
 
-## Token Budget: ~40K (one-time — pays back on every subsequent session)
+## Acceptance Criteria for Onboarding Quality
+
+Before declaring onboarding complete, verify:
+- `FEATURES.md` exists and lists at least every route/screen/CLI command/workflow discovered in Lens E.
+- `FEATURES.md` has a `## Local Support` section with status YES/PARTIAL/NO and evidence.
+- `FEATURES.md` has a `## Locale Support` section when locale catalogs, i18n imports, or translation JSON files are present.
+- `intel.json.features[]` is non-empty unless the repo is a pure library; if pure library, explain why.
+- `intel.json.local_support.status` is present.
+- `intel.json.locale_support.status` is present when locale/i18n evidence exists.
+- Every feature has at least one evidence path or is explicitly marked `documented_missing`.
+- MAP.md includes a Feature Inventory Summary.
+
+If any item is missing, do not say "Onboarding Complete." Fix the map first.
+
+## Token Budget: ~45K (one-time — pays back on every subsequent session)

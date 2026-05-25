@@ -23,7 +23,9 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `.buildflow/specs/TDD.md`
 - `.buildflow/specs/acceptance.md`
 - `.buildflow/codebase/MAP.md` (if exists)
+- `.buildflow/codebase/FEATURES.md` (if exists — existing capabilities, local support, and locale support)
 - `.buildflow/codebase/GRAPH.md` (if exists — for dependency chain reasoning)
+- `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
 - `.buildflow/memory/light.md` (phase, framework, spec_status only)
 
 Do NOT load: full codebase, old phase plans, research files, retros.
@@ -49,6 +51,12 @@ Record the locked `spec_version` in `PLAN.md` header — this is the version thi
 Read all ACs. Count: [N] features, [N] user stories, [N] ACs total.
 Confirm: "Planning to satisfy [N] ACs across [N] features (spec v[N])."
 
+If `FEATURES.md` or `intel.json.features[]` exists:
+- Mark already-implemented capabilities as "existing support" and avoid recreating them.
+- If a task touches a feature listed in `features[]`, reference that feature in the task.
+- If `local_support.status` is YES or PARTIAL, preserve local run/dev scripts, local config, mocks, seed data, Docker/dev compose, and documented local workflows unless explicitly out of scope.
+- If `locale_support.status` is YES or PARTIAL, preserve locale JSON catalogs, translation imports/loaders, fallback/default locale config, language routes/switchers, and i18n provider/middleware unless explicitly out of scope.
+
 ---
 
 ## Step 2: Component & Task Derivation
@@ -63,6 +71,7 @@ Map each task to its AC refs:
 ```
 Task: Create JWT auth middleware
 AC refs: AC-001, AC-002, AC-003
+Feature refs: Auth, Local development support (if touched)
 Files: src/middleware/auth.ts (new), src/routes/index.ts (modify)
 Type: NEW / MODIFY / TEST
 ```
@@ -262,6 +271,9 @@ Before writing the plan file, review the plan as an Engineering Lead:
 - Does the plan introduce new patterns that conflict with `PATTERNS.md`?
 - Does any task modify a HOTSPOT file? If yes, flag with: "⚠ This task touches [file] (risk: [N]) — verify test coverage before proceeding."
 - Are there tasks that cross module boundaries inappropriately?
+- Does any task unintentionally remove or bypass an existing feature from `FEATURES.md`, especially local support?
+- If local support exists, does the plan preserve or update the local workflow docs/scripts/config when runtime behavior changes?
+- If locale support exists, does the plan preserve or update static JSON catalogs, import paths, fallback locale behavior, and language-specific tests/docs when user-facing copy or routes change?
 
 **Engineering Review Report:**
 ```
