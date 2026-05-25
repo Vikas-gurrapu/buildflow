@@ -638,17 +638,36 @@ Bundle size:  ✓ PASS  (142 KB → 144 KB, +1.4%)
 
 Only proceed to Step 3e after type-check is PASS, lint errors (not warnings) are fixed, and the user has responded to any coverage prompt.
 
-### 3e — Test + Fix Loop
-Run the full test suite:
+### 3e — Targeted Test + Fix Loop
+
+Run the smallest meaningful test set first — not the whole application.
+
+**Build the targeted test set from this wave's touched files:**
+1. Start with every source file created or modified by this wave.
+2. Add direct test files for those sources using the Test Framework Profile conventions.
+3. Add dependency-neighborhood tests:
+   - tests for files imported by the touched files when behavior relies on them
+   - tests for files that import the touched files (dependents/callers)
+   - contract/API tests for changed exported functions, routes, schemas, or components
+4. If no direct tests exist, run the nearest package/module test command and clearly say why.
+
+**Examples:**
 ```bash
-npm test        # Node / TS / JS
-pytest          # Python
-go test ./...   # Go
-cargo test      # Rust
+# JS/TS
+npx vitest run src/auth/auth.service.test.ts src/auth/__tests__/routes.test.ts
+npx jest src/auth/auth.service.test.ts
+
+# Python
+pytest tests/auth/test_service.py tests/api/test_auth_routes.py
+
+# Go
+go test ./internal/auth ./internal/api
+
+# Rust
+cargo test auth::
 ```
 
-If frontend changed: verify dev server renders without errors, core flow works.
-Check: no regressions in previously passing tests.
+Do not run `npm test`, `pytest`, `go test ./...`, `cargo test`, or the full app yet unless the user approves it.
 
 **On test failure:**
 1. Read the exact error — file, line, message
@@ -667,6 +686,27 @@ Root cause: [why it's failing]
 Fix:        [exactly what changed]
 Result:     PASS / still failing
 ```
+
+**After targeted tests pass, ask before broader verification:**
+
+```
+Targeted tests passed for Wave [N].
+
+Would you like me to run broader verification now?
+  [I] Impacted area tests — touched files plus nearby module/package tests
+  [A] App smoke check     — start app/dev server and verify core flow
+  [B] Both                — impacted area tests, then app smoke check
+  [S] Skip for now        — continue to next wave; full gates still run at /buildflow-ship
+```
+
+Wait for the user's choice.
+
+- **I:** run the broader touched-file impact set only. This may include nearby package/module tests, but should still avoid whole-repo test commands unless the touched area cannot be isolated.
+- **A:** if frontend or runtime behavior changed, start the app/dev server and verify the relevant core flow; otherwise explain why app smoke is unnecessary.
+- **B:** run impacted area tests, then app smoke check.
+- **S:** record in wave report: "Broader verification skipped by user after targeted tests passed."
+
+If the user does not answer, do not silently run whole-repo tests or the application.
 
 ### 3f — Schema Drift Check (runs after tests, before commit — if schema files exist)
 
@@ -795,21 +835,26 @@ In both modes: mark wave complete in `phases/[N]/PLAN.md` and proceed to next wa
 
 ## Step 4: Final Integration Check
 After all waves:
-- Run full test suite one last time — **including all prior-phase tests, not just this phase's tests**
-- Verify all AC-referenced behaviors work end-to-end
+- Run targeted phase-level tests for all files touched across all waves and their dependency neighborhoods.
+- Ask the user whether to run impacted area tests and/or an application smoke check before leaving build.
 - Check imports across wave boundaries (no dangling references)
-- Cross-phase regression check: compare passing test count against `last_ship_test_count` from `light.md`. If lower, a prior-phase behavior was broken — flag before shipping.
+- If impacted area tests are approved: include touched files, nearby module/package tests, and relevant prior-phase tests for the same affected area.
+- If impacted area tests are skipped: record that final whole-repo regression remains deferred to `/buildflow-ship`.
+- Cross-phase regression check: when impacted area tests include prior-phase tests, compare passing count for that affected area against `last_ship_test_count` or the nearest available baseline. If lower, a prior-phase behavior was broken — flag before shipping.
 
 ```
 Integration Check
 ─────────────────
-All waves:         ✓ PASS
-AC coverage:       [N/N ACs verified]
-Cross-phase tests: ✓ PASS  ([N] prior-phase tests, 0 regressions)
-Dangling imports:  NONE
+All waves:          ✓ PASS
+Targeted tests:     ✓ PASS  ([N] files, [N] dependency-neighborhood tests)
+AC coverage:        [N/N ACs verified]
+Impacted tests:     RUN / SKIPPED BY USER
+App smoke:          RUN / SKIPPED / NOT APPLICABLE
+Cross-phase tests:  ✓ PASS / DEFERRED TO SHIP
+Dangling imports:   NONE
 ```
 
-If cross-phase regressions are found here: fix immediately — do not defer to `/buildflow-ship`.
+If approved impacted-area or app-smoke verification finds regressions: fix immediately — do not defer to `/buildflow-ship`.
 
 ---
 
