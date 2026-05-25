@@ -16,6 +16,7 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `/buildflow-plan phase-2` — plan a specific named phase
 - `/buildflow-plan --scaffold-first` — Wave 0 creates all file stubs before implementation begins
 - `/buildflow-plan --risk-first` — orders risky/uncertain tasks to the front of each wave (fail fast)
+- `/buildflow-plan --strict` — mark this phase as strict mode: every task must trace to a TDD component or API contract; `/buildflow-check --strict` and `/buildflow-ship` strict gate are mandatory before this phase ships
 
 ## Context Packet
 - `.buildflow/specs/PRD.md`
@@ -292,6 +293,34 @@ engineering_review_verdict: APPROVED
 
 ---
 
+## Step 7b: Strict Mode Annotations (if `--strict` flag)
+
+When `--strict` is active:
+
+1. **Tag each task** with its TDD mapping:
+   - Every `NEW`/`MODIFY` task must reference the TDD Component Map row it implements (`[TDD: ComponentName]`)
+   - Every task implementing an API endpoint must reference its TDD API Contract row (`[TDD: POST /api/path]`)
+   - If a task cannot be mapped to a TDD entry: either add the entry to TDD.md (amendment, with spec version increment) or remove the task (out of scope)
+
+2. **Mark the plan header:**
+   ```yaml
+   strict_mode: true
+   strict_check_required: true   ← /buildflow-check --strict must pass before /buildflow-ship
+   ```
+
+3. **Critical module flag** — tasks touching critical module files get a `[CRITICAL]` tag in the wave table. The Builder must verify that every exported symbol in those files has an AC reference before marking the task complete.
+
+4. **If any task cannot be mapped to TDD** → flag before writing plan:
+   ```
+   ⚠ Strict mode: Task "[name]" has no TDD Component Map or API Contract entry.
+   Options:
+     A) Add a TDD.md entry for this component (amend spec — increments spec_version)
+     B) Remove the task — it is out of spec scope
+   ```
+   Do not write the plan until every task has a TDD mapping or is explicitly out-of-scope.
+
+---
+
 ## Step 8: Write Plan
 Write `.buildflow/phases/[N]/PLAN.md`:
 
@@ -303,6 +332,7 @@ Write `.buildflow/phases/[N]/PLAN.md`:
 **Engineering Review:** APPROVED (cycles: [N])
 **Thin-slice order:** ENFORCED
 **File conflicts:** NONE
+**Strict mode:** [enabled — /buildflow-check --strict required before ship / disabled]
 
 ## External Dependencies Checklist
 - [ ] [item] — [how to verify]
@@ -315,9 +345,11 @@ Write `.buildflow/phases/[N]/PLAN.md`:
 ## Waves
 
 ### Wave 1 — [theme: DB/Schema]
-| Task | ACs | Est | Type | Files | TF |
-|------|-----|-----|------|-------|----|
-| [name] | AC-001 | S | NEW | src/... | ✓ |
+| Task | ACs | Est | Type | Files | TF | TDD Ref |
+|------|-----|-----|------|-------|----|---------|
+| [name] | AC-001 | S | NEW | src/... | ✓ | [ComponentName / POST /path / —] |
+
+(TDD Ref column only present when `strict_mode: true`. "—" = non-critical utility task exempt from strict tracing.)
 
 ### Wave 2 — [theme: API/Services]
 ...

@@ -65,6 +65,7 @@ Before doing anything else at the start of every session:
 | `/buildflow-build` | Execute plan — auto-tests and auto-fixes each wave |
 | `/buildflow-test` | Re-verify a wave or test a manual change |
 | `/buildflow-check` | Verify all ACs satisfied + code quality |
+| `/buildflow-check --strict` | Structural spec-to-code mirroring: contract names, component map, critical symbol coverage, AC branches |
 | `/buildflow-ship` | Spec gate + security gate + context prune + git tag |
 | `/buildflow-deploy` | Pre-flight checks + deploy staging/production |
 | `/buildflow-hotfix` | Fast-path fix — no planning, no waves |
@@ -87,6 +88,32 @@ Before doing anything else at the start of every session:
 - Create restore points before destructive operations (git stash OR file snapshot — see no-git mode)
 - Run `/buildflow-audit` before every `/buildflow-ship`
 - No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
+- **Strict mode** — when `strict_mode: true` or phase planned with `--strict`: `/buildflow-check --strict` is mandatory before ship; strict violations have no override flag
+
+## Strict Mode
+
+Strict mode enforces structural spec-to-code mirroring for critical infrastructure phases. Enable it when code correctness must strictly mirror spec structure.
+
+**When to use strict mode:**
+- Auth systems, payment flows, crypto implementations
+- Compliance-sensitive code (HIPAA, PCI, GDPR enforcement logic)
+- Multi-service infrastructure where contract drift causes silent failures
+- Any phase where "spec says X, code does Y" is a security or correctness defect
+
+**What strict mode checks (in `/buildflow-check --strict`):**
+1. **API contracts** — response/request field names must match TDD exactly (not just "a body exists")
+2. **Component map** — every file created this phase must appear in the TDD Component Map
+3. **Critical symbol coverage** — every exported function in critical modules must have an AC reference
+4. **AC branch completeness** — every error/edge-case AC must have a corresponding code branch
+
+**What strict mode does NOT do:**
+- Does not check line-by-line code content (that is a human code review)
+- Does not run on non-critical modules (utility, config, infra files)
+- Does not block on warnings — only on structural divergences
+
+**To enable per-phase:** `/buildflow-plan --strict`
+**To enable globally:** set `strict_mode: true` in `.buildflow/you/preferences.md`
+**Critical module patterns:** configurable via `strict_critical_modules` in preferences.md
 
 ## Guided Mode
 

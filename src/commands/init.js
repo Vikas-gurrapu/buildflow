@@ -471,6 +471,42 @@ spec_coverage:
 
 ---
 
+## Strict Mode
+
+\`\`\`yaml
+strict_mode: false
+# false (default) — standard spec-driven development:
+#   • Files traced to ACs at file/symbol level
+#   • Ship gates enforce AC compliance and test coverage
+#
+# true — structural spec-to-code mirroring (spec-kit style):
+#   • Every exported symbol in critical modules must have an AC reference
+#   • API response/request field names must match TDD contracts exactly
+#   • Every error/edge-case AC must have a corresponding code branch
+#   • Component map in TDD must match file structure
+#   • Violations BLOCK ship — no override flag
+#   • Use for: auth, payments, crypto, compliance, infrastructure
+#   • Can also be set per-phase: /buildflow-plan --strict
+
+strict_critical_modules:
+  - auth
+  - payment
+  - crypto
+  - migration
+  - permission
+  - role
+  - token
+  - secret
+  - key
+  - sign
+  - verify
+# Add paths that contain business-critical logic for your domain.
+# Any file whose path contains one of these strings is a critical module.
+# Example for a healthcare app: add 'dosage', 'prescription', 'patient'
+\`\`\`
+
+---
+
 ## Token Tracking
 
 \`\`\`yaml

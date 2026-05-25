@@ -52,7 +52,42 @@ Fix them with /buildflow-build or /buildflow-modify, then re-run /buildflow-ship
 Override (skips spec gate only): /buildflow-ship --skip-spec
 ```
 
-**If versions match and all ACs pass → proceed to Gate 1.**
+**If versions match and all ACs pass → proceed to Gate 0c.**
+
+**0c — Strict Mode Gate (if `strict_mode: true` in preferences.md OR phase was planned with `--strict`):**
+
+Read `.buildflow/phases/[N]/STRICT-REPORT.md`.
+If the file does not exist: "Run `/buildflow-check --strict` first — strict mode is enabled for this phase."
+If the file exists:
+
+```
+Strict Mode Gate
+──────────────────────────────────────────
+API contracts:      [N/N passing]
+Component map:      [ALIGNED / N ghost / N orphaned]
+Critical coverage:  [N/N symbols covered]
+AC branches:        [N/N complete]
+
+Strict verdict: PASS / FAIL
+```
+
+**If strict verdict is FAIL → BLOCK:**
+```
+🔴 SHIP BLOCKED — Strict Mode Violations
+
+Code structure diverges from spec structure:
+  [S1] POST /api/login — response field "accessToken" ≠ TDD contract "token"
+  [S3] src/auth/service.ts — logout() has no linked AC
+  [S4] AC-004 — refreshToken() has no expiry check branch
+
+Fix violations listed in .buildflow/phases/[N]/STRICT-REPORT.md, then re-run:
+  /buildflow-check --strict
+  /buildflow-ship
+
+No override flag exists for strict violations. Strict mode means the spec is law.
+```
+
+**If strict verdict is PASS (or strict mode not enabled) → proceed to Gate 1.**
 
 ---
 
@@ -311,6 +346,7 @@ Gate 3: ✓ PASS
 ## Step 1: Pre-Ship Checklist (summary)
 - [ ] Spec version consistent — plan matches current spec (Gate 0a)
 - [ ] All ACs satisfied (Gate 0b)
+- [ ] Strict mode passed (Gate 0c) — only if `strict_mode: true` or `--strict` flag
 - [ ] Security gate passed (Gate 1)
 - [ ] All tests passing — current phase (Gate 2a)
 - [ ] No cross-phase regressions (Gate 2b)
