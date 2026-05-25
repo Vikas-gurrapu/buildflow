@@ -40,8 +40,33 @@ If ambiguous: ask ONE clarifying question only.
 ---
 
 ## Step 2: Transitive Impact Analysis
-Using `GRAPH.md`, trace the full impact chain from the target file outward:
 
+### 2a: Check for Symbol-Level Data
+Read `.buildflow/codebase/intel.json`.
+
+**If `symbol_callers` exists in intel.json** (onboarded with GAP-H symbol tracking):
+- Identify the **specific functions/methods** being changed (from Step 1)
+- Look up each changed symbol in `symbol_callers` to get the exact files AND LINE NUMBERS that call it
+- This gives a precise caller list — not "all files that import this module" but "all lines that call this function"
+
+**If intel.json predates symbol tracking** (no `symbol_callers` key): fall back to file-level impact using `GRAPH.md` fan-in/fan-out (2b).
+
+### 2b: Trace Full Impact Chain
+
+**Symbol-level impact (preferred — when available):**
+```
+Changing: AuthService.login(email, password) → login(email, password, options?)
+
+Symbol callers from intel.json:
+  src/routes/auth.routes.ts   line 45  ← call site — may need options param update
+  src/routes/auth.routes.ts   line 89  ← second call site
+  src/tests/auth.test.ts      line 8   ← test — will need new test case
+  src/middleware/session.ts   line 12  ← call site — verify default options work
+
+Total: 4 call sites across 3 files
+```
+
+**File-level impact fallback (when symbol data unavailable):**
 ```
 Level 0 — Direct change:
   src/auth/login.ts  ← file being modified
@@ -68,22 +93,23 @@ For each affected file, annotate:
 ```
 Impact Analysis: "Add rate limiting to /api/auth/login"
 ────────────────────────────────────────────────────────
-Direct:
-  src/auth/login.ts            risk: 4.2  tests: YES  contract: INTERNAL
+Changed symbol: AuthService.login (src/auth/login.ts)
+Analysis mode:  symbol-level (intel.json v4.1+) / file-level fallback
 
-Level 1 — will be affected:
-  src/routes/auth.routes.ts    risk: 3.1  tests: YES  contract: PUBLIC ← caller may need update
-  src/tests/auth.test.ts       risk: 1.0  tests: N/A  contract: NONE   ← will need new test case
+Direct call sites:
+  src/routes/auth.routes.ts:45    risk: 3.1  tests: YES  contract: PUBLIC ← update call
+  src/routes/auth.routes.ts:89    risk: 3.1  tests: YES  contract: PUBLIC ← update call
+  src/tests/auth.test.ts:8        risk: 1.0  tests: N/A  contract: NONE   ← add test case
+  src/middleware/session.ts:12    risk: 2.5  tests: YES  contract: INTERNAL ← verify default
 
-Level 2 — may be affected:
-  src/app.ts                   risk: 3.8  tests: partial  contract: ENTRY
-  src/middleware/session.ts    risk: 2.5  tests: YES      contract: INTERNAL ← verify no conflict
+Transitive (file level):
+  src/app.ts                      risk: 3.8  tests: partial  contract: ENTRY — no call change needed
 
-Blast radius: 4 files modified, 1 file needing new test, 0 public API breaks expected
+Blast radius: 3 files with call sites, 1 transitive
 Highest risk file touched: src/auth/login.ts (4.2)
 ```
 
-If any Level 2+ file has risk ≥ 4.0: flag as "Caution — high-risk transitive impact. Consider splitting this change."
+If any call site file has risk ≥ 4.0: flag as "Caution — high-risk transitive impact. Consider splitting this change."
 
 ---
 

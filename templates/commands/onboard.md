@@ -129,7 +129,9 @@ If `Has tests: NO`: note in summary — "⚠ No test framework found. Tests cann
 
 ---
 
-## Step 4: Import Graph Analysis (repo awareness core)
+## Step 4: Import Graph Analysis — Symbol Level (repo awareness core)
+
+### 4a: File-Level Import Graph
 For each source file, trace its imports and exports:
 
 ```bash
@@ -137,6 +139,10 @@ For each source file, trace its imports and exports:
 grep -rn "^import\|^const.*require" src/ --include="*.ts" --include="*.js"
 # Python
 grep -rn "^import\|^from" src/ --include="*.py"
+# Go
+grep -rn "^import" --include="*.go" .
+# Rust
+grep -rn "^use " src/ --include="*.rs"
 ```
 
 Build a dependency map:
@@ -150,6 +156,71 @@ From this graph, calculate for each file:
 - **Fan-in** (how many files import THIS file) — high = load-bearing
 - **Fan-out** (how many files THIS file imports) — high = coupled
 - **Depth** (longest import chain to reach this file from entry point)
+
+### 4b: Symbol-Level Export Extraction
+For each source file, extract its exported symbols (functions, classes, types, constants). This enables `/buildflow-modify` to trace impact at the function level, not just the file level.
+
+```bash
+# TypeScript / JavaScript — exported symbols
+grep -rn "^export (async )?function\|^export class\|^export const\|^export type\|^export interface\|^export enum\|^export default" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx"
+
+# Python — public functions and classes (no leading underscore)
+grep -rn "^def [^_]\|^class [^_]\|^async def [^_]" src/ --include="*.py"
+
+# Go — exported (uppercase) functions and types
+grep -rn "^func [A-Z]\|^type [A-Z]" --include="*.go" .
+
+# Rust — public functions, structs, enums
+grep -rn "^pub fn\|^pub struct\|^pub enum\|^pub trait\|^pub type" src/ --include="*.rs"
+
+# Java — public classes, methods, interfaces
+grep -rn "^public class\|^public interface\|^public enum\|public [a-zA-Z].*(.*).*{" src/main/ --include="*.java" | head -50
+
+# Kotlin — public/top-level functions, classes, data classes
+grep -rn "^fun [A-Z]\|^class \|^data class \|^object \|^interface \|^enum class " src/main/ --include="*.kt" | grep -v "//\|private\|internal" | head -50
+
+# C# — public classes, methods, interfaces, enums
+grep -rn "public class \|public interface \|public enum \|public static.*\|public .*(" src/ --include="*.cs" | grep -v "//\|override\|abstract" | head -50
+
+# Ruby — public methods and classes
+grep -rn "^class \|^module \|^  def [^_]\|^def [^_]" app/ lib/ --include="*.rb" 2>/dev/null | grep -v "private\|protected" | head -50
+
+# PHP — public classes, methods, functions
+grep -rn "^class \|^interface \|^trait \|^function \|public function " app/ src/ --include="*.php" 2>/dev/null | head -50
+
+# Dart / Flutter — public classes, functions (no leading underscore)
+grep -rn "^class [^_]\|^mixin [^_]\|^extension [^_]\|^[A-Za-z].*[^_]([^_]" lib/ --include="*.dart" 2>/dev/null | grep -v "//\|_\b" | head -50
+
+# Swift — public/open functions, classes, structs, protocols
+grep -rn "^public class\|^public struct\|^public func\|^public protocol\|^open class\|^open func\|^func [A-Z]" Sources/ --include="*.swift" 2>/dev/null | head -50
+
+# Scala — public defs, classes, objects, traits
+grep -rn "^def \|^class \|^object \|^trait \|^case class " src/main/ --include="*.scala" 2>/dev/null | grep -v "private\|protected" | head -50
+```
+
+For each symbol, record:
+- `name` — symbol name
+- `type` — `function` | `class` | `type` | `const` | `interface` | `enum`
+- `line` — line number in file
+- `exported` — true (only track exported/public symbols)
+
+### 4c: Symbol Caller Index
+Build a reverse map of which files call each exported symbol:
+
+```bash
+# For each exported symbol "MyFunction" from "auth/service.ts":
+# Find all files that reference it (not the defining file itself)
+grep -rn "MyFunction\|AuthService\|DBClient" src/ --include="*.ts" --include="*.py" --include="*.go" | grep -v "auth/service.ts"
+```
+
+Build `symbol_callers` index:
+```
+AuthService.login()    called by: [routes/auth.ts:45, middleware/session.ts:12, tests/auth.test.ts:8]
+AuthService.register() called by: [routes/auth.ts:62, tests/auth.test.ts:20]
+DBClient.query()       called by: [auth/service.ts:34, users/service.ts:18, orders/service.ts:7]
+```
+
+This is the key input for `/buildflow-modify` — when a function signature changes, the caller index shows exactly which lines need updating, not just which files.
 
 ---
 
@@ -255,9 +326,22 @@ utils/format.ts   risk: 1.0  ← pure functions, low coupling
 ```
 
 ### `.buildflow/codebase/GRAPH.md`
-Full import dependency graph output from Step 4.
-Includes fan-in / fan-out counts per file.
-This is what impact analysis reads during `/buildflow-modify`.
+Full import dependency graph output from Steps 4a–4c.
+Includes fan-in / fan-out counts per file (file-level) AND symbol caller index (symbol-level).
+
+Structure:
+```markdown
+## File-Level Import Graph
+[file dependency map with fan-in / fan-out counts]
+
+## Symbol Caller Index
+AuthService.login      → src/routes/auth.ts:45, src/routes/auth.ts:89, src/tests/auth.test.ts:8
+AuthService.register   → src/routes/auth.ts:62, src/tests/auth.test.ts:20
+createToken            → src/auth/service.ts:31, src/middleware/session.ts:18
+DBClient.query         → src/auth/service.ts:34, src/users/service.ts:18, src/orders/service.ts:7
+```
+
+`/buildflow-modify` Step 2 uses `symbol_callers` from `intel.json` for precise call-site lookup (file:line pairs). GRAPH.md is the human-readable version of the same data.
 
 ### `.buildflow/codebase/PATTERNS.md`
 All conventions from Step 7. Used by Builder and Surgeon agents to match style.
@@ -308,10 +392,53 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
       "risk": 4.2,
       "has_tests": true,
       "test_file": "src/auth/service.test.ts",
-      "exports": ["AuthService"],
-      "imports": ["src/db/client.ts", "src/config.ts"]
+      "exports": ["AuthService", "createToken"],
+      "imports": ["src/db/client.ts", "src/config.ts"],
+      "symbols": [
+        {
+          "name": "AuthService",
+          "type": "class",
+          "line": 12,
+          "exported": true
+        },
+        {
+          "name": "AuthService.login",
+          "type": "function",
+          "line": 24,
+          "exported": true,
+          "signature": "login(email: string, password: string): Promise<AuthToken>"
+        },
+        {
+          "name": "AuthService.register",
+          "type": "function",
+          "line": 45,
+          "exported": true,
+          "signature": "register(email: string, password: string, name: string): Promise<User>"
+        },
+        {
+          "name": "createToken",
+          "type": "function",
+          "line": 78,
+          "exported": true,
+          "signature": "createToken(userId: string): string"
+        }
+      ]
     }
   ],
+  "symbol_callers": {
+    "AuthService.login": [
+      { "file": "src/routes/auth.ts", "line": 45 },
+      { "file": "src/tests/auth.test.ts", "line": 8 }
+    ],
+    "AuthService.register": [
+      { "file": "src/routes/auth.ts", "line": 62 },
+      { "file": "src/tests/auth.test.ts", "line": 20 }
+    ],
+    "createToken": [
+      { "file": "src/auth/service.ts", "line": 31 },
+      { "file": "src/middleware/session.ts", "line": 18 }
+    ]
+  },
   "tech_stack": {
     "language": "TypeScript",
     "framework": "Express",
@@ -341,7 +468,8 @@ Write a machine-readable JSON index alongside the markdown files. This enables `
 ```
 
 **Usage by other commands:**
-- `/buildflow-modify` reads `file_index` to get fan-in, fan-out, and test file path without parsing GRAPH.md
+- `/buildflow-modify` reads `file_index[].symbols` + `symbol_callers` to trace impact at function level — shows exactly which lines call a changing function
+- `/buildflow-modify` falls back to file-level `file_index` fan-in/fan-out if intel.json predates symbol tracking (built before this GAP-H version)
 - `/buildflow-build` reads `hotspots` to warn before touching high-risk files
 - `/buildflow-check` reads `schema.drift_baseline` to detect schema file changes
 - `/buildflow-start` reads `tech_stack` to populate context packet fields
@@ -356,7 +484,7 @@ After onboarding (and after every `--update`), record a drift baseline in `intel
 
 1. Hash all schema-defining files: `schema.prisma`, `*.entity.ts`, `models.py`, `schema.sql`
 2. Record file count per module
-3. Record the set of exported symbols per load-bearing file
+3. Record the set of exported **symbols** per load-bearing file (function names and signatures, not just file names) — this is the symbol-level drift baseline
 
 This baseline is read by `/buildflow-start` at every session to detect silent drift.
 
@@ -371,10 +499,23 @@ This baseline is read by `/buildflow-start` at every session to detect silent dr
     "Database": 2
   },
   "load_bearing_exports": {
-    "src/db/client.ts": ["DBClient", "QueryBuilder"]
+    "src/db/client.ts": {
+      "symbols": ["DBClient", "QueryBuilder", "runMigration"],
+      "signatures": {
+        "DBClient.query": "query(sql: string, params?: any[]): Promise<Row[]>",
+        "QueryBuilder.select": "select(table: string): QueryBuilder"
+      }
+    }
   }
 }
 ```
+
+**Drift signals from symbol-level baseline (detected by `/buildflow-start`):**
+- New symbol added to a load-bearing file → INFO (new export, check callers)
+- Symbol removed from a load-bearing file → WARN (callers may break)
+- Signature changed for a load-bearing symbol → WARN (callers likely need updates)
+
+These signals surface silent API breakage before build failures happen.
 
 ---
 
@@ -415,13 +556,24 @@ Next steps:
 ```
 
 ## Token cost report (print at end of onboard)
+
+Measure actual cost before printing:
+1. Sum character counts of all files read during onboarding ÷ 4 = input tokens
+2. Estimate output from text generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
 ```
-Onboard complete
-────────────────
-Files: [N]  Modules: [N]  Hotspots: [N]  Lenses: 4
-Token cost: ~[N]K  (budget: ~40K — one-time cost)
+Token Cost — /buildflow-onboard
+────────────────────────────────
+Files analyzed: [N]  Modules: [N]  Hotspots: [N]  Lenses: 4
+Context loaded:    ~[N]K tokens   ([N] source files scanned)
+Output generated:  ~[N]K tokens   (MAP.md + GRAPH.md + intel.json + HOTSPOTS.md)
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+
 intel.json written to .buildflow/codebase/intel.json
 ```
+
 Update `light.md`: `last_onboard_tokens: ~[N]K`
 
 ## Token Budget: ~40K (one-time — pays back on every subsequent session)

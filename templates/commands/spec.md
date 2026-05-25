@@ -404,11 +404,21 @@ For single-feature additions:
 ---
 
 ## Token cost report (print at end of spec lock)
+
+Measure actual cost:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output from PRD.md + TDD.md + acceptance.md generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
 ```
-Spec locked — Phase [N] v[N]
+Token Cost — /buildflow-spec
 ─────────────────────────────
+Spec locked — Phase [N] v[N]
 Features: [N]  User stories: [N]  ACs: [N]  Revision cycles: [N]
-Token cost: ~[N]K  (budget: ~20K full / ~8K --fast)
+Context loaded:    ~[N]K tokens   (vision.md + SHIPPED.md files + preferences.md)
+Output generated:  ~[N]K tokens   (PRD.md + TDD.md + acceptance.md)
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
 ```
 Update `light.md`: `last_spec_tokens: ~[N]K`
 

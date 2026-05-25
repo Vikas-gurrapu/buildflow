@@ -135,6 +135,8 @@ last_ship_date: [today]
 Run the full build quality pipeline — type safety and compilation correctness are non-negotiable before shipping.
 
 ### Type Check
+Run the type-check command from the Build Toolchain Profile detected in Step 2b of `/buildflow-build` (stored in `light.md → build_toolchain`). If not recorded, detect now:
+
 ```bash
 # TypeScript
 npx tsc --noEmit
@@ -144,9 +146,25 @@ mypy .
 go vet ./...
 # Rust
 cargo check
+# Java (Maven)
+./mvnw compile -q 2>&1 | grep -E "ERROR|error:"
+# Java/Kotlin (Gradle)
+./gradlew compileJava compileKotlin --quiet 2>&1 | grep -E "error:"
+# C# / .NET
+dotnet build --no-restore 2>&1 | grep -E "error CS|Build FAILED"
+# Ruby (syntax check all files)
+find . -name "*.rb" ! -path "*/vendor/*" | xargs ruby -c 2>&1 | grep -v "Syntax OK"
+# PHP
+find . -name "*.php" ! -path "*/vendor/*" | xargs php -l 2>&1 | grep -v "No syntax errors"
+# Dart / Flutter
+flutter analyze 2>/dev/null || dart analyze
+# Swift
+swift build 2>&1 | grep -E "error:"
+# Scala
+sbt compile 2>&1 | grep -E "\[error\]"
 ```
 
-**Any type errors → BLOCK:**
+**Any type/compile errors → BLOCK:**
 ```
 🔴 SHIP BLOCKED — Type Errors
 
@@ -166,16 +184,40 @@ ruff check . / flake8 .
 golangci-lint run
 # Rust
 cargo clippy -- -D warnings
+# Java (Maven)
+./mvnw checkstyle:check -q 2>/dev/null
+# Java/Kotlin (Gradle)
+./gradlew checkstyleMain detekt 2>/dev/null
+# C# / .NET
+dotnet format --verify-no-changes 2>/dev/null
+# Ruby
+bundle exec rubocop --format progress 2>/dev/null
+# PHP
+./vendor/bin/phpstan analyse --no-progress 2>/dev/null || ./vendor/bin/psalm --no-progress 2>/dev/null
+# Dart / Flutter  (analysis_options.yaml drives this)
+flutter analyze 2>/dev/null || dart analyze
+# Swift
+swiftlint lint --quiet 2>/dev/null
+# Scala
+sbt scalafmtCheck 2>/dev/null
 ```
 
 **Lint errors → BLOCK.** Lint warnings → non-blocking WARN, logged.
 
 ### Compile / Build
 ```bash
-npm run build      # JS/TS
-python -m build    # Python
-go build ./...     # Go
-cargo build        # Rust
+npm run build          # JS/TS
+python -m build        # Python
+go build ./...         # Go
+cargo build            # Rust
+./mvnw package -DskipTests -q   # Java (Maven)
+./gradlew build -x test         # Java/Kotlin (Gradle)
+dotnet publish -c Release -q    # C# / .NET
+bundle exec rake assets:precompile 2>/dev/null  # Ruby on Rails
+composer install --no-dev       # PHP
+flutter build apk --release 2>/dev/null || flutter build web  # Dart / Flutter
+swift build -c release          # Swift
+sbt package                     # Scala
 ```
 
 **Compile failure → BLOCK:**
@@ -186,7 +228,22 @@ Build command exited with errors.
 Fix compilation errors before shipping.
 ```
 
+### Docker Build (if Dockerfile present)
+```bash
+# Verify the image still builds cleanly before shipping
+docker build --no-cache -t [app-name]:ship-check . 2>&1 | tail -5
+docker rmi [app-name]:ship-check 2>/dev/null
+```
+**Docker build failure → BLOCK:** "Dockerfile builds failed. Fix image before shipping."
+**No Dockerfile:** skip silently.
+
 ### Test Coverage
+Read the coverage threshold from `.buildflow/you/preferences.md`:
+```yaml
+spec_coverage:
+  threshold: 80   # default: 70 if not set
+```
+
 Run coverage and compare against `last_ship_coverage` in `light.md`:
 ```bash
 npx jest --coverage --coverageReporters=json-summary --passWithNoTests 2>/dev/null
@@ -194,32 +251,39 @@ pytest --cov=src --cov-report=term-missing 2>/dev/null
 go test ./... -cover 2>/dev/null
 ```
 
+Also check `.buildflow/phases/[N]/COVERAGE-MAP.md` (written by `/buildflow-check`):
+- If COVERAGE-MAP.md has a recorded exception decision (bugfix/incremental), inherit that decision — no re-prompt needed. Log inherited decision and proceed.
+
 | Coverage state | Action |
 |----------------|--------|
 | No baseline yet | Record current %, proceed |
 | Drop 0–5% | WARN — non-blocking |
-| Drop 5–15% | Prompt user (see below) |
-| Drop > 15% | Prompt user (see below) |
+| Drop < threshold AND no COVERAGE-MAP exception | Smart prompt (see below) |
+| Drop ≥ threshold | PASS silently |
 | Increased | PASS silently |
 
-**Coverage drop prompt:**
+**Smart coverage prompt at ship (when below threshold and no prior exception):**
 ```
 Coverage at Ship
 ────────────────
-Last shipped:  [N]%
-Current:       [M]%
-Drop:          -[X]%
+Last shipped:    [N]%
+Current:         [M]%
+Your threshold:  [T]%  (set in preferences.md)
 
 Uncovered areas:
   [file] — [N] uncovered functions
 
-Options:
-  [F] Fix now   — address coverage before shipping
-  [P] Ship anyway — log to DEBT.md and proceed
+Context:
+  [B] Bugfix phase — coverage tracking less relevant for targeted fixes
+  [N] Building up coverage incrementally — this flow is partially covered intentionally
+  [F] Fix now — add tests before shipping (re-runs from Gate 2)
+  [P] Ship anyway — log gap to DEBT.md and proceed
 ```
 
-- **F:** pause ship, add tests, re-run gates from Gate 2
-- **P:** proceed to ship, log: "Shipped with coverage drop [N]% → [M]% on [date]" to `security/DEBT.md`
+- **[B]:** Log "Shipped: bugfix phase, coverage [N]% below threshold [T]% — accepted [date]" to DEBT.md. Proceed.
+- **[N]:** Log "Shipped: incremental coverage build-up, [N]% below threshold [T]% — accepted [date]" to DEBT.md. Proceed.
+- **[F]:** Pause ship, add tests, re-run gates from Gate 2.
+- **[P]:** Log "Shipped with coverage [N]% below threshold [T]% — developer decision [date]" to DEBT.md. Proceed.
 
 Coverage never hard-blocks ship — the decision belongs to the developer.
 
@@ -460,13 +524,24 @@ Save to `.buildflow/learnings/feature-suggestions.md` (appends, doesn't overwrit
 No flag skips the test gate (Gate 2) or type errors in Gate 3. Type safety and green tests are non-negotiable.
 
 ## Token cost report (print at end of ship)
+
+Measure actual cost before printing:
+1. Sum character counts of all files read in Context Packet + gate-loaded files ÷ 4 = input tokens
+2. Estimate output from text generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
 ```
+Token Cost — /buildflow-ship
+─────────────────────────────
 Ship complete — Phase [N]
-─────────────────────────
 Gates: 0a ✓  1 ✓  2a ✓  2b ✓  3 ✓
 ACs verified: [N/N]
-Token cost: ~[N]K  (budget: ~26K gates / ~40K with market research)
+Context loaded:    ~[N]K tokens   (acceptance.md + state.md + light.md + changed files)
+Output generated:  ~[N]K tokens   (gates output + SHIPPED.md + retro.md)
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
 ```
+
 Update `light.md`: `last_ship_tokens: ~[N]K`
 
 ## Token Budget: ~26K (gates) / ~40K (with post-ship market research in Step 6b)

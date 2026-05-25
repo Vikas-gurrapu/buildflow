@@ -171,6 +171,15 @@ git commit -m "feat: phase [N] wave [W] + phase [M] stacked changes (delayed com
 | `/buildflow-onboard` | First-time codebase analysis |
 | `/buildflow-workspace` | Multi-repo / monorepo mapping |
 
+### Docker & containers
+| Command | When |
+|---------|------|
+| `/buildflow-docker scaffold` | Generate Dockerfile + docker-compose.yml |
+| `/buildflow-docker build` | Build image locally |
+| `/buildflow-docker run` | Start all services |
+| `/buildflow-docker scan` | Security scan built image |
+| `/buildflow-docker push [registry]` | Tag and push to registry |
+
 ### Verification & security
 | Command | When |
 |---------|------|

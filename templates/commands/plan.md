@@ -341,11 +341,21 @@ est_total: [size]
 ```
 
 ## Token cost report (print at end of plan)
+
+Measure actual cost:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output from PLAN.md generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
 ```
+Token Cost — /buildflow-plan
+─────────────────────────────
 Plan ready — Phase [N]
-──────────────────────
 Waves: [N]  Tasks: [N]  ACs: [N]  Engineering review cycles: [N]
-Token cost: ~[N]K  (budget: ~22K)
+Context loaded:    ~[N]K tokens   (spec + vision + onboard data)
+Output generated:  ~[N]K tokens   (PLAN.md)
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
 ```
 Update `light.md`: `last_plan_tokens: ~[N]K`
 

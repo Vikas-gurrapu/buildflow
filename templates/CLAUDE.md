@@ -1,6 +1,6 @@
 # {{APP_NAME}} — Claude Code Configuration
 
-This project uses **BuildFlow v4.0** for spec-driven, multi-agent development orchestration.
+This project uses **BuildFlow v5.0** for spec-driven, multi-agent development orchestration.
 
 ## Session Start Checklist (Run Every Time)
 
@@ -33,9 +33,16 @@ Before doing anything else at the start of every session:
 
 5. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
 
+6. **Reset session token counter** — update `state.md`:
+   ```yaml
+   session_tokens_used: 0
+   session_start: [ISO datetime]
+   ```
+   This counter accumulates across every command run this session. Each command adds its cost before exiting.
+
 ---
 
-## BuildFlow v4.0 Workflow
+## BuildFlow v5.0 Workflow
 
 ```
 /buildflow-start    → capture vision
@@ -65,7 +72,8 @@ Before doing anything else at the start of every session:
 | `/buildflow-onboard` | One-time analysis of existing codebase |
 | `/buildflow-modify` | Surgical change or bugfix to existing code |
 | `/buildflow-workspace` | Multi-repo/monorepo cross-service impact analysis |
-| `/buildflow-audit` | OWASP Top 10 security scan |
+| `/buildflow-docker` | Docker scaffolding, build, run, push, and image security scan |
+| `/buildflow-audit` | OWASP Top 10 security scan + container CVE scan |
 | `/buildflow-status` | See current phase and progress |
 | `/buildflow-help` | Diagnostic mode + recovery |
 
@@ -79,6 +87,34 @@ Before doing anything else at the start of every session:
 - Create restore points before destructive operations (git stash OR file snapshot — see no-git mode)
 - Run `/buildflow-audit` before every `/buildflow-ship`
 - No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
+
+## Token Cost Tracking
+
+Every command measures and reports its actual token usage at the end:
+
+**How it works:**
+1. At the START of a command, measure the total size of all files in its Context Packet: sum of file character counts ÷ 4 = **input tokens**
+2. At the END of a command, estimate output tokens from the length of text generated (character count ÷ 4)
+3. **Command token cost** = input + output
+4. **Add to running total** in `state.md → session_tokens_used`
+5. Print the cost report at command end
+
+**Token cost report format (used by all commands):**
+```
+Token Cost — /buildflow-[command]
+──────────────────────────────────
+Context loaded: ~[N]K tokens   ([list of files with char counts])
+Output generated: ~[N]K tokens
+This command: ~[N]K tokens
+Session total: ~[N]K tokens   (since [session_start])
+```
+
+**Why this is accurate:**
+- Context loading is the dominant cost. Measuring actual loaded file sizes gives real numbers, not guesses.
+- Output estimation (chars ÷ 4) is accurate to ±10% for prose and code.
+- Session total accumulates across all commands — you see total spend for the session.
+
+**To check session total at any time:** `/buildflow-status` shows `Session tokens: ~[N]K` from state.md.
 
 ## Agents
 

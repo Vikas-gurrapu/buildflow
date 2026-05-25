@@ -622,7 +622,7 @@ function loadCommandTemplates() {
   const commandNames = [
     'start', 'think', 'spec', 'plan', 'build', 'test', 'check', 'ship',
     'onboard', 'modify', 'refactor', 'hotfix', 'audit',
-    'debug', 'deploy', 'workspace',
+    'debug', 'deploy', 'docker', 'workspace',
     'status', 'explain', 'back', 'help',
   ]
   for (const name of commandNames) {

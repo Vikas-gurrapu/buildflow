@@ -121,10 +121,19 @@ If any drift detected: **BLOCK ship readiness.** "Schema drift found — resolve
 
 ## Step 4: Spec Coverage Traceability
 
-Build a reverse map: for every source file changed this phase, which AC covers it?
+### 4a: Load Coverage Threshold
+Read `.buildflow/you/preferences.md` for:
+```yaml
+spec_coverage:
+  threshold: 80          # % of business-logic files that must have AC traceability
+  strict_mode: false     # true = prompt on any drop; false = only prompt if below threshold
+```
+If not set, use default threshold of **70%**.
+
+### 4b: Build Coverage Map
+Get files changed this phase:
 
 ```bash
-# Get files changed this phase
 # Git available:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/ 2>/dev/null
 # No-git mode: read from PLAN.md task "Files to create/modify" fields (all completed tasks)
@@ -150,21 +159,56 @@ src/utils/format.ts      → NONE            ✗ UNCOVERED (utility — acceptab
 
 Coverage: 3/5 files have AC traceability (60%)
 Uncovered: 2 files — 1 flagged, 1 marked acceptable
+Threshold: 70%  →  ⚠ BELOW THRESHOLD
 ```
 
 **Uncovered file classification:**
 - **Utility / pure functions** (format, parse, transform with no business logic) → mark as `ACCEPTABLE — utility`
-- **Business logic files with no AC** → flag as `⚠ UNCOVERED BUSINESS LOGIC — consider adding AC or test`
+- **Business logic files with no AC** → flag as `⚠ UNCOVERED BUSINESS LOGIC`
 - **Infra/config files** (db.config, app.module, main.ts) → mark as `ACCEPTABLE — infra`
 
-**If >30% of business-logic files are uncovered:**
+### 4c: Smart Coverage Prompt
+Coverage never hard-blocks. When coverage is below threshold, show the context-aware prompt:
+
 ```
-⚠ Low spec coverage: [N]% of business-logic files have no AC traceability
-This means there is code whose correctness cannot be verified against the spec.
-Consider adding ACs for: [list uncovered business-logic files]
+Spec Coverage Below Threshold
+──────────────────────────────
+Coverage: [N]% of business-logic files have AC traceability
+Required: [threshold]% (set in preferences.md → spec_coverage.threshold)
+
+Uncovered business-logic files:
+  src/utils/crypto.ts      — no AC, no test linkage
+  src/services/payment.ts  — no AC, no test linkage
+
+Context (answer to get the right guidance):
+
+  [B] This is a bugfix phase — coverage tracking for this phase is less relevant
+       (the fix targeted a specific bug, not new behavior)
+  [N] We recently started adding test coverage for this flow
+       (coverage is intentionally partial — we're building it up incrementally)
+  [A] Add ACs now — I'll define missing ACs and re-run check
+  [P] Proceed anyway — log gap to DEBT.md and continue to ship
 ```
 
+**On [B] — bugfix exception:**
+Log to DEBT.md: "Coverage below threshold [N]% — accepted: bugfix phase [date]. Review at next feature phase."
+Proceed. No block.
+
+**On [N] — new coverage exception:**
+Ask: "Which files are part of the coverage build-up?" 
+Mark those files as `ACCEPTABLE — coverage in progress` in COVERAGE-MAP.md.
+Log: "Coverage below threshold [N]% — accepted: incremental coverage build-up for [files] [date]."
+Proceed. No block.
+
+**On [A] — add ACs:**
+Pause check. User defines ACs, then re-run `/buildflow-check acceptance`.
+
+**On [P] — proceed:**
+Log to DEBT.md: "Coverage below threshold [N]% — accepted: developer decision [date]. Address in future phase."
+Proceed. No block.
+
 Write the coverage map to `.buildflow/phases/[N]/COVERAGE-MAP.md` for the ship gate to read.
+Include the decision and reason taken in Step 4c.
 
 ---
 
@@ -208,11 +252,20 @@ Code Quality
 - **Code failures only:** "Spec satisfied. Fix code issues or proceed with caution."
 
 ## Token cost report (print at end of check)
+
+Measure actual cost before printing:
+1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
+2. Estimate output from text generated ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's cost
+
 ```
-Check complete
-──────────────
+Token Cost — /buildflow-check
+──────────────────────────────
 ACs: [N/N passing]  Schema drift: [clean/N issues]  Coverage: [N]%
-Token cost: ~[N]K  (budget: ~26K)
+Context loaded:    ~[N]K tokens   (acceptance.md + PLAN.md + [N] changed files)
+Output generated:  ~[N]K tokens
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
 ```
 
 ## Token Budget: ~26K (includes schema drift + coverage traceability)

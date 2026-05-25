@@ -67,6 +67,117 @@ function detectProjectInfo() {
     info.projectType = 'existing'
   }
 
+  // Java / Kotlin
+  if (existsSync(join(cwd, 'pom.xml'))) {
+    info.language = 'java'
+    info.projectType = 'existing'
+    try {
+      const pom = readFileSync(join(cwd, 'pom.xml'), 'utf8')
+      if (pom.includes('spring-boot')) info.framework = 'Spring Boot'
+      else if (pom.includes('quarkus')) info.framework = 'Quarkus'
+      else if (pom.includes('micronaut')) info.framework = 'Micronaut'
+      else info.framework = 'Maven'
+    } catch { info.framework = 'Maven' }
+    info.hasTests = existsSync(join(cwd, 'src', 'test'))
+  }
+  if (existsSync(join(cwd, 'build.gradle')) || existsSync(join(cwd, 'build.gradle.kts'))) {
+    const isKts = existsSync(join(cwd, 'build.gradle.kts'))
+    info.language = isKts ? 'kotlin' : 'java'
+    info.projectType = 'existing'
+    try {
+      const gradle = readFileSync(join(cwd, isKts ? 'build.gradle.kts' : 'build.gradle'), 'utf8')
+      if (gradle.includes('org.springframework.boot')) info.framework = 'Spring Boot'
+      else if (gradle.includes('io.quarkus')) info.framework = 'Quarkus'
+      else if (gradle.includes('io.micronaut')) info.framework = 'Micronaut'
+      else if (gradle.includes('com.android')) info.framework = 'Android'
+      else info.framework = isKts ? 'Kotlin' : 'Gradle'
+    } catch { info.framework = isKts ? 'Kotlin' : 'Gradle' }
+    info.hasTests = existsSync(join(cwd, 'src', 'test'))
+  }
+
+  // C# / .NET
+  const csprojFiles = (() => { try { return readdirSync(cwd).filter(f => f.endsWith('.csproj') || f.endsWith('.sln')) } catch { return [] } })()
+  if (csprojFiles.length > 0) {
+    info.language = 'csharp'
+    info.projectType = 'existing'
+    try {
+      const csproj = readFileSync(join(cwd, csprojFiles[0]), 'utf8')
+      if (csproj.includes('Microsoft.AspNetCore')) info.framework = 'ASP.NET Core'
+      else if (csproj.includes('Microsoft.Maui')) info.framework = 'MAUI'
+      else if (csproj.includes('Blazor')) info.framework = 'Blazor'
+      else info.framework = '.NET'
+    } catch { info.framework = '.NET' }
+    info.hasTests = (() => { try { return readdirSync(cwd).some(f => f.toLowerCase().includes('test') && f.endsWith('.csproj')) } catch { return false } })()
+  }
+
+  // Ruby
+  if (existsSync(join(cwd, 'Gemfile'))) {
+    info.language = 'ruby'
+    info.projectType = 'existing'
+    try {
+      const gemfile = readFileSync(join(cwd, 'Gemfile'), 'utf8')
+      if (gemfile.includes("'rails'") || gemfile.includes('"rails"')) info.framework = 'Rails'
+      else if (gemfile.includes('sinatra')) info.framework = 'Sinatra'
+      else info.framework = 'Ruby'
+    } catch { info.framework = 'Ruby' }
+    info.hasTests = existsSync(join(cwd, 'spec')) || existsSync(join(cwd, 'test'))
+  }
+
+  // PHP
+  if (existsSync(join(cwd, 'composer.json'))) {
+    info.language = 'php'
+    info.projectType = 'existing'
+    try {
+      const composer = JSON.parse(readFileSync(join(cwd, 'composer.json'), 'utf8'))
+      const req = { ...composer.require, ...composer['require-dev'] }
+      if (req?.['laravel/framework']) info.framework = 'Laravel'
+      else if (req?.['symfony/framework-bundle']) info.framework = 'Symfony'
+      else info.framework = 'PHP'
+    } catch { info.framework = 'PHP' }
+    info.hasTests = existsSync(join(cwd, 'tests'))
+  }
+
+  // Dart / Flutter
+  if (existsSync(join(cwd, 'pubspec.yaml'))) {
+    info.language = 'dart'
+    info.projectType = 'existing'
+    try {
+      const pubspec = readFileSync(join(cwd, 'pubspec.yaml'), 'utf8')
+      info.framework = pubspec.includes('flutter') ? 'Flutter' : 'Dart'
+    } catch { info.framework = 'Dart' }
+    info.hasTests = existsSync(join(cwd, 'test'))
+  }
+
+  // Swift
+  if (existsSync(join(cwd, 'Package.swift'))) {
+    info.language = 'swift'
+    info.framework = 'Swift Package'
+    info.projectType = 'existing'
+    info.hasTests = existsSync(join(cwd, 'Tests'))
+  }
+  if (existsSync(join(cwd, 'project.pbxproj')) || existsSync(join(cwd, `${cwd.split('/').pop()}.xcodeproj`))) {
+    info.language = 'swift'
+    info.framework = 'Xcode / iOS'
+    info.projectType = 'existing'
+    info.hasTests = existsSync(join(cwd, `${cwd.split('/').pop()}Tests`))
+  }
+
+  // Scala
+  if (existsSync(join(cwd, 'build.sbt'))) {
+    info.language = 'scala'
+    info.projectType = 'existing'
+    try {
+      const sbt = readFileSync(join(cwd, 'build.sbt'), 'utf8')
+      if (sbt.includes('akka')) info.framework = 'Akka'
+      else if (sbt.includes('play')) info.framework = 'Play'
+      else info.framework = 'Scala / sbt'
+    } catch { info.framework = 'Scala / sbt' }
+    info.hasTests = existsSync(join(cwd, 'src', 'test'))
+  }
+
+  // Docker detection
+  info.hasDocker = existsSync(join(cwd, 'Dockerfile')) || existsSync(join(cwd, 'docker-compose.yml')) || existsSync(join(cwd, 'docker-compose.yaml'))
+
   if (!existsSync(join(cwd, 'src')) && !existsSync(pkgPath) && !existsSync(join(cwd, 'requirements.txt'))) {
     info.projectType = 'greenfield'
   }
@@ -213,7 +324,7 @@ function scaffoldBuildflow(appName, projectInfo) {
 | **Framework** | ${projectInfo.framework} |
 | **Phase**     | 0                      |
 | **Status**    | Initialized            |
-| **BuildFlow** | 3.0                    |
+| **BuildFlow** | 5.0                    |
 | **Updated**   | ${today}               |
 
 ---
@@ -234,6 +345,18 @@ function scaffoldBuildflow(appName, projectInfo) {
 | In Progress   | Actively building a phase                    |
 | Shipped       | Phase complete and committed to git          |
 | Blocked       | Waiting on a decision or external dependency |
+
+---
+
+## Token Tracking
+
+\`\`\`yaml
+session_tokens_used: 0
+session_start: ${today}
+\`\`\`
+
+> Updated by each command at completion. Reset to 0 at session start.
+> Use \`/buildflow-status\` to see current session total.
 `)
 
   // ── you/preferences.md ──────────────────────────────────────────────────────
@@ -332,6 +455,41 @@ security:
   pre_ship_gate:           true   # Run security audit before every /buildflow-ship
   auto_suggest_on_sensitive: true # Flag sensitive files (auth, payments) automatically
 \`\`\`
+
+---
+
+## Spec Coverage
+
+\`\`\`yaml
+spec_coverage:
+  threshold:   70    # % of business-logic files that must have AC traceability
+                     # When below this, /buildflow-check and /buildflow-ship prompt you
+                     # They never hard-block — you always decide whether to proceed
+  strict_mode: false # true = prompt on ANY coverage drop (even 1%)
+                     # false = only prompt when below threshold
+\`\`\`
+
+---
+
+## Token Tracking
+
+\`\`\`yaml
+token_tracking:
+  enabled:          true    # Track token usage per command and session
+  report_at_end:    true    # Print token cost at end of each command
+  session_running_total: true  # Accumulate session total in state.md
+\`\`\`
+
+---
+
+## Docker
+
+\`\`\`yaml
+docker:
+  detected:         ${projectInfo.hasDocker ? 'true   # Dockerfile or docker-compose.yml found' : 'false  # run /buildflow-docker scaffold to set up'}
+  auto_build_check: true   # Verify docker build still passes after each wave (non-blocking warn)
+  scan_before_push: true   # Run image security scan before /buildflow-deploy push
+\`\`\`
 `)
 
   // ── memory/light.md ─────────────────────────────────────────────────────────
@@ -353,11 +511,13 @@ type:              ${projectInfo.projectType}
 framework:         ${projectInfo.framework}
 phase:             0
 last_session:      ${today}
-buildflow:         4.0
+buildflow:         5.0
 onboarded:         ${projectInfo.projectType === 'greenfield' ? 'n/a  # greenfield project — no onboarding needed' : 'false  # run /buildflow-onboard to analyze your codebase'}
 git_permission:    ${projectInfo.gitPermission || 'approved'}
 git_available:     ${projectInfo.gitPermission === 'approved' ? 'true' : 'false'}
 parked_changes:    []   # files with un-pushed changes — checked before each new phase
+container_runtime: ${projectInfo.hasDocker ? 'docker' : 'none'}
+language:          ${projectInfo.language}
 \`\`\`
 
 ---

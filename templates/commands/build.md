@@ -136,25 +136,72 @@ find . -name "*_test.go" | head -5
 grep -n "#\[test\]\|#\[cfg(test)\]" src/**/*.rs | head -5
 ```
 
+**Java / Kotlin:**
+```bash
+# Maven
+cat pom.xml 2>/dev/null | grep -E "junit|testng|mockito|assertj"
+find . -path "*/src/test/*" -name "*Test.java" -o -name "*Spec.kt" | head -5
+# Gradle
+cat build.gradle build.gradle.kts 2>/dev/null | grep -E "junit|kotest|mockk|testng"
+```
+
+**C# / .NET:**
+```bash
+find . -name "*.csproj" | xargs grep -l "xunit\|nunit\|mstest\|FluentAssertions" 2>/dev/null | head -3
+find . -name "*Tests.cs" -o -name "*Test.cs" -o -name "*Spec.cs" | head -5
+```
+
+**Ruby:**
+```bash
+cat Gemfile 2>/dev/null | grep -E "rspec|minitest|capybara|factory_bot"
+find . -name "*_spec.rb" -o -name "*_test.rb" | head -5
+```
+
+**PHP:**
+```bash
+cat composer.json 2>/dev/null | grep -E "phpunit|pest|codeception|mockery"
+find . -name "*Test.php" -o -name "*Spec.php" | head -5
+```
+
+**Dart / Flutter:**
+```bash
+cat pubspec.yaml 2>/dev/null | grep -E "flutter_test|test:|mocktail|mockito"
+find . -path "*/test/*" -name "*_test.dart" | head -5
+```
+
+**Swift:**
+```bash
+# Package.swift targets with Test suffix
+grep -n "testTarget\|XCTestCase\|\.testTarget" Package.swift 2>/dev/null | head -5
+find . -name "*Tests.swift" -o -name "*Spec.swift" | head -5
+```
+
+**Scala:**
+```bash
+cat build.sbt 2>/dev/null | grep -E "scalatest|specs2|munit|scalacheck"
+find . -path "*/src/test/*" -name "*Spec.scala" -o -name "*Test.scala" | head -5
+```
+
 ### Framework Resolution:
 
 | Result | Action |
 |--------|--------|
 | Framework found + config exists + test files exist | Use it. Infer conventions from existing test files. |
-| Framework in package.json but no test files yet | Use it. Write tests following framework docs conventions. |
-| No framework found, greenfield project | Ask: "No test framework detected. Recommend installing [Jest/Vitest for TS, pytest for Python, built-in for Go/Rust]. Set it up now? (yes / skip / I'll do it later)" |
+| Framework in package.json/pom/build.gradle but no test files yet | Use it. Write tests following framework docs conventions. |
+| No framework found, greenfield project | Ask: "No test framework detected. Recommend [Jest/Vitest for TS, pytest for Python, JUnit 5 for Java/Kotlin, xUnit for C#, RSpec for Ruby, PHPUnit for PHP, flutter_test for Flutter, XCTest for Swift, ScalaTest for Scala, built-in for Go/Rust]. Set it up now?" |
 | No framework, existing project with no tests | Warn: "⚠ No test framework found. Tests cannot be written until one is installed. Proceeding without tests — recommend adding [framework] before shipping." Log to `security/DEBT.md`: "No test framework — zero coverage." |
 
 ### If framework found — capture test profile:
 ```
 Test Framework Profile
 ──────────────────────
-Framework:     Jest 29 / Vitest 1.x / pytest 7.x / go test / cargo test
-Config file:   jest.config.ts / vitest.config.ts / pytest.ini / N/A
-Test location: co-located (*.test.ts) / __tests__/ / tests/
-Naming:        describe/it / test() / def test_ / #[test]
-Mocking:       jest.mock / vi.mock / pytest fixtures / mockall
-Coverage tool: --coverage / --cov / go test -cover / cargo tarpaulin
+Language:      TypeScript / Python / Java / Kotlin / C# / Ruby / PHP / Dart / Swift / Scala / Go / Rust
+Framework:     Jest / pytest / JUnit 5 / Kotest / xUnit / RSpec / PHPUnit / flutter_test / XCTest / ScalaTest / go test / cargo test
+Config file:   jest.config.ts / pytest.ini / build.gradle / .csproj / .rspec / phpunit.xml / N/A
+Test location: co-located / src/test/ / spec/ / Tests/ / test/
+Naming:        describe/it / def test_ / @Test / [Fact] / it "..." / testWidget / func Test / #[test]
+Mocking:       jest.mock / pytest fixtures / Mockito / Moq / RSpec mocks / Mockery / mocktail
+Coverage tool: --coverage / --cov / jacoco / coverlet / simplecov / pcov / flutter test --coverage / cargo tarpaulin
 Existing tests: [N] files, [N] total cases
 ```
 
@@ -192,21 +239,73 @@ ls .golangci.yml .golangci.yaml 2>/dev/null
 
 **Rust:**
 ```bash
-# clippy is built-in to cargo
 grep -E "clippy" Cargo.toml 2>/dev/null
+```
+
+**Java / Kotlin:**
+```bash
+# Maven
+ls pom.xml 2>/dev/null && cat pom.xml | grep -E "checkstyle|spotbugs|pmd|errorprone|detekt|ktlint"
+# Gradle
+ls build.gradle build.gradle.kts 2>/dev/null && cat build.gradle.kts build.gradle 2>/dev/null | grep -E "checkstyle|spotbugs|detekt|ktlint"
+# Wrapper scripts
+ls mvnw gradlew 2>/dev/null
+```
+
+**C# / .NET:**
+```bash
+# Roslyn analyzers, StyleCop, SonarAnalyzer
+find . -name "*.csproj" | xargs grep -l "StyleCop\|SonarAnalyzer\|Roslynator" 2>/dev/null | head -3
+ls .editorconfig global.json 2>/dev/null
+```
+
+**Ruby:**
+```bash
+cat Gemfile 2>/dev/null | grep -E "rubocop|brakeman|reek"
+ls .rubocop.yml 2>/dev/null
+```
+
+**PHP:**
+```bash
+cat composer.json 2>/dev/null | grep -E "phpstan|psalm|php-cs-fixer|squizlabs"
+ls phpstan.neon psalm.xml .php-cs-fixer.php 2>/dev/null
+```
+
+**Dart / Flutter:**
+```bash
+cat analysis_options.yaml 2>/dev/null | head -10
+ls analysis_options.yaml 2>/dev/null
+```
+
+**Swift:**
+```bash
+which swiftlint 2>/dev/null
+ls .swiftlint.yml 2>/dev/null
+```
+
+**Scala:**
+```bash
+cat build.sbt 2>/dev/null | grep -E "scalafmt|scalafix|wartremover"
+ls .scalafmt.conf .scalafix.conf 2>/dev/null
 ```
 
 ### Build Toolchain Profile:
 ```
 Build Toolchain Profile
 ───────────────────────
-Type-check cmd:  tsc --noEmit / mypy . / go vet ./... / cargo check
-Lint cmd:        eslint src/ / ruff check . / golangci-lint run / cargo clippy
-Build cmd:       npm run build / python -m build / go build ./... / cargo build
+Language:        [detected language]
+Type-check cmd:  tsc --noEmit / mypy . / go vet ./... / cargo check /
+                 mvn compile -q / ./gradlew compileKotlin / dotnet build /
+                 bundle exec ruby -c / php -l / flutter analyze / swift build / sbt compile
+Lint cmd:        eslint / ruff / golangci-lint / cargo clippy /
+                 mvn checkstyle:check / ./gradlew detekt / dotnet format --verify-no-changes /
+                 rubocop / phpstan analyse / flutter analyze / swiftlint / sbt scalafmt
+Build cmd:       npm run build / python -m build / go build ./... / cargo build /
+                 mvn package -DskipTests / ./gradlew build -x test / dotnet publish /
+                 bundle exec rake / composer install / flutter build / swift build / sbt package
 Bundle tool:     vite / webpack / esbuild / rollup / N/A
 Bundle baseline: [size in KB from last build, or "no baseline yet"]
-Has tsconfig:    YES / NO
-Has lint config: YES / NO
+Has config:      YES / NO  ([tsconfig / mypy.ini / checkstyle.xml / .rubocop.yml / phpstan.neon / etc.])
 ```
 
 | Result | Action |
@@ -215,6 +314,45 @@ Has lint config: YES / NO
 | Lint found | Run before each wave commit — warnings non-blocking, errors BLOCK |
 | Build cmd found | Run before ship — compile failure BLOCKS |
 | None found | Warn once: "⚠ No build toolchain detected. Type safety and lint checks skipped." Log to `security/DEBT.md`. |
+
+**Language-specific test run commands (referenced in wave execution):**
+```bash
+# JS/TS
+npm test / npx jest / npx vitest run
+
+# Python
+pytest / python -m pytest
+
+# Java (Maven)
+./mvnw test  OR  mvn test
+
+# Java/Kotlin (Gradle)
+./gradlew test
+
+# C# / .NET
+dotnet test
+
+# Ruby
+bundle exec rspec  OR  bundle exec rake test
+
+# PHP
+./vendor/bin/phpunit  OR  ./vendor/bin/pest
+
+# Dart / Flutter
+flutter test  OR  dart test
+
+# Swift
+swift test  OR  xcodebuild test -scheme [scheme] -destination 'platform=iOS Simulator,...'
+
+# Scala
+sbt test
+
+# Go
+go test ./...
+
+# Rust
+cargo test
+```
 
 This profile is passed to every wave alongside the Test Framework Profile.
 
@@ -675,15 +813,21 @@ last_build_tokens: ~[N]K     ← actual token cost of this build run
 Remove from `light.md`: per-task details from previous builds.
 
 **Token cost report (print at end of every build):**
-```
-Build complete
-──────────────
-Waves: [N]  Tasks: [N]  ACs satisfied: [N/N]
-Token cost: ~[N]K  (budget: ~50K per wave × [N] waves = ~[N]K)
-[Under / Over / On] budget
-```
 
-Estimate token cost as: context packets loaded (KB) × waves + fix loop iterations × 2K each. This is an approximation — actual cost depends on the AI tool's counter if available.
+Measure actual cost:
+1. Sum character counts of all Context Packet files loaded across all waves ÷ 4 = input tokens
+2. Estimate output from code generated + test output + fix loop iterations ÷ 4 = output tokens
+3. Update `state.md → session_tokens_used` by adding this command's total
+
+```
+Token Cost — /buildflow-build
+──────────────────────────────
+Waves: [N]  Tasks: [N]  ACs satisfied: [N/N]
+Context loaded:    ~[N]K tokens   ([N] context packets × [N] waves + [N] fix iterations)
+Output generated:  ~[N]K tokens   ([N] files written, [N] test runs)
+This command:      ~[N]K tokens
+Session total:     ~[N]K tokens   (since [session_start])
+```
 
 ---
 

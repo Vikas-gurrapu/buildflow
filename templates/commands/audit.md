@@ -57,6 +57,17 @@ Skip: node_modules, test files, .env.example
 ### A06: Vulnerable Components
 - npm audit findings (if package.json present)
 - Known CVE packages
+- Run language-appropriate dependency audit:
+  ```bash
+  npm audit --audit-level=high              # Node.js
+  pip-audit -r requirements.txt 2>/dev/null  # Python
+  ./mvnw dependency-check:check 2>/dev/null  # Java Maven (OWASP plugin)
+  ./gradlew dependencyCheckAnalyze 2>/dev/null  # Gradle
+  dotnet list package --vulnerable 2>/dev/null   # .NET
+  bundle audit check --update 2>/dev/null    # Ruby
+  composer audit 2>/dev/null                 # PHP
+  cargo audit 2>/dev/null                    # Rust
+  ```
 
 ### A07: Auth Failures
 - Math.random() for tokens (not cryptographically secure)
@@ -72,6 +83,32 @@ Skip: node_modules, test files, .env.example
 
 ### A10: SSRF
 - Server-side URL fetching with user-controlled URLs
+
+## Phase 2b: Container Security Scan (if Dockerfile present)
+
+Check if `Dockerfile` exists. If yes, and if a built image exists:
+
+```bash
+# Check if image exists
+docker images [app_name]:latest --format "{{.Repository}}:{{.Tag}}" 2>/dev/null
+
+# Scan with Docker Scout (preferred if available)
+docker scout cves [app_name]:latest --format table 2>/dev/null
+
+# Fallback: Trivy
+trivy image --severity HIGH,CRITICAL --format table [app_name]:latest 2>/dev/null
+```
+
+If no image is built yet: note "⚠ Docker image not built — run `/buildflow-docker build` then `/buildflow-audit` to scan the container."
+
+**Container findings feed into the main report under A06 (Vulnerable Components).**
+
+Check Dockerfile itself for common misconfigurations:
+- Running as root (`USER` instruction absent) → HIGH
+- Secrets passed as `ENV` or `ARG` build args → CRITICAL
+- Using `latest` tag for base image → MEDIUM (non-reproducible builds)
+- Exposing unnecessary ports → LOW
+- Missing `HEALTHCHECK` instruction → LOW
 
 ## Phase 3: Generate Report
 

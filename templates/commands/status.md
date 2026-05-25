@@ -115,19 +115,24 @@ Run /buildflow-help next for full analysis.
 
 ---
 
-## Step 5b: Token Spend (if recorded in light.md)
+## Step 5b: Token Spend
+Read `state.md` for `session_tokens_used` and `session_start`. Read `light.md` for per-command costs.
+
 ```
 Token Spend  Phase [N]
 ──────────────────────
-/buildflow-spec:    ~[N]K
-/buildflow-plan:    ~[N]K
-/buildflow-build:   ~[N]K  ([N] waves)
-/buildflow-check:   ~[N]K
-/buildflow-onboard: ~[N]K  (one-time)
+/buildflow-spec:    ~[N]K   (context: [N]K, output: [N]K)
+/buildflow-plan:    ~[N]K   (context: [N]K, output: [N]K)
+/buildflow-build:   ~[N]K   ([N] waves — context: [N]K, output: [N]K)
+/buildflow-check:   ~[N]K   (context: [N]K, output: [N]K)
+/buildflow-onboard: ~[N]K   (one-time — context: [N]K, output: [N]K)
                     ──────
 Phase total:        ~[N]K
+
+Current session:    ~[N]K   (since [session_start])
 ```
-These are estimates. Actual cost depends on your AI tool's token counter.
+
+Token costs are measured from actual loaded file sizes (chars ÷ 4) + generated output length. Not guesses — measured.
 
 ---
 
