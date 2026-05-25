@@ -28,19 +28,63 @@ If `.buildflow/codebase/MAP.md` exists:
 
 ---
 
-## Step 2: Structural Analysis
+## Step 2: Structural Analysis — 4 Parallel Lenses
+
+Run these four analyses in parallel. Each lens produces a focused view that the others don't cover.
+
+### Lens A — Architecture (entry points, layers, module boundaries)
 ```bash
 # Entry points
 find . -name "main.*" -o -name "index.*" -o -name "app.*" | grep -v node_modules
 # File count by type
 find src/ -type f | sed 's/.*\.//' | sort | uniq -c | sort -rn
+# Layer markers
+find . -path "*/controllers/*" -o -path "*/services/*" -o -path "*/models/*" -o -path "*/repositories/*" -o -path "*/routes/*" -o -path "*/components/*" | grep -v node_modules | head -20
 ```
+Produce: entry points, top-level folder responsibilities, detected architectural pattern (MVC, layered, hexagonal, feature-based, flat).
 
-Map:
-- Entry points (where execution begins)
-- Top-level folder responsibilities (what each `src/` subdirectory owns)
-- Configuration files and what they control
-- Build/bundler setup
+### Lens B — Quality (size, complexity, test coverage signals)
+```bash
+# Largest files (complexity proxy)
+find src/ -name "*.ts" -o -name "*.py" -o -name "*.go" | xargs wc -l 2>/dev/null | sort -rn | head -20
+# Files with no co-located test
+find src/ -name "*.ts" ! -name "*.test.ts" ! -name "*.spec.ts" | head -30
+# TODO/FIXME/HACK density
+grep -rn "TODO\|FIXME\|HACK\|XXX" src/ | wc -l
+```
+Produce: top 10 largest files, estimated test coverage % (files with tests / total files), tech debt signal (TODO density).
+
+### Lens C — Security (credential patterns, dangerous APIs, auth surface)
+```bash
+# Potential secrets
+grep -rn "password\|secret\|api_key\|apikey\|token\|credential" src/ --include="*.ts" --include="*.py" --include="*.go" -i | grep -v "test\|spec\|mock" | head -20
+# Dangerous patterns
+grep -rn "eval(\|exec(\|shell_exec\|subprocess\|dangerouslySetInnerHTML\|innerHTML" src/ | head -10
+# Auth surface
+find . -path "*/auth*" -o -path "*/middleware*" -o -path "*/guard*" | grep -v node_modules | head -10
+```
+Produce: security surface area, potential secret exposure locations, dangerous API usage.
+
+### Lens D — Data (schema definitions, migration state, ORM patterns)
+```bash
+# Schema files
+find . -name "schema.prisma" -o -name "*.migration.*" -o -name "models.py" -o -name "*.entity.ts" | grep -v node_modules | head -10
+# Migration count and newest
+ls -lt migrations/ db/migrations/ prisma/migrations/ 2>/dev/null | head -5
+# ORM / query patterns
+grep -rn "findOne\|findMany\|query\|Model\.\|session\.query\|db\." src/ | wc -l
+```
+Produce: data layer pattern (Prisma/SQLAlchemy/GORM/raw SQL), migration count, schema file locations.
+
+**Lens Summary (printed after all 4 complete):**
+```
+4-Lens Analysis Complete
+────────────────────────
+Architecture:  [pattern detected — MVC / layered / flat / feature-based]
+Quality:       [N files, ~N% have tests, N TODO/FIXME markers]
+Security:      [N auth files, N potential secret refs, N dangerous patterns]
+Data:          [ORM: Prisma/SQLAlchemy/GORM, N migrations, schema at: path]
+```
 
 ---
 
@@ -232,9 +276,109 @@ Files scored 3.5+ risk. Review before any modification.
 | db.client.ts | 4.8 | 12 | 380L | partial | Central DB abstraction |
 ```
 
+### `.buildflow/codebase/intel.json` — Queryable Intel Index
+
+Write a machine-readable JSON index alongside the markdown files. This enables `/buildflow-modify`, `/buildflow-build`, and `/buildflow-check` to query specific facts without loading all markdown files.
+
+```json
+{
+  "onboarded_at": "[ISO date]",
+  "file_count": 0,
+  "modules": [
+    {
+      "name": "Auth",
+      "owns": ["src/auth/service.ts", "src/auth/middleware.ts"],
+      "exports": ["AuthService", "AuthMiddleware"],
+      "depends_on": ["Database", "Config"],
+      "depended_on_by": ["API", "WebSocket"]
+    }
+  ],
+  "load_bearing": [
+    { "file": "src/db/client.ts", "fan_in": 12, "risk": 4.8 }
+  ],
+  "hotspots": [
+    { "file": "src/db/client.ts", "risk": 4.8, "fan_in": 12, "lines": 380, "has_tests": false }
+  ],
+  "file_index": [
+    {
+      "path": "src/auth/service.ts",
+      "module": "Auth",
+      "fan_in": 8,
+      "fan_out": 3,
+      "risk": 4.2,
+      "has_tests": true,
+      "test_file": "src/auth/service.test.ts",
+      "exports": ["AuthService"],
+      "imports": ["src/db/client.ts", "src/config.ts"]
+    }
+  ],
+  "tech_stack": {
+    "language": "TypeScript",
+    "framework": "Express",
+    "test_framework": "Jest",
+    "orm": "Prisma",
+    "bundler": "esbuild"
+  },
+  "security_surface": {
+    "auth_files": ["src/auth/middleware.ts"],
+    "secret_ref_files": [],
+    "dangerous_patterns": []
+  },
+  "schema": {
+    "orm": "Prisma",
+    "schema_file": "prisma/schema.prisma",
+    "migration_count": 5,
+    "last_migration": "20240101_add_users"
+  },
+  "drift_baseline": {
+    "recorded_at": "[ISO date]",
+    "file_hashes": {
+      "prisma/schema.prisma": "[sha256]",
+      "src/db/schema.ts": "[sha256]"
+    }
+  }
+}
+```
+
+**Usage by other commands:**
+- `/buildflow-modify` reads `file_index` to get fan-in, fan-out, and test file path without parsing GRAPH.md
+- `/buildflow-build` reads `hotspots` to warn before touching high-risk files
+- `/buildflow-check` reads `schema.drift_baseline` to detect schema file changes
+- `/buildflow-start` reads `tech_stack` to populate context packet fields
+
+Update `intel.json` on every `--update` run, not just full re-onboards.
+
 ---
 
-## Step 10: Update Memory
+## Step 10: Drift Baseline
+
+After onboarding (and after every `--update`), record a drift baseline in `intel.json` under `drift_baseline`:
+
+1. Hash all schema-defining files: `schema.prisma`, `*.entity.ts`, `models.py`, `schema.sql`
+2. Record file count per module
+3. Record the set of exported symbols per load-bearing file
+
+This baseline is read by `/buildflow-start` at every session to detect silent drift.
+
+```json
+"drift_baseline": {
+  "recorded_at": "[ISO date]",
+  "file_hashes": {
+    "prisma/schema.prisma": "[sha256 of file content]"
+  },
+  "module_file_counts": {
+    "Auth": 4,
+    "Database": 2
+  },
+  "load_bearing_exports": {
+    "src/db/client.ts": ["DBClient", "QueryBuilder"]
+  }
+}
+```
+
+---
+
+## Step 11: Update Memory
 ```yaml
 onboarded: true
 onboarded_date: [today]
@@ -243,11 +387,12 @@ module_count: [N]
 load_bearing_files: [N]
 hotspot_count: [N]
 codebase_summary: [2-line summary]
+intel_index: .buildflow/codebase/intel.json
 ```
 
 ---
 
-## Step 11: Onboarding Summary
+## Step 12: Onboarding Summary
 Report:
 ```
 Onboarding Complete

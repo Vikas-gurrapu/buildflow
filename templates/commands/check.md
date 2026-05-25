@@ -59,7 +59,58 @@ AC-NF-001 ⚠ PARTIAL — [what works, what doesn't]
 - No sensitive data in logs?
 - Relevant ACs for auth/security satisfied?
 
-## Step 3: Test Check
+## Step 3: Schema Drift Detection
+
+If the project has a database schema (SQL migrations, Prisma schema, TypeORM entities, SQLAlchemy models, Django models, Mongoose schemas), check for drift between the schema definition and its consumers.
+
+### Detection:
+```bash
+# Find schema definition files
+find . -name "schema.prisma" -o -name "*.migration.sql" -o -name "models.py" -o -name "*.entity.ts" | grep -v node_modules | head -10
+# Find last migration timestamp
+ls -lt migrations/ db/migrations/ prisma/migrations/ 2>/dev/null | head -5
+# Find files that reference schema entities (potential consumers)
+grep -rn "findUnique\|findMany\|select\|INSERT INTO\|UPDATE.*SET\|Model\." src/ --include="*.ts" --include="*.py" | head -20
+```
+
+### Drift checks:
+
+**1. Unapplied migrations** — migrations exist but haven't been run:
+```bash
+# Prisma
+npx prisma migrate status 2>/dev/null
+# Django
+python manage.py showmigrations 2>/dev/null | grep "\[ \]"
+# Flyway / Liquibase
+# Check if migration files are newer than last applied marker
+```
+
+**2. Schema-consumer mismatch** — code references a field or table that doesn't exist in the schema:
+- Read schema definition files
+- Grep consumers for field/column names
+- Flag any consumer reference that doesn't appear in the schema
+
+**3. Missing migration for schema change** — if schema file was modified in this phase but no new migration file was added:
+```bash
+git diff HEAD~1 -- "*.prisma" "schema.sql" "models.py" "*.entity.ts"
+git diff HEAD~1 --name-only -- "migrations/" "db/migrations/"
+```
+If schema file changed but no migration added: FLAG.
+
+**Schema Drift Report:**
+```
+Schema Drift Check
+──────────────────
+Unapplied migrations: NONE / [N] pending — run before ship
+Schema-consumer gaps: NONE / [field] in [file] not found in schema
+Missing migration:    NONE / schema.prisma changed but no migration added
+```
+
+If any drift detected: **BLOCK ship readiness.** "Schema drift found — resolve before shipping."
+
+---
+
+## Step 4: Test Check
 - Do all tests pass?
 - Are new tests written for new code?
 - Is each AC covered by at least one test?
@@ -89,9 +140,11 @@ Code Quality
 | No FAIL-level code issues | ✓ / ✗ |
 | Tests passing | ✓ / ✗ |
 | Security gate clear | ✓ / ✗ |
+| Schema drift: none | ✓ / ✗ |
 
 - **All green:** "Ready for `/buildflow-ship`"
 - **AC failures:** "Spec not complete. Fix AC failures before shipping — they represent unfinished features, not code style."
+- **Schema drift found:** "Schema drift detected. Run migrations or add missing migration files before shipping."
 - **Code failures only:** "Spec satisfied. Fix code issues or proceed with caution."
 
-## Token Budget: ~22K
+## Token Budget: ~26K (includes schema drift check)

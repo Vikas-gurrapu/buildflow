@@ -22,6 +22,8 @@ Before doing anything else at the start of every session:
 
 3. **Load state** — read `.buildflow/core/state.md` for current phase and status
 
+4. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
+
 ---
 
 ## BuildFlow v4.0 Workflow
@@ -53,6 +55,7 @@ Before doing anything else at the start of every session:
 | `/buildflow-debug` | Root-cause analysis when tests fail |
 | `/buildflow-onboard` | One-time analysis of existing codebase |
 | `/buildflow-modify` | Surgical change or bugfix to existing code |
+| `/buildflow-workspace` | Multi-repo/monorepo cross-service impact analysis |
 | `/buildflow-audit` | OWASP Top 10 security scan |
 | `/buildflow-status` | See current phase and progress |
 | `/buildflow-help` | Diagnostic mode + recovery |

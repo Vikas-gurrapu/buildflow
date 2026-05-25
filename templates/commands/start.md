@@ -19,6 +19,39 @@ Do NOT load: specs, phases, codebase files — this is vision only.
 Read `.buildflow/memory/light.md` and `.buildflow/you/preferences.md`.
 If `light.md` is over 3K tokens: prune it now (see pruning rules below).
 
+## Step 1b: Codebase Drift Detection (runs if onboard_status: yes)
+
+If `intel.json` exists at `.buildflow/codebase/intel.json`, run a fast drift check against the recorded baseline. This takes seconds and catches silent codebase changes between sessions.
+
+**Drift checks:**
+
+```bash
+# 1. File count drift — did the number of files change significantly?
+find src/ -type f | wc -l
+
+# 2. Schema file changes — were schema-defining files modified since last onboard?
+git diff $(git log --format="%H" --after="[onboarded_at from intel.json]" | tail -1) HEAD -- "*.prisma" "*.entity.ts" "models.py" "schema.sql" 2>/dev/null
+
+# 3. Load-bearing file changes — were high-risk files touched?
+git log --since="[onboarded_at]" --name-only --format="" -- [load_bearing files from intel.json] 2>/dev/null | head -10
+```
+
+**Drift signals and responses:**
+
+| Signal | Threshold | Response |
+|--------|-----------|----------|
+| New files added | > 5 new source files | Warn: "N files added since onboard — run `/buildflow-onboard --update`" |
+| Schema file changed | Any change | Warn: "Schema changed since onboard — run `/buildflow-onboard --update` to refresh drift baseline" |
+| Load-bearing file changed | Any of top-5 risk files | Warn: "[file] changed — impact analysis may be stale. Run `/buildflow-onboard --update`" |
+| File count delta > 20% | Absolute | Alert: "Codebase changed significantly — recommend full `/buildflow-onboard` re-run" |
+| No drift detected | — | Silent. Do not mention. |
+
+Only report warnings — never block session start. The user may already know about the changes.
+
+**Fast path (no git):** compare file count in `intel.json` against current `find src/ -type f | wc -l`. If delta > 10 files, warn.
+
+---
+
 ## Step 2: Detect Mode
 
 **Greenfield (no src/ code yet):**

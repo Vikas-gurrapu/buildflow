@@ -165,7 +165,24 @@ This fingerprint applies to every Builder in every wave.
 
 Repeat for each wave:
 
-### 3a — Build Context Packets
+### 3a — Build Context Packets + Overlap Detection
+
+**Before spawning Builders, check for file overlap within this wave:**
+
+List all files each task in this wave will touch (from the File Ownership Map in PLAN.md). If two tasks in the same wave list the same file:
+
+```
+⚠ File overlap detected in Wave [N]:
+  src/auth/service.ts is claimed by:
+    Task "Implement login" (modifying)
+    Task "Add refresh token" (modifying)
+
+Auto-serialization applied: these two tasks will run sequentially, not in parallel.
+Order: "Implement login" → "Add refresh token" (alphabetical by task name unless a SOFT dependency suggests otherwise)
+```
+
+Overlapping tasks are **serialized automatically** — the second task reads the output of the first. No manual intervention needed unless the tasks have conflicting Before→After contracts (in which case, escalate to the user).
+
 For each task in this wave, assemble a minimal context packet:
 
 ```
@@ -179,11 +196,37 @@ Files to create/modify: [explicit list — max 5]
 Closest existing example: [path/to/similar/file.ts — "follow this structure"]
 Key pattern to follow: [specific convention from PATTERNS.md]
 Definition of done: [linked ACs that must pass]
+Serialized after: [task name, or "none — runs in parallel"]
 ```
 
 The "closest existing example" is the most important field. Builders replicate proven patterns — they don't invent new ones unless the task explicitly requires it. Find the nearest analog in the codebase.
 
-### 3b — Parallel Build
+### 3b — Parallel Build (with serialization where overlap detected)
+
+**Git worktree isolation (when git repo exists and multiple Builders run in parallel):**
+
+Before spawning parallel Builders, create an isolated worktree per Builder:
+```bash
+# For each parallel task in this wave:
+git worktree add .buildflow/worktrees/wave-[N]-task-[name] -b buildflow/wave-[N]-[name]
+```
+
+Each Builder works in its own worktree — parallel Builders never touch the same working tree, so there are no merge conflicts mid-wave.
+
+After all parallel Builders complete:
+```bash
+# Merge each worktree branch into main working tree
+git merge buildflow/wave-[N]-[task-A] --no-ff -m "merge: wave [N] task [A]"
+git merge buildflow/wave-[N]-[task-B] --no-ff -m "merge: wave [N] task [B]"
+# Clean up worktrees
+git worktree remove .buildflow/worktrees/wave-[N]-task-[name]
+git branch -d buildflow/wave-[N]-[name]
+```
+
+If a merge conflict occurs during merge-back: this means the File Ownership Map had an undeclared overlap — resolve the conflict, log it as a SCOPE deviation (Step 3g), and update the ownership map in PLAN.md.
+
+**If no git repo exists:** skip worktree isolation. Builders write directly to the working tree. Serialization (Step 3a overlap detection) is the fallback safety net.
+
 Spawn one Builder per task. Each Builder receives ONLY its context packet.
 
 Each Builder:
@@ -192,6 +235,18 @@ Each Builder:
 - Covers the referenced ACs
 - **Writes tests as part of the same task — not after, not later, not optional**
 - Adds `LEARN:` comment only for patterns not present elsewhere in the codebase
+
+**If the task is tagged `[TF]` (failing-test-first) in PLAN.md — mandatory protocol:**
+1. Write the test(s) for the linked ACs first
+2. Run them: `npm test -- --testPathPattern=[test file]` (or equivalent)
+3. Confirm they FAIL — a meaningful assertion failure, not a syntax/import error
+   - If they pass immediately: the test is wrong (too permissive) — fix the test before proceeding
+   - If they error on import: the stub/scaffold is missing — create the empty stub first, then re-run
+4. Write the implementation
+5. Run the tests again — confirm they now PASS
+6. Report: "TF verified: [test name] failed before, passes after"
+
+This proof-of-failure step is non-negotiable for `[TF]` tasks. Skip it only for SCAFFOLD/CONFIG/MIGRATION task types.
 
 #### Mandatory Test Writing Rules (enforced per Builder)
 
@@ -348,7 +403,58 @@ Fix:        [exactly what changed]
 Result:     PASS / still failing
 ```
 
-### 3f — Wave Commit
+### 3f — Schema Drift Check (runs after tests, before commit — if schema files exist)
+
+If this wave touched any schema-defining file (`*.prisma`, `*.entity.ts`, `models.py`, `schema.sql`, migration files):
+
+1. Check if a new migration was created alongside the schema change
+   - Schema changed but no migration added → BLOCK commit: "Add migration for schema change before committing"
+2. Check if the migration can be applied cleanly (dry-run where possible):
+   ```bash
+   npx prisma migrate dev --create-only 2>/dev/null   # Prisma dry-run
+   python manage.py makemigrations --check 2>/dev/null  # Django check
+   ```
+3. If new migration added: note it in the wave commit body
+
+If no schema files were touched: skip this step.
+
+### 3g — Deviation Handling
+
+During build, a Builder may discover that the plan's Before → After contract cannot be satisfied as written — due to a missing dependency, a codebase constraint discovered during implementation, or a spec ambiguity.
+
+**This is a deviation. It must be handled explicitly — never silently worked around.**
+
+When a Builder hits a deviation:
+1. Stop immediately — do not proceed with a workaround
+2. Record the deviation:
+   ```
+   DEVIATION  Wave [N]  Task: [name]
+   ─────────────────────────────────
+   Expected (from plan): [what the plan said]
+   Actual (discovered):  [what is actually true]
+   Blocker:              [why the plan cannot be followed as written]
+   Impact:               [which ACs are at risk]
+   Options:
+     A) [approach A — describe tradeoff]
+     B) [approach B — describe tradeoff]
+     C) Defer this task to a new wave after resolving [dependency]
+   ```
+3. Surface the deviation to the user — do not choose an option unilaterally unless it is a SOFT deviation (see below)
+
+**Deviation severity:**
+| Type | Definition | Action |
+|------|-----------|--------|
+| HARD | Cannot satisfy the AC with any reasonable approach | Stop wave, escalate immediately |
+| SOFT | Can satisfy the AC via a different approach with no downstream impact | Choose simplest approach, log deviation, continue |
+| SCOPE | The correct fix requires touching files outside this task's ownership | Stop, propose plan amendment |
+
+**After resolution:** log the deviation and chosen option in `phases/[N]/PLAN.md` under a `## Deviations` section:
+```markdown
+## Deviations
+- Wave 2, Task "Create auth service": JWT library API changed in v9 — used `jose` instead of `jsonwebtoken` (SOFT deviation, no AC impact)
+```
+
+### 3h — Wave Commit
 When all tests pass, commit this wave atomically:
 ```bash
 git add [changed files — explicit list, not -A]
@@ -376,9 +482,21 @@ Mark wave complete in `phases/[N]/PLAN.md`. Proceed to next wave.
 
 ## Step 4: Final Integration Check
 After all waves:
-- Run full test suite one last time
+- Run full test suite one last time — **including all prior-phase tests, not just this phase's tests**
 - Verify all AC-referenced behaviors work end-to-end
 - Check imports across wave boundaries (no dangling references)
+- Cross-phase regression check: compare passing test count against `last_ship_test_count` from `light.md`. If lower, a prior-phase behavior was broken — flag before shipping.
+
+```
+Integration Check
+─────────────────
+All waves:         ✓ PASS
+AC coverage:       [N/N ACs verified]
+Cross-phase tests: ✓ PASS  ([N] prior-phase tests, 0 regressions)
+Dangling imports:  NONE
+```
+
+If cross-phase regressions are found here: fix immediately — do not defer to `/buildflow-ship`.
 
 ---
 
@@ -388,6 +506,7 @@ last_build_date: [today]
 plan_status: built
 test_status: passing
 waves_completed: [N]
+passing_test_count: [N]   ← baseline for cross-phase regression check at ship time
 ```
 Remove from `light.md`: per-task details from previous builds.
 

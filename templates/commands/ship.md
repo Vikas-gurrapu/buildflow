@@ -72,10 +72,45 @@ Override (not recommended): /buildflow-ship --force
 
 ---
 
-## MANDATORY Gate 2: Tests Pass
+## MANDATORY Gate 2: Tests Pass + Cross-Phase Regression
 
+### 2a — Full suite run
 Run the test suite one final time.
 If any test fails: BLOCK. "Fix test failures before shipping."
+
+### 2b — Cross-Phase Regression Check
+
+Run the full test suite including tests from all prior phases — not just tests added this phase.
+
+```bash
+npm test           # runs all tests in the repo
+pytest             # runs all tests in the repo
+go test ./...      # runs all packages
+cargo test         # runs all crates
+```
+
+Check for regressions introduced by this phase's changes:
+1. Pull the baseline passing test count from `light.md` field `last_ship_test_count` (set after previous ship)
+2. Compare: if current passing count < baseline → regression detected
+
+**Regression detected → BLOCK:**
+```
+🔴 SHIP BLOCKED — Regression Detected
+
+Tests that were passing before this phase are now failing:
+  [test name] at [file:line] — was: PASS, now: FAIL
+
+These tests cover prior-phase behavior. Do not ship until they pass.
+Fix with /buildflow-modify (targeted fix) or /buildflow-debug (root-cause analysis).
+```
+
+**No regressions → proceed.**
+
+After Gate 2 passes, record the test count for the next phase:
+```yaml
+last_ship_test_count: [N passing tests]
+last_ship_date: [today]
+```
 
 ---
 
@@ -158,7 +193,8 @@ Gate 3: ✓ PASS
 ## Step 1: Pre-Ship Checklist (summary)
 - [ ] All ACs satisfied (Gate 0)
 - [ ] Security gate passed (Gate 1)
-- [ ] All tests passing (Gate 2)
+- [ ] All tests passing — current phase (Gate 2a)
+- [ ] No cross-phase regressions (Gate 2b)
 - [ ] Build telemetry clean (Gate 3) — type-check + lint errors + compile
 - [ ] `/buildflow-check` run and reviewed
 
