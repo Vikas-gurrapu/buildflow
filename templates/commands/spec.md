@@ -12,6 +12,7 @@ Spec-Driven Development layer. Produces formally structured, self-critiqued spec
 Run after `/buildflow-start`, before `/buildflow-plan`.
 
 ## Usage
+- `/buildflow-spec <spec-or-task-name>` - create a named spec workflow folder
 - `/buildflow-spec` — full spec from vision
 - `/buildflow-spec requirements` — regenerate REQUIREMENTS.md only
 - `/buildflow-spec technical-design` — regenerate TECHINICALDESIGN.md only
@@ -32,6 +33,7 @@ Run after `/buildflow-start`, before `/buildflow-plan`.
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
 - `.buildflow/memory/light.md` (app_name, framework, phase only)
 - `.buildflow/specs/` (if regenerating)
+- `.buildflow/specs/index.md` (if exists - existing named spec workflows)
 
 ---
 
@@ -146,8 +148,45 @@ Before generating files, summarize the captured answers in 3-6 bullets and say:
 
 ---
 
+## Step 2e: Create Named Spec Workflow
+
+Before generating files, determine a stable spec name and slug:
+- If the user provided text after `/buildflow-spec`, use that as `spec_name`.
+- Otherwise derive `spec_name` from the clarified feature/task outcome.
+- Create `spec_slug` by lowercasing, replacing non-alphanumeric runs with `-`, and trimming leading/trailing dashes.
+- If the slug already exists, append `-2`, `-3`, etc. unless the user is explicitly regenerating that existing spec.
+
+Create this folder: `.buildflow/specs/[spec_slug]/`
+
+All generated spec files are written into that folder first. Then update the latest compatibility files in `.buildflow/specs/` so existing commands keep working.
+
+Create `.buildflow/specs/[spec_slug]/meta.md`:
+```markdown
+# Spec Metadata
+spec_name: [human-readable name]
+spec_slug: [spec_slug]
+phase: [N]
+status: draft
+created: [ISO datetime]
+updated: [ISO datetime]
+source_command: /buildflow-spec [args]
+```
+
+Update `.buildflow/specs/index.md`:
+```markdown
+# BuildFlow Spec Index
+
+| Spec Slug | Spec Name | Phase | Status | Current | Created | Updated |
+|-----------|-----------|-------|--------|---------|---------|---------|
+| [spec_slug] | [spec_name] | [N] | draft | yes | [date] | [date] |
+```
+
+Mark prior specs as `Current: no`. This index lets `/buildflow-revert --spec <name>` find and delete the right workflow artifacts later.
+
+---
+
 ## Step 3: Generate REQUIREMENTS.md
-Use the **Write tool** to create `.buildflow/specs/REQUIREMENTS.md`. Do not output the content as text — write it to disk. Create `.buildflow/specs/` directory first if it doesn't exist.
+Use the **Write tool** to create `.buildflow/specs/[spec_slug]/REQUIREMENTS.md`. Also update `.buildflow/specs/REQUIREMENTS.md` as the latest compatibility copy. Do not output the content as text ? write it to disk. Create `.buildflow/specs/` and `.buildflow/specs/[spec_slug]/` first if they don't exist.
 
 ```markdown
 # Product Requirements Document
@@ -190,7 +229,7 @@ Use the **Write tool** to create `.buildflow/specs/REQUIREMENTS.md`. Do not outp
 ---
 
 ## Step 4: Generate TECHINICALDESIGN.md
-Use the **Write tool** to create `.buildflow/specs/TECHINICALDESIGN.md`. Do not output the content as text — write it to disk.
+Use the **Write tool** to create `.buildflow/specs/[spec_slug]/TECHINICALDESIGN.md`. Also update `.buildflow/specs/TECHINICALDESIGN.md` as the latest compatibility copy. Do not output the content as text ? write it to disk.
 
 If `PATTERNS.md` exists: components and API shapes must follow existing conventions.
 
@@ -245,7 +284,7 @@ All errors follow:
 ---
 
 ## Step 5: Generate Acceptance Criteria
-Use the **Write tool** to create `.buildflow/specs/acceptance.md`. Do not output the content as text — write it to disk.
+Use the **Write tool** to create `.buildflow/specs/[spec_slug]/acceptance.md`. Also update `.buildflow/specs/acceptance.md` as the latest compatibility copy. Do not output the content as text ? write it to disk.
 
 **Rules for every AC:**
 - Binary — pass or fail only, no partial credit
@@ -379,6 +418,12 @@ Rules:
      us_count: [N]
      spec_critic: strong/revised
      ```
+
+Also update `.buildflow/specs/[spec_slug]/meta.md` and `.buildflow/specs/index.md` when the spec is approved:
+- Set this spec status to `locked`.
+- Set this spec as `Current: yes` and all other specs as `Current: no`.
+- Add `current_spec_slug: [spec_slug]` and `current_spec_name: [spec_name]` to `light.md` alongside `spec_status` and `spec_version`.
+- Append the approval record to both `.buildflow/specs/approvals.md` and `.buildflow/specs/[spec_slug]/approvals.md`.
 
 Do not proceed until user approves. The approval record in `approvals.md` is permanent — never delete or overwrite prior entries.
 

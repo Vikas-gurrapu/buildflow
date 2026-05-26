@@ -325,7 +325,7 @@ function writeGeminiCommand(commandsDir, name, commandContent) {
 function patchAgentsMd(filePath, scope) {
   const existing = readFileSafe(filePath)
   const dir = scope === 'global' ? '~/.codex/instructions/' : '.codex/instructions/'
-  const block = `## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, plan, build, check, ship, onboard, modify, refactor, audit, status, explain, back, help\n${UPDATE_CHECK_INSTRUCTION}${FOLDER_ACCESS_GUARD}`
+  const block = `## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, spec, plan, build, test, check, ship, onboard, modify, refactor, hotfix, audit, debug, deploy, docker, workspace, status, explain, back, revert, help\n${UPDATE_CHECK_INSTRUCTION}${FOLDER_ACCESS_GUARD}`
   if (existing.includes('## BuildFlow Instructions')) {
     const updated = existing.replace(
       /## BuildFlow Instructions[\s\S]*?(?=\n## (?!BuildFlow Update Check|Folder Access Guard)|\n# |$)/,
@@ -716,7 +716,7 @@ function loadCommandTemplates() {
     'start', 'think', 'spec', 'plan', 'build', 'test', 'check', 'ship',
     'onboard', 'modify', 'refactor', 'hotfix', 'audit',
     'debug', 'deploy', 'docker', 'workspace',
-    'status', 'explain', 'back', 'help',
+    'status', 'explain', 'back', 'revert', 'help',
   ]
   for (const name of commandNames) {
     const filePath = join(templatesDir, `${name}.md`)

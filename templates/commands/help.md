@@ -69,6 +69,7 @@ Classify the error:
 | Plan feels wrong | `/buildflow-plan` again — re-run with `--risk-first` flag |
 | Wave has too many failures | Split the failing task into smaller tasks manually, then continue |
 | Wrong files modified | `/buildflow-back` to restore, then `/buildflow-modify` with narrower scope |
+| Wrong spec/workflow started | `/buildflow-revert` to remove current spec artifacts, or `/buildflow-revert --spec <name>` for a named workflow |
 | DEBT.md is growing fast | Stop and do a debt-clearing phase: `/buildflow-think --debt` first |
 | Lost track of what's done | `/buildflow-status` for current state, `/buildflow-check` for AC verification |
 | Onboard feels stale | `/buildflow-onboard --update` or `/buildflow-onboard --paths <paths>` to refresh changed map areas |
@@ -197,6 +198,7 @@ git commit -m "feat: phase [N] wave [W] + phase [M] stacked changes (delayed com
 | `/buildflow-status` | Where am I? |
 | `/buildflow-explain <term/file>` | Explain code or concept |
 | `/buildflow-back [n]` | Undo recent changes |
+| `/buildflow-revert [--spec name]` | Revert current, last, named, or all spec workflows |
 | `/buildflow-help next` | What to build next |
 
 ---

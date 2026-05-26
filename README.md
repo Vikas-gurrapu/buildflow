@@ -148,6 +148,7 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 | `/buildflow-status` | Strategist | Phase progress, AC bar, build quality, debt, session token total, next action | ~5K |
 | `/buildflow-explain <term/file>` | Strategist | Plain-language explanation of code, concepts, or errors | ~2K |
 | `/buildflow-back [n]` | Strategist | Undo to restore point (git stash or file snapshot), update state | ~3K |
+| `/buildflow-revert [--spec name]` | Strategist | Revert current, last, named, or all spec workflows; asks before code rollback | ~4K |
 | `/buildflow-help` | Strategist | Diagnostic mode, 12 recovery paths, git recovery, post-milestone feature advisor | ~15–35K |
 
 ---
@@ -224,12 +225,16 @@ Generates three locked files with frontmatter versioning:
 
 ```
 .buildflow/specs/
-├── REQUIREMENTS.md ← What, for whom, success criteria, out of scope
-├── TECHINICALDESIGN.md ← Architecture, API contracts, component breakdown
-└── acceptance.md   ← Testable AC-001, AC-002... with spec_version: 1
+|-- REQUIREMENTS.md       Latest/current Product Requirements copy
+|-- TECHINICALDESIGN.md   Latest/current Technical Design copy
+|-- acceptance.md         Latest/current AC copy with spec_version
+|-- approvals.md          Permanent approval audit trail
+|-- index.md              Registry of named spec workflows
+`-- [spec-slug]/          Per-workflow copies plus meta.md for revert/resume
 ```
 
 Approval is written to `specs/approvals.md` (permanent audit trail, never pruned).
+Named spec folders make multiple workflows possible. Use `/buildflow-revert --spec <name>` to remove a specific workflow, or `/buildflow-revert --all` to clear generated spec workflows after confirmation.
 If the spec changes mid-phase, an amendment gate requires explicit confirmation and marks PLAN.md stale.
 
 ### 5. Plan — waves with AC tracing and safety checks
@@ -712,7 +717,7 @@ buildflow-dev/
 │   │                             contract, context clear recommendation, token cost
 │   │                             tracking explanation, core rules, agents table.
 │   │
-│   └── commands/                 21 markdown files — one per slash command.
+│   └── commands/                 22 markdown files — one per slash command.
 │       ├── start.md              Vision, drift detection, phase history load
 │       ├── think.md              Parallel research + 5 analysis modes
 │       ├── spec.md               REQUIREMENTS + TECHINICALDESIGN + ACs, versioning, approval audit trail, amendment gate
@@ -733,6 +738,7 @@ buildflow-dev/
 │       ├── status.md             Phase, AC bar, token spend with session total, debt, suggestions
 │       ├── explain.md            Plain-language explanation
 │       ├── back.md               Undo with dual-mode restore point
+|       |-- revert.md              Revert current, last, named, or all spec workflows
 │       └── help.md               Diagnostic, 12 recovery paths, git recovery, feature advisor
 │
 ├── .gitignore
@@ -762,6 +768,8 @@ buildflow-dev/
 │   ├── TECHINICALDESIGN.md Technical Design Document
 │   ├── acceptance.md       Acceptance Criteria (AC-001…) with spec_version, changelog
 │   └── approvals.md        Permanent approval audit trail — never pruned
+|   |-- index.md            Registry of named spec workflows
+|   `-- [spec-slug]/        Per-workflow spec folder with meta.md and doc copies
 │
 ├── memory/
 │   └── light.md            Persistent context ≤3K tokens. Auto-pruned at session start

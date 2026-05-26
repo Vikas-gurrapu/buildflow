@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import enquirer from 'enquirer'
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { execSync } from 'child_process'
 import { run as runInstall, registerProject, printBuildFlowBanner } from './install.js'
@@ -714,6 +714,10 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start\` to begin.
 | \`acceptance.md\` | Acceptance Criteria — versioned, testable pass/fail conditions per feature |
 | \`approvals.md\` | Permanent approval audit trail — who approved each spec version and when |
 
+Additional generated files:
+- \`index.md\` - registry of named spec workflow folders for revert/resume
+- \`[spec-slug]/\` - per-workflow spec folder containing that spec docs and metadata
+
 These files are the source of truth for planning and verification.
 \`/buildflow-plan\` traces every task to an AC.
 \`/buildflow-check\` verifies every AC is satisfied.
@@ -721,6 +725,15 @@ These files are the source of truth for planning and verification.
 `)
 
   // ── specs/approvals.md ──────────────────────────────────────────────────────
+  writeFileSync(join(base, 'specs', 'index.md'),
+    `# BuildFlow Spec Index
+
+| Spec Slug | Spec Name | Phase | Status | Current | Created | Updated |
+|-----------|-----------|-------|--------|---------|---------|---------|
+
+No specs yet. Run \`/buildflow-spec <spec-or-task-name>\`.
+`)
+
   writeFileSync(join(base, 'specs', 'approvals.md'),
     `# Spec Approvals
 
