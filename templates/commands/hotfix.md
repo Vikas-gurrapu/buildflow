@@ -159,8 +159,9 @@ find . -name "*.test.ts" -o -name "*.test.js" -o -name "test_*.py" | head -3
 - Do not block the hotfix for a missing framework, but always log the gap.
 
 For the specific behavior being fixed:
-1. Write a test that reproduces the bug before applying the fix
-2. Run **only that specific test file** — confirm it fails:
+1. Apply the fix first (Step 4)
+2. Write or update a regression test that covers the fixed behavior
+3. Run **only that specific test file** — confirm it passes:
    ```bash
    npx jest [specific-test-file] --no-coverage   # JS/TS
    npx vitest run [specific-test-file]
@@ -172,10 +173,8 @@ For the specific behavior being fixed:
    dotnet test --filter "FullyQualifiedName~X"   # C#
    bundle exec rspec [specific_spec]             # Ruby
    ```
-3. Apply the fix (Step 4)
-4. Run **only that same test file again** — confirm it passes
 
-Do NOT run the full suite during TDD. Run only the single new test file each time.
+Do NOT run the full suite while adding the regression test. Run only the single new or updated test file.
 
 Name it after the exact bug:
 ```

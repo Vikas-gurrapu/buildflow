@@ -356,8 +356,9 @@ For each source file touched in Step 7:
 - Cover: each function touched in this change + the specific behavior the change introduces
 
 **For bugfixes specifically:**
-1. Write the regression test BEFORE applying the fix
-2. Run **only that specific test file** — confirm it fails (proves the bug exists):
+1. Apply the code change first
+2. Write or update the regression test for the exact fixed behavior
+3. Run **only that specific test file** — confirm it passes:
    ```bash
    npx jest [specific-test-file] --no-coverage   # JS/TS
    npx vitest run [specific-test-file]
@@ -369,11 +370,9 @@ For each source file touched in Step 7:
    dotnet test --filter "FullyQualifiedName~X"   # C#
    bundle exec rspec [specific_spec]             # Ruby
    ```
-3. Apply the fix
-4. Run **only that same test file again** — confirm it passes (proves the fix works)
-5. Name the test after the exact bug: `should not return null when profile photo is missing`
+4. Name the test after the exact bug: `should not return null when profile photo is missing`
 
-Do NOT run the full suite during TDD — run only the single new test file each time.
+Do NOT run tests before the code change. Run only the single new or updated test file after the fix, then continue to targeted verification.
 
 **Test coverage report after this step:**
 ```

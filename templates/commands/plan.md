@@ -234,34 +234,28 @@ If any AC is uncovered: stop. "AC-[X] has no task. Add a task or explicitly mark
 
 ---
 
-## Step 6b: Failing-Test-First Sequencing
+## Step 6b: Post-Change Test Sequencing
 
-For every non-trivial AC, a test task must be sequenced to produce a failing test BEFORE the implementation task runs. This is enforced structurally — not left to the Builder's discretion.
+For every non-trivial AC, plan focused tests after the implementation work. BuildFlow does not require failing-test-first or test-before-code sequencing.
 
 **Rule:** For each task of type `NEW` or `MODIFY` that satisfies an AC:
-1. Split it or add a sub-step: "Write failing test for [AC-XXX]" — this produces a test that fails because the feature doesn't exist yet.
-2. The implementation step follows in the same wave.
-3. The wave commit happens only after implementation makes the previously-failing test pass.
+1. Implement the code change.
+2. Add or update focused tests for the changed behavior and linked ACs.
+3. Run only tests for touched files and direct dependents during build/modify.
+4. Ask the user before running broader app-level tests.
 
 **How to encode this in the wave table:**
 
-Mark tasks that require failing-first with a `[TF]` tag:
+Keep implementation and focused test work together in the same task or adjacent sub-task:
 
 ```
 Wave 2 — Auth Service
-  • [TF] Write failing tests for login (AC-001, AC-002)   XS   TEST-FIRST
-  • Implement login service                                M    NEW     ← runs after tests written
+  • Implement login service + focused tests (AC-001, AC-002)   M   NEW
 ```
 
-The Builder's instructions for a `[TF]`-tagged task:
-1. Write the test(s) covering the linked ACs
-2. Run them — confirm they fail with a meaningful error (not a missing import or syntax error)
-3. Only then write the implementation
-4. Run tests again — confirm they pass
+**Exception:** Pure scaffolding tasks (type: `SCAFFOLD`), config tasks, database migration tasks, pure style files, static assets, and locale/label catalogs only need tests when a relevant focused test already exists.
 
-**Exception:** Pure scaffolding tasks (type: `SCAFFOLD`), config tasks, and database migration tasks don't require failing tests first. Skip `[TF]` for those.
-
-**Planner check:** Before writing the plan file, verify that every `NEW`/`MODIFY` task with AC refs either (a) has `[TF]` tagging or (b) has an explicit rationale for why failing-first is not applicable.
+**Planner check:** Before writing the plan file, verify that every `NEW`/`MODIFY` task with AC refs includes post-change focused test coverage or an explicit rationale for why tests are not applicable.
 
 ---
 
@@ -277,7 +271,7 @@ Before writing the plan file, review the plan as an Engineering Lead:
 - Are there ACs that will be technically impossible to satisfy with the planned approach?
 - Are there missing error handling tasks?
 - Are tests planned for every non-trivial AC?
-- Is every non-trivial NEW/MODIFY task tagged `[TF]` (failing-test-first)?
+- Does every non-trivial NEW/MODIFY task include post-change focused test coverage?
 
 **Architecture smell check:**
 - Does the plan introduce new patterns that conflict with `PATTERNS.md`?
@@ -302,7 +296,7 @@ Architecture:      [conflicts or NONE]
 Hotspot warnings:  [files or NONE]
 Thin-slice order:  [violations or OK]
 File conflicts:    [ownership conflicts or OK]
-Failing-test-first: [tasks missing [TF] tag or OK]
+Focused tests:     [tasks missing post-change tests or OK]
 Verdict: APPROVED / NEEDS REVISION
 ```
 
@@ -374,9 +368,9 @@ Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Create the dir
 ## Waves
 
 ### Wave 1 — [theme: DB/Schema]
-| Task | ACs | Est | Type | Files | TF | TDD Ref |
-|------|-----|-----|------|-------|----|---------|
-| [name] | AC-001 | S | NEW | src/... | ✓ | [ComponentName / POST /path / —] |
+| Task | ACs | Est | Type | Files | Tests | TDD Ref |
+|------|-----|-----|------|-------|-------|---------|
+| [name] | AC-001 | S | NEW | src/... | focused after change | [ComponentName / POST /path / —] |
 
 (TDD Ref column only present when `strict_mode: true`. "—" = non-critical utility task exempt from strict tracing.)
 

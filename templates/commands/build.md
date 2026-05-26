@@ -463,15 +463,16 @@ Each Builder:
 - Writes code that satisfies the Before → After contract
 - Follows the closest existing example's structure
 - Covers the referenced ACs
-- **Writes tests as part of the same task — not after, not later, not optional**
+- **Writes or updates focused tests after the code change, within the same task — not later, not optional**
 - Adds `LEARN:` comment only for patterns not present elsewhere in the codebase
 
-**If the task is tagged `[TF]` (failing-test-first) in PLAN.md — mandatory protocol:**
+**Post-change focused testing protocol:**
 
-**Pure style/config/data fast path:** If this task ONLY touches `.css`, `.scss`, `.sass`, `.less`, `.styl`, locale/label catalogs (`.json` label catalogs, `.properties`, `strings.xml`, `.arb`, `.po`), or static assets — skip TF protocol entirely. There is no logic to test-drive.
+**Pure style/config/data fast path:** If this task ONLY touches `.css`, `.scss`, `.sass`, `.less`, `.styl`, locale/label catalogs (`.json` label catalogs, `.properties`, `strings.xml`, `.arb`, `.po`), or static assets — skip focused unit tests unless a relevant snapshot/catalog test already exists.
 
-1. Write the test(s) for the linked ACs first
-2. Run **only the new test file** — not the full suite:
+1. Write the implementation first
+2. Write or update tests for the linked ACs and changed behavior
+3. Run **only the new or changed test file(s)** — not the full suite:
    ```bash
    npx jest [specific-test-file] --no-coverage   # JS/TS
    npx vitest run [specific-test-file]
@@ -483,14 +484,10 @@ Each Builder:
    dotnet test --filter "FullyQualifiedName~X"   # C#
    bundle exec rspec [specific_spec]             # Ruby
    ```
-3. Confirm they FAIL — a meaningful assertion failure, not a syntax/import error
-   - If they pass immediately: the test is wrong (too permissive) — fix the test before proceeding
-   - If they error on import: the stub/scaffold is missing — create the empty stub first, then re-run
-4. Write the implementation
-5. Run **only the same test file again** — confirm they now PASS
-6. Report: "TF verified: [test name] failed before, passes after"
+4. Confirm they PASS
+5. Report: "Focused tests passed: [test files]"
 
-This proof-of-failure step is non-negotiable for `[TF]` tasks. Skip it only for SCAFFOLD/CONFIG/MIGRATION task types or pure style/data files.
+Do not write or run tests before implementation. BuildFlow verifies behavior after code changes with focused tests first, then broader checks later.
 
 #### Mandatory Test Writing Rules (enforced per Builder)
 
