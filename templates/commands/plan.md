@@ -402,6 +402,40 @@ Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Create the dir
 | AC-001 | Task C, Task E |
 ```
 
+Also create `.buildflow/phases/[N]/VERIFICATION.md` from every AC in `.buildflow/specs/acceptance.md`. This is the phase verification ledger. Do not put test status only in PLAN.md.
+
+```markdown
+# Phase [N] Verification
+**Spec version:** v[N]
+**Status:** NOT STARTED
+**Last updated:** [ISO datetime]
+
+## Summary
+| Status | Count |
+|--------|-------|
+| NOT STARTED | [N] |
+| IN PROGRESS | 0 |
+| PASS | 0 |
+| FAIL | 0 |
+| BLOCKED | 0 |
+| DEFERRED | 0 |
+
+## Acceptance Criteria Verification
+| AC | Requirement | Planned Task(s) | Test/Evidence | Status | Last Checked | Notes |
+|----|-------------|-----------------|---------------|--------|--------------|-------|
+| AC-001 | [exact AC summary] | Task C, Task E | pending | NOT STARTED | - | - |
+| AC-002 | [exact AC summary] | Task C | pending | NOT STARTED | - | - |
+
+## Test Runs
+| Time | Scope | Command | Result | ACs Covered | Notes |
+|------|-------|---------|--------|-------------|-------|
+
+## Deferred / Risk Items
+- None
+```
+
+Update `STATE.md` Files That Matter to include `VERIFICATION.md`.
+
 Update `light.md`:
 ```yaml
 current_phase: [N]

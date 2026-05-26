@@ -18,6 +18,7 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 ## Context Packet (load only these)
 - `.buildflow/specs/acceptance.md` — the source of truth for what must be true
 - `.buildflow/phases/[N]/PLAN.md` — what was supposed to be built
+- `.buildflow/phases/[N]/VERIFICATION.md` - AC verification ledger from plan/build
 - Changed files — detected as follows:
   - **If `git.permission: approved`:** `git diff --name-only HEAD~[wave-count]..HEAD -- src/`
   - **If `git.permission` is not `approved`:** read the file list from wave completion records in `PLAN.md` (the `Files to create/modify` field per completed task) — this is the authoritative list of what changed
@@ -35,7 +36,7 @@ Also load `.buildflow/phases/[N]/STATE.md` if it exists. Use it to resume status
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
 
 Use `STATE.md` to understand what build completed, what tests were already run, and which risks/skips need verification. If it says `Status: check_passed` and current inputs have not changed, continue to the guided next step instead of repeating checks unless the user asks.
 
@@ -52,6 +53,12 @@ Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
 ## Step 1: Load Acceptance Criteria
 Read every AC from `.buildflow/specs/acceptance.md`.
 This is the primary verification target — all other checks are secondary.
+Read `.buildflow/phases/[N]/VERIFICATION.md` and compare its AC list/statuses against `acceptance.md`.
+
+If `VERIFICATION.md` is missing or stale:
+- Recreate or refresh it from `acceptance.md` before checking.
+- Preserve existing test run evidence when AC IDs still match.
+- Mark new/changed ACs as `NOT STARTED`.
 
 ## Step 2: Parallel Review (4 reviewers)
 
@@ -275,7 +282,46 @@ Include the decision and reason taken in Step 4c.
 
 ---
 
-## Step 5b: Strict Mode (`/buildflow-check --strict` or `strict_mode: true` in preferences.md)
+## Step 5b: Manual UAT Confirmation
+
+Treat UAT as a manual confirmation step. Do not mark subjective user flows, UX behavior, business workflow correctness, copy/label expectations, or external integration behavior as fully UAT-passed from code inspection alone.
+
+Build a short use-case checklist from `acceptance.md`, `PLAN.md`, and changed files:
+```
+Manual UAT needed
+─────────────────
+I can verify code/tests, but these use cases need user confirmation:
+
+1. [Use case name] — covers AC-[N], AC-[N]
+   What to check: [specific user action and expected visible result]
+2. [Use case name] — covers AC-[N]
+   What to check: [specific user action and expected visible result]
+3. [Use case name] — covers AC-[N]
+   What to check: [specific user action and expected visible result]
+
+Please test these and confirm:
+1. All pass
+2. Some fail — tell me which use case and what happened
+3. Skip UAT for now — record as pending before ship
+```
+
+If the user confirms all pass:
+- Mark the related rows in `VERIFICATION.md` as `PASS` only when automated evidence is also sufficient, otherwise `IN PROGRESS` with note `Manual UAT passed; automated evidence pending`.
+- Add a `## Test Runs` row with `Scope: Manual UAT`, `Command: user-confirmed`, `Result: PASS`, and covered ACs.
+
+If the user reports failures:
+- Mark affected ACs as `FAIL` or `BLOCKED`.
+- Add the failure details to `Notes`.
+- Ship readiness is blocked until fixed.
+
+If the user skips UAT:
+- Mark affected ACs as `IN PROGRESS` or `DEFERRED`.
+- Add `Manual UAT pending` to `Notes`.
+- Do not claim full AC readiness. Ship can proceed only if `/buildflow-ship` explicitly accepts or resolves the pending UAT.
+
+---
+
+## Step 5c: Strict Mode (`/buildflow-check --strict` or `strict_mode: true` in preferences.md)
 
 Strict mode enforces **structural spec-to-code mirroring**. Use for critical infrastructure phases (auth, payments, crypto, permissions, migrations) where divergence between spec structure and code structure is a defect, not a style choice.
 
@@ -514,6 +560,18 @@ Code Quality
 - **Low spec coverage:** "⚠ [N]% of business-logic files have no AC coverage — consider adding ACs or acceptable-utility markers before shipping."
 - **Strict failures:** "Strict mode: [N] spec-code divergences found. Code structure does not mirror spec structure — resolve before shipping."
 - **Code failures only:** "Spec satisfied. Fix code issues or proceed with caution."
+
+Manual UAT readiness:
+- Include `Manual UAT confirmed` in the readiness summary with status `PASS`, `FAIL`, or `PENDING`.
+- If manual UAT is pending, say: "Manual UAT is pending. Ask the user to test the listed use cases or record an explicit skip before ship."
+- If manual UAT failed, block ship and point to the failed use case and affected ACs.
+
+Before exiting, update `.buildflow/phases/[N]/VERIFICATION.md`:
+- For each AC checked, set `PASS`, `FAIL`, `BLOCKED`, `DEFERRED`, or `IN PROGRESS`.
+- Add reviewer evidence and command output summaries to `Test/Evidence` or `Notes`.
+- Add manual UAT confirmation, failure, or pending notes for user-confirmed use cases.
+- Append any check commands to `## Test Runs`.
+- Refresh `## Summary` counts and `Last updated`.
 
 ## Token cost report (print at end of check)
 

@@ -23,7 +23,7 @@ Before doing anything else at the start of every session:
 3. **Load state** — read `.buildflow/core/state.md` for current phase and status.
    - If `current_phase` or `phase` is set, also read `.buildflow/phases/[N]/STATE.md` if it exists.
    - Treat phase `STATE.md` as the compact resume contract for fresh sessions: current status, active wave, decisions, important files, risks, test strategy, and next command.
-   - If `STATE.md` conflicts with source-of-truth files (`acceptance.md`, `PLAN.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
+   - If `STATE.md` conflicts with source-of-truth files (`acceptance.md`, `PLAN.md`, `VERIFICATION.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
 
 4. **Detect git permission and availability** — read `.buildflow/you/preferences.md` first:
    - If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: set `git_available: false` in `light.md` and **do not run git commands** this session, even if `.git/` exists.
@@ -308,7 +308,7 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 ├── security/
 │   ├── DEBT.md
 │   └── reports/
-├── phases/             ← Per-phase work and retros
+├── phases/             ← Per-phase work, STATE.md resume files, VERIFICATION.md AC ledgers, and retros
 ├── snapshots/          ← File-based restore points (used when git unavailable)
 └── learnings/
     ├── glossary.md

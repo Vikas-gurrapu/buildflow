@@ -16,6 +16,7 @@ Execute the current phase plan. Each Builder receives a precise context packet �
 
 ## Context Packet for this command (load only these)
 - `.buildflow/phases/[N]/PLAN.md`
+- `.buildflow/phases/[N]/VERIFICATION.md`
 - `.buildflow/phases/[N]/STATE.md` (if exists - resume wave/status, risks, test strategy)
 - `.buildflow/codebase/PATTERNS.md` (if exists)
 - `.buildflow/codebase/STRUCTURE.md` (if exists — only relevant sections for touched paths)
@@ -29,7 +30,7 @@ Do NOT load: full specs, full codebase, research, retros, old phases.
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
 
 Use `STATE.md` to resume the active wave and avoid asking the user where to continue. If `STATE.md`, `state.md`, and `PLAN.md` disagree, trust `PLAN.md` wave completion markers first, then `state.md`, then update `STATE.md` to match before building.
 
@@ -395,6 +396,14 @@ go test ./[touched-package]
 cargo test specific_test_name
 ```
 
+**Test command resolution rules (prevents path/filter mistakes):**
+- Do not prepend or force `CI=true` unless the project's existing script already uses it or the user explicitly asks for CI mode.
+- Do not blindly append a positional file path to an existing complex test command. Some older runners or CI wrappers treat positional paths as filters after flags and run the wrong scope.
+- Resolve the nearest runnable project root before testing. For monorepos/submodules, run from the nearest folder containing the relevant `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `.csproj`, `pom.xml`, `build.gradle`, or equivalent.
+- Prefer the repo's documented targeted command from `.buildflow/codebase/TESTING.md`. If absent, infer the safest scoped command from existing test scripts and nearby test files.
+- If a framework supports both file paths and named filters, choose the form already used by the project. Examples: Jest/Vitest often accept paths; Gradle/dotnet usually prefer `--tests` / `--filter`; Go often prefers package + `-run`; Rust often prefers test name filters.
+- If the resolved command would run the entire app or all packages, stop and ask the user before running it.
+
 This profile is passed to every wave alongside the Test Framework Profile.
 
 ---
@@ -482,6 +491,34 @@ Each Builder:
 - **Writes or updates focused tests after the code change, within the same task — not later, not optional**
 - Adds `LEARN:` comment only for patterns not present elsewhere in the codebase
 
+### 3b-post-merge - Post-Merge Gate (after worktrees merge or serialized tasks complete)
+
+After all worktrees in a wave are merged back, or after serialized no-git tasks complete, run one post-merge gate to catch conflicts that individual Builders may miss.
+
+1. Resolve the smallest build command that validates the merged touched area.
+   - Prefer package/module-level build/type-check commands for touched workspaces.
+   - Use a 5-minute timeout.
+   - If only a whole-app build command exists, ask before running it.
+2. Resolve the smallest post-merge test command for the merged touched area.
+   - Use Test Command Resolution Rules above.
+   - Prefer touched package/module tests and direct dependency-neighborhood tests.
+   - Use a 5-minute timeout.
+   - If the resolved command would run the full suite, ask before running it.
+3. Run each command once. Do not automatically rerun failures.
+
+If the post-merge build or test gate fails:
+```
+Post-merge gate failed after Wave [N].
+Command: [exact command]
+Likely cause: [merge conflict side effect / command resolution issue / real code failure / timeout]
+
+Options:
+1. Rerun with corrected command - [show safer command]
+2. Fix now - inspect [files/functions likely responsible]
+3. Defer - record as wave risk and continue only if no AC is blocked
+```
+Proceed based on the user's choice. If an AC is blocked, do not continue to the next wave until fixed or the plan is amended.
+
 **Post-change focused testing protocol:**
 
 **Pure style/config/data fast path:** If this task ONLY touches `.css`, `.scss`, `.sass`, `.less`, `.styl`, locale/label catalogs (`.json` label catalogs, `.properties`, `strings.xml`, `.arb`, `.po`), or static assets — skip focused unit tests unless a relevant snapshot/catalog test already exists.
@@ -502,6 +539,28 @@ Each Builder:
    ```
 4. Confirm they PASS
 5. Report: "Focused tests passed: [test files]"
+6. Update `.buildflow/phases/[N]/VERIFICATION.md` for the linked ACs:
+   - `Status: PASS` when focused evidence satisfies the AC
+   - `Status: IN PROGRESS` when implementation exists but broader evidence is still pending
+   - Add the exact command to `## Test Runs`
+   - Put file/function evidence in `Test/Evidence`
+
+If the focused test command fails, do not enter a rerun loop. Diagnose whether the failure is:
+- an invocation/path problem (wrong cwd, submodule root, unsupported positional path, CI wrapper, bad filter)
+- a real implementation/test failure
+
+Then ask before rerunning:
+```
+Focused test failed for [task].
+Likely cause: [command issue / code issue / unclear]
+
+Options:
+1. Rerun with corrected command — [show command]
+2. Fix now — [brief file/function area to inspect]
+3. Defer — record as build risk and continue only if this task is not blocking its AC
+```
+Proceed based on the user's choice. Never rerun automatically after a failed task-level test.
+If the user chooses defer or the AC remains blocked, update `VERIFICATION.md` with `Status: DEFERRED` or `BLOCKED`, the failing command, and the next recommended fix location.
 
 Do not write or run tests before implementation. BuildFlow verifies behavior after code changes with focused tests first, then broader checks later.
 
@@ -771,17 +830,30 @@ cargo test auth::
 Do not run `npm test`, bare `pytest`, `go test ./...`, bare `cargo test`, or the full app during a wave. Full-suite approval is requested only once in the final integration prompt below.
 
 **On test failure:**
-1. Read the exact error — file, line, message
-2. Trace root cause (not just symptom)
-3. Apply minimal fix
-4. Re-run tests
-5. Repeat until green
+1. Read the exact error - file, line, message.
+2. Trace root cause (not just symptom).
+3. Classify the failure:
+   - **Command issue:** wrong cwd, submodule root mismatch, unsupported positional path/filter, CI wrapper, timeout
+   - **Code/test issue:** changed behavior is broken or the test expectation is wrong
+   - **Unclear:** needs user choice before spending more tokens
+4. Ask before rerunning:
+   ```
+   Targeted test failed.
+   Command: [exact command]
+   Likely cause: [command issue / code issue / unclear]
 
-Max 5 fix attempts. After 5: stop, report what's unresolved, ask how to proceed.
+   Options:
+   1. Rerun with corrected command - [show command and cwd]
+   2. Fix now - inspect [files/functions likely responsible], then run one focused test
+   3. Defer - record as build risk; continue only if no AC is blocked
+   ```
+5. Proceed based on the user's choice. Never rerun automatically after a failed wave-level test.
+
+Max 3 user-approved fix/rerun attempts. After 3: stop, report what's unresolved, ask how to proceed.
 
 Fix log per attempt:
 ```
-Fix [X]/5  Wave [N]
+Fix [X]/3  Wave [N]
 Error:      [message at file:line]
 Root cause: [why it's failing]
 Fix:        [exactly what changed]
@@ -917,6 +989,12 @@ Options:
 
 In both modes: mark wave complete in `phases/[N]/PLAN.md` and proceed to next wave.
 
+Update `.buildflow/phases/[N]/VERIFICATION.md` before moving to the next wave:
+- For ACs covered by this wave's completed tasks and passing focused tests: mark `PASS` or `IN PROGRESS` based on evidence strength.
+- For failed/deferred tests: mark `FAIL`, `BLOCKED`, or `DEFERRED`.
+- Append every targeted/post-merge command to `## Test Runs`.
+- Refresh the `## Summary` counts.
+
 ---
 
 ### 3i — Codebase Map Drift Note (non-blocking)
@@ -978,6 +1056,12 @@ Dangling imports:   NONE
 ```
 
 If approved impacted-area or app-smoke verification finds regressions: fix immediately — do not defer to `/buildflow-ship`.
+
+After final integration check, update `.buildflow/phases/[N]/VERIFICATION.md`:
+- Mark ACs with sufficient focused/integration evidence as `PASS`.
+- Keep ACs needing ship-level regression as `IN PROGRESS` with note `Full regression deferred to /buildflow-ship`.
+- Mark any failed evidence as `FAIL` or `BLOCKED`.
+- Refresh summary counts and `Last updated`.
 
 ---
 

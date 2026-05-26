@@ -13,13 +13,14 @@ Finalize current phase. Three gates run before shipping: spec compliance, securi
 - `.buildflow/specs/acceptance.md`
 - `.buildflow/core/state.md`
 - `.buildflow/memory/light.md`
+- `.buildflow/phases/[N]/VERIFICATION.md`
 - `.buildflow/phases/[N]/STATE.md` (if exists - resume status, check result, risks, test strategy)
 - Changed file list only: git diff if `git.permission: approved`; otherwise completed wave file lists from `PLAN.md`
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
 
 Use `STATE.md` to confirm the latest build/check status, risks, skipped tests, and intended ship path. If it says `Status: shipped` and `SHIPPED.md` exists, summarize the shipped state and continue to the next-phase recommendation instead of re-shipping unless the user explicitly asks.
 
@@ -50,6 +51,7 @@ Override: /buildflow-ship --skip-spec (logs to DEBT.md)
 
 **0b — Full AC compliance:**
 Read `.buildflow/specs/acceptance.md`. Verify every AC is satisfied.
+Read `.buildflow/phases/[N]/VERIFICATION.md` first and use it as the evidence ledger. Every AC must be `PASS` or have equivalent fresh evidence from this ship run. `IN PROGRESS`, `FAIL`, `BLOCKED`, `DEFERRED`, or missing AC rows block ship.
 
 ```
 Spec Gate (v[spec_version])
@@ -180,6 +182,12 @@ After Gate 2 passes, record the test count for the next phase:
 last_ship_test_count: [N passing tests]
 last_ship_date: [today]
 ```
+
+Update `.buildflow/phases/[N]/VERIFICATION.md` after Gate 2:
+- Mark every AC verified by ship gates as `PASS`.
+- If any gate fails, mark affected ACs as `FAIL` or `BLOCKED`.
+- Append full/regression test commands to `## Test Runs`.
+- Refresh summary counts and `Last updated`.
 
 ---
 

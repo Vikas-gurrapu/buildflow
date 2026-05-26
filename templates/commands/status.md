@@ -18,6 +18,7 @@ Full project dashboard. Shows where you are across phases, AC progress, wave com
 ## Step 1: Load State
 Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/security/DEBT.md`.
 If a current phase exists, also read `.buildflow/phases/[N]/PLAN.md`.
+If `.buildflow/phases/[N]/VERIFICATION.md` exists, read it as the AC verification ledger.
 If `.buildflow/phases/[N]/STATE.md` exists, read it first for the compact resume state and show any mismatch with `PLAN.md`/`light.md` as a warning.
 
 ---
@@ -44,7 +45,7 @@ Spec Status
 ```
 
 ### AC progress bar (if spec is locked)
-Read `acceptance.md`. For each AC, check if there's a passing test referencing it (from last `/buildflow-check` output if cached, otherwise show as `?`):
+Read `acceptance.md`. Prefer `.buildflow/phases/[N]/VERIFICATION.md` for each AC's latest status and evidence. If it is missing, fall back to the last `/buildflow-check` output if cached; otherwise show as `?`.
 ```
 AC Progress  [Phase N — spec v[N]]
 ───────────────────────────────────
