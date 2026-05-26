@@ -25,6 +25,8 @@ Docker scaffolding, management, and lifecycle operations. Generates optimized Do
 
 ## Step 1: Detect Current State
 
+Docker is intentionally initialized here, not during `buildflow init` or command installation. This command is the first place BuildFlow should inspect Docker files, Docker daemon state, or Compose state.
+
 ```bash
 # Check if Docker is installed and running
 docker --version 2>/dev/null && docker info --format '{{.ServerVersion}}' 2>/dev/null
@@ -37,6 +39,13 @@ docker compose ps 2>/dev/null || docker-compose ps 2>/dev/null
 ```
 
 Read `.buildflow/memory/light.md` for `framework`, `language`, `app_name`.
+
+After detection, update `.buildflow/memory/light.md`:
+```yaml
+docker_initialized: true
+docker_available: [true/false]
+container_runtime: [docker if Dockerfile or compose exists or scaffold/build succeeds, otherwise none]
+```
 
 **Print state summary:**
 ```
@@ -637,15 +646,15 @@ Print: "Removed [N] dangling images ([X] MB freed), [N] stopped containers."
 
 ## Docker Integration With BuildFlow Pipeline
 
-### At `/buildflow-build` wave completion (if Dockerfile exists):
-After each wave, verify the Docker image still builds:
+### At `/buildflow-build` wave completion (only after Docker initialization):
+Only if `light.md -> container_runtime: docker`, verify the Docker image still builds:
 ```bash
 docker build -q -t [app_name]:wave-check . 2>&1 | tail -3
 docker rmi [app_name]:wave-check -f 2>/dev/null
 ```
 If build fails: WARN (non-blocking) — "⚠ Docker build failed after this wave. Run `/buildflow-docker build` to diagnose."
 
-### At `/buildflow-ship` Gate 3 (if Dockerfile exists):
+### At `/buildflow-ship` Gate 3 (only after Docker initialization):
 Blocking Docker build check — see ship.md Gate 3 Docker section.
 
 ### At `/buildflow-deploy`:

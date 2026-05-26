@@ -356,43 +356,43 @@ Has config:      YES / NO  ([tsconfig / mypy.ini / checkstyle.xml / .rubocop.yml
 | Build cmd found | Run before ship — compile failure BLOCKS |
 | None found | Warn once: "⚠ No build toolchain detected. Type safety and lint checks skipped." Log to `security/DEBT.md`. |
 
-**Language-specific test run commands (referenced in wave execution):**
+**Language-specific test command shapes (scope before use in wave execution):**
 ```bash
 # JS/TS
-npm test / npx jest / npx vitest run
+npx jest [specific-test-file] / npx vitest run [specific-test-file]
 
 # Python
-pytest / python -m pytest
+pytest [specific-test-file] / python -m pytest [specific-test-file]
 
 # Java (Maven)
-./mvnw test  OR  mvn test
+./mvnw test -Dtest=SpecificTest  OR  mvn test -Dtest=SpecificTest
 
 # Java/Kotlin (Gradle)
-./gradlew test
+./gradlew test --tests "*.SpecificTest"
 
 # C# / .NET
-dotnet test
+dotnet test --filter "FullyQualifiedName~SpecificTest"
 
 # Ruby
-bundle exec rspec  OR  bundle exec rake test
+bundle exec rspec spec/path/to/specific_spec.rb
 
 # PHP
 ./vendor/bin/phpunit  OR  ./vendor/bin/pest
 
 # Dart / Flutter
-flutter test  OR  dart test
+flutter test test/specific_test.dart  OR  dart test test/specific_test.dart
 
 # Swift
-swift test  OR  xcodebuild test -scheme [scheme] -destination 'platform=iOS Simulator,...'
+swift test --filter SpecificTest  OR  xcodebuild test -only-testing:[target]/[test]
 
 # Scala
-sbt test
+sbt "testOnly *SpecificSpec"
 
 # Go
-go test ./...
+go test ./[touched-package]
 
 # Rust
-cargo test
+cargo test specific_test_name
 ```
 
 This profile is passed to every wave alongside the Test Framework Profile.
@@ -666,20 +666,24 @@ cargo clippy -- -D warnings
 - **Errors** (exit code non-zero) → fix before proceeding
 - **Warnings only** → log to wave report as `⚠ LINT WARN: [N] warnings` — non-blocking
 
-**3. Test Coverage Check**
+**3. Focused Coverage Check**
+
+Do not run whole-repo coverage during `/buildflow-build`. Coverage checks during build must be scoped to files touched in this wave or skipped with a note. Whole-repo coverage belongs to `/buildflow-ship` unless the user explicitly approves it.
 ```bash
 # JS/TS — Jest/Vitest
-npx jest --coverage --coverageReporters=json-summary --passWithNoTests 2>/dev/null
-npx vitest run --coverage 2>/dev/null
+npx jest [specific-test-file] --coverage --coverageReporters=json-summary --passWithNoTests 2>/dev/null
+npx vitest run [specific-test-file] --coverage 2>/dev/null
 # Python
-pytest --cov=src --cov-report=term-missing 2>/dev/null
+pytest [specific-test-file] --cov=[touched-module] --cov-report=term-missing 2>/dev/null
 # Go
-go test ./... -cover 2>/dev/null | grep "coverage:"
+go test ./[touched-package] -cover 2>/dev/null | grep "coverage:"
 # Rust
-cargo tarpaulin --out Stdout 2>/dev/null
+cargo tarpaulin --out Stdout [touched-test-target] 2>/dev/null
 ```
 
-Extract total coverage % and compare against `last_ship_coverage` in `light.md`:
+If the project's coverage tool cannot scope coverage to touched files/packages, skip coverage during build and record: "Focused coverage skipped - whole-repo coverage deferred to /buildflow-ship."
+
+Extract focused coverage % and compare against `last_ship_coverage` in `light.md`:
 
 | Delta | Action |
 |-------|--------|
@@ -764,7 +768,7 @@ go test ./internal/auth ./internal/api
 cargo test auth::
 ```
 
-Do not run `npm test`, `pytest`, `go test ./...`, `cargo test`, or the full app yet unless the user approves it.
+Do not run `npm test`, bare `pytest`, `go test ./...`, bare `cargo test`, or the full app during a wave. Full-suite approval is requested only once in the final integration prompt below.
 
 **On test failure:**
 1. Read the exact error — file, line, message
@@ -784,16 +788,11 @@ Fix:        [exactly what changed]
 Result:     PASS / still failing
 ```
 
-**After targeted tests pass — ask once:**
-```
-──────────────────────────────────────────────────
-Targeted tests passed. Run full app-level test suite?
-  [Y] Yes — run full suite now
-  [N] No  — skip, proceed to schema drift check
-──────────────────────────────────────────────────
-```
-- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
-- **[N]:** Skip. Proceed to 3f. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
+**After targeted tests pass:**
+- Do not ask for or run the full app-level test suite here.
+- Record the targeted test files/packages that passed in the wave report.
+- Proceed to Step 3f.
+- Full app-level tests are deferred to the final integration prompt below or /buildflow-ship.
 
 ### 3f — Schema Drift Check (runs after tests, before commit — if schema files exist)
 
@@ -948,10 +947,20 @@ If 3 or more drift elements exist, show the note to the user after the wave comp
 ## Step 4: Final Integration Check
 After all waves:
 - Run targeted phase-level tests for all files touched across all waves and their dependency neighborhoods.
-- Ask the user whether to run impacted area tests and/or an application smoke check before leaving build.
+- Do not run whole-app/full-suite tests automatically.
+- Ask the user once whether to run broader checks before leaving build:
+  ```
+  Targeted phase tests passed. Run broader checks now?
+    [1] No - defer full regression to /buildflow-ship (recommended)
+    [2] Impacted area only - nearby module/package tests for touched areas
+    [3] Application smoke check only - one lightweight app-level sanity check
+    [4] Full app-level test suite - explicit approval, may consume more tokens
+  ```
 - Check imports across wave boundaries (no dangling references)
 - If impacted area tests are approved: include touched files, nearby module/package tests, and relevant prior-phase tests for the same affected area.
-- If impacted area tests are skipped: record that final whole-repo regression remains deferred to `/buildflow-ship`.
+- If application smoke is approved: run only the smallest meaningful smoke check, not the whole suite.
+- If full app-level suite is approved: run it once, report token/time cost clearly, and do not repeat it during build.
+- If broader checks are skipped: record that final whole-repo regression remains deferred to `/buildflow-ship`.
 - Cross-phase regression check: when impacted area tests include prior-phase tests, compare passing count for that affected area against `last_ship_test_count` or the nearest available baseline. If lower, a prior-phase behavior was broken — flag before shipping.
 
 ```
@@ -960,9 +969,11 @@ Integration Check
 All waves:          ✓ PASS
 Targeted tests:     ✓ PASS  ([N] files, [N] dependency-neighborhood tests)
 AC coverage:        [N/N ACs verified]
-Impacted tests:     RUN / SKIPPED BY USER
-App smoke:          RUN / SKIPPED / NOT APPLICABLE
-Cross-phase tests:  ✓ PASS / DEFERRED TO SHIP
+Broader checks:     DEFERRED / IMPACTED AREA / SMOKE / FULL SUITE APPROVED
+Impacted tests:     RUN / SKIPPED BY USER / NOT REQUESTED
+App smoke:          RUN / SKIPPED / NOT REQUESTED
+Full suite:         RUN BY USER APPROVAL / DEFERRED TO SHIP
+Cross-phase tests:  PASS / DEFERRED TO SHIP
 Dangling imports:   NONE
 ```
 
@@ -974,9 +985,9 @@ If approved impacted-area or app-smoke verification finds regressions: fix immed
 ```yaml
 last_build_date: [today]
 plan_status: built
-test_status: passing
+test_status: focused_passing
 waves_completed: [N]
-passing_test_count: [N]      ← baseline for cross-phase regression check at ship time
+focused_test_count: [N]      ← focused build tests only; full regression baseline is recorded at ship
 last_build_coverage: [N]%    ← baseline for coverage drop detection
 last_build_tokens: ~[N]K     ← actual token cost of this build run
 ```

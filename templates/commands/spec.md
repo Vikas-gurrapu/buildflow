@@ -85,13 +85,64 @@ If no history: skip silently.
 
 ---
 
-## Step 2: Clarify (one round, all questions at once)
-Ask only what vision.md left unanswered. Max 5 questions:
-- What does success look like for the **user** — as a measurable outcome, not a feature list?
-- What is explicitly **out of scope** this phase?
-- Any **hard constraints**: tech stack, deadline, team size, compliance?
-- Any **third-party integrations** required?
-- If `--fast`: "Describe the single feature in one sentence."
+## Step 2: Clarify (adaptive, one question at a time)
+Ask only what vision.md, STATE.md, prior research, and codebase maps leave unanswered. Do not ask all questions at once.
+
+Start with:
+> "I need a few clarifications before writing the spec. I'll ask one at a time and recommend sensible defaults."
+
+### 2a - Build the Clarification Queue
+Create an internal queue of up to 5 clarification topics, ordered by spec risk:
+1. User success outcome - measurable result, not a feature list
+2. Explicitly out of scope this phase
+3. Hard constraints - tech stack, deadline, team size, compliance, accessibility
+4. Third-party integrations or external dependencies
+5. If `--fast`: the single feature boundary in one sentence
+
+Skip any topic already answered clearly by existing context.
+
+### 2b - Ask One Question at a Time
+For each remaining topic, ask exactly one question and wait for the user's answer before asking the next.
+
+Use this format:
+```
+I need one clarification: [question]
+
+Recommended options:
+1. [Recommended option] - [why this is the safest/default choice]
+2. [Alternative option] - [tradeoff]
+3. [Alternative option] - [tradeoff]
+
+Or reply with your own custom answer.
+```
+
+Rules:
+- Provide 2-3 mutually exclusive recommended options.
+- Mark the best default as option 1.
+- Options must be specific to this project and current phase, not generic.
+- Always allow custom input. Treat custom input as authoritative unless it conflicts with locked constraints or prior shipped behavior.
+- If the user replies with `1`, `2`, or `3`, expand that option into the full answer before storing it.
+- If the user gives a custom answer, store the custom answer verbatim plus any inferred implication.
+
+### 2c - Reassess After Each Answer
+After every answer:
+1. Update the internal clarification summary.
+2. Decide whether the answer creates a new ambiguity.
+3. If yes, ask one follow-up question using the same recommended-options format.
+4. If no, continue to the next queued topic.
+
+Do not exceed 7 total questions unless the user explicitly asks to keep refining. If clarity is still insufficient after 7 questions, state the remaining assumptions and ask for approval to proceed.
+
+### 2d - Clarity Gate
+Proceed to Step 3 only when:
+- Success outcome is clear enough to test
+- Scope boundaries are clear enough to prevent accidental extra work
+- Known constraints are either captured or explicitly assumed absent
+- Required integrations are named or explicitly "none"
+- Any local/locale support implications are preserved or explicitly scoped
+
+Before generating files, summarize the captured answers in 3-6 bullets and say:
+> "I have enough clarity to draft the spec. I'll proceed with these assumptions."
 
 ---
 
@@ -285,8 +336,21 @@ Overall quality:  STRONG / NEEDS REVISION
 ## Step 7: User Review Gate
 Show summary of all three specs + Critic Report. Ask:
 
-> "Specs ready for review. Critic score: [STRONG / NEEDS REVISION]
-> Approve to lock, or tell me what to revise."
+```
+Specs ready for review. Critic score: [STRONG / NEEDS REVISION]
+
+Choose one:
+1. Approve — lock the spec and continue to the next step
+2. Revise — tell me what to change, then I will update and re-run the Critic pass
+```
+
+Rules:
+- If the user selects `1`, lock specs immediately and proceed with the Approve flow below.
+- If the user selects `2`, ask:
+  > "What should I revise?"
+  Then collect the user's free-form input and proceed with the Revise flow below.
+- If the user replies with custom revision text instead of `1` or `2`, treat it as `2` and use that text as the revision instruction.
+- If the user gives an ambiguous response, ask them to choose `1` or `2`.
 
 - **Revise:** apply changes to the named section, increment `spec_version` in `acceptance.md` frontmatter, append a changelog entry, re-run Critic pass, repeat Step 7.
 

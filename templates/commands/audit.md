@@ -84,7 +84,10 @@ Skip: node_modules, test files, .env.example
 ### A10: SSRF
 - Server-side URL fetching with user-controlled URLs
 
-## Phase 2b: Container Security Scan (if Dockerfile present)
+## Phase 2b: Container Security Scan (only if Docker was initialized)
+
+Run this section only when `light.md -> container_runtime: docker` was set by `/buildflow-docker`.
+If Docker was not initialized through `/buildflow-docker`, skip container scanning silently.
 
 Check if `Dockerfile` exists. If yes, and if a built image exists:
 

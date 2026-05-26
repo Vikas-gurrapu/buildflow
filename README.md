@@ -20,7 +20,8 @@
 - [No-Git Mode](#no-git-mode)
 - [Token Cost Tracking](#token-cost-tracking)
 - [Spec Governance](#spec-governance)
-- [Docker Integration](#docker-integration)
+<!-- Docker documentation is intentionally hidden from the default README flow.
+     Docker is initialized only when `/buildflow-docker` is triggered. -->
 - [Codebase Intelligence](#codebase-intelligence)
 - [Post-Ship Feature Advisor](#post-ship-feature-advisor)
 - [How It Works](#how-it-works)
@@ -61,7 +62,7 @@ npx buildflow-dev init
 ```
 
 This will:
-1. Detect your project (framework, language, Docker, existing code vs. greenfield)
+1. Detect your project (framework, language, existing code vs. greenfield)
 2. Ask for your app name and experience level
 3. **Ask for git permission** (approve / deny / deny permanently)
 4. Create `.buildflow/` with memory, state, preferences, and agent config files
@@ -122,14 +123,14 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 |---------|-------|---------|-----------|
 | `/buildflow-hotfix "desc"` | Surgeon | Fast-path: restore point → fix → test → commit. No spec, no plan, no waves | ~10K |
 | `/buildflow-debug` | Surgeon | Root-cause analysis — traces error to source, applies minimal fix | ~20K |
-| `/buildflow-deploy [env]` | Strategist | Pre-flight → build → image scan → push → migrate → smoke test. Full Docker path included | ~15K |
-| `/buildflow-docker [cmd]` | Architect | Scaffold Dockerfile + Compose, build, run, push to registry, image CVE scan | ~15K |
+| `/buildflow-deploy [env]` | Strategist | Pre-flight → build → migrate → smoke test. Docker path used only after `/buildflow-docker` initializes it | ~15K |
+| `/buildflow-docker [cmd]` | Architect | On-demand Docker initialization: scaffold Dockerfile + Compose, build, run, push, scan | ~15K |
 
 ### Security
 
 | Command | Agent | Purpose | Token Cost |
 |---------|-------|---------|-----------|
-| `/buildflow-audit` | Security Auditor | OWASP Top 10 + **container CVE scan** (docker scout / Trivy) + Dockerfile misconfiguration check + language-specific dependency audit | ~35K |
+| `/buildflow-audit` | Security Auditor | OWASP Top 10 + language-specific dependency audit. Container scan runs only after `/buildflow-docker` initializes Docker | ~35K |
 | `/buildflow-audit --quick` | Security Auditor | Recently changed files only | ~15K |
 | `/buildflow-audit --pre-ship` | Security Auditor | Secrets + critical patterns only | ~10K |
 
@@ -192,7 +193,7 @@ npx buildflow-dev uninstall --local --project-data
 ```
 
 BuildFlow will:
-- Auto-detect language, framework, Docker, existing tests
+- Auto-detect language, framework, and existing tests
 - Ask for git permission (stored permanently in `preferences.md`)
 - Scaffold `.buildflow/` with all config files
 - Install commands into detected AI tools
@@ -284,7 +285,7 @@ Also runs:
 | **Gate 1** | Security scan (changed files only) | CRITICAL → BLOCK, HIGH → WARN |
 | **Gate 2a** | Current phase tests pass | BLOCK |
 | **Gate 2b** | Cross-phase regression (vs `last_ship_test_count` baseline) | BLOCK |
-| **Gate 3** | Type-check BLOCK · Lint errors BLOCK · Compile BLOCK · Coverage smart-prompt · Bundle size alert · **Docker build** (if Dockerfile) | Type/compile/Docker → BLOCK |
+| **Gate 3** | Type-check BLOCK ? Lint errors BLOCK ? Compile BLOCK ? Coverage smart-prompt ? Bundle size alert ? Docker build only after `/buildflow-docker` initializes Docker | Type/compile/Docker -> BLOCK |
 
 After gates pass:
 - Retrospective written to `phases/N/retro.md`
@@ -434,6 +435,7 @@ When below threshold, the prompt is **context-aware** — not a hard block:
 
 ---
 
+<!--
 ## Docker Integration
 
 ### Scaffold a complete Docker setup
@@ -492,6 +494,7 @@ docker:
 ```
 
 ---
+-->
 
 ## Codebase Intelligence
 
@@ -592,7 +595,7 @@ npx buildflow-dev init
         ├─ detectProjectInfo()     Reads package.json, pom.xml, build.gradle, Cargo.toml,
         │                          go.mod, Gemfile, composer.json, pubspec.yaml,
         │                          Package.swift, build.sbt, .csproj
-        │                          → language, framework, hasDocker, hasTests, hasGit
+        │                          → language, framework, hasTests, hasGit
         │
         ├─ Git permission prompt   approve / deny / deny_permanent
         │                          → stored in preferences.md + light.md
@@ -882,7 +885,7 @@ Added full toolchain support for Java, Kotlin, C# / .NET, Ruby, PHP, Dart / Flut
 
 ### Docker Command (`/buildflow-docker`)
 
-Full Docker lifecycle: scaffold multi-stage Dockerfiles for all 12 languages, Compose with services, image build/run/push/scan, hot-reload dev overlay. Integrated with ship gate, deploy, and audit.
+Docker lifecycle is available on demand through `/buildflow-docker`; init/install do not detect or enable Docker automatically.
 
 ### Symbol-Level Import Graph (GAP-H)
 

@@ -38,11 +38,11 @@ If any gate fails: stop and report what needs to be resolved.
 ## Step 3: Detect Deploy Setup
 Check for:
 - `package.json` scripts: `deploy`, `deploy:staging`, `deploy:prod`
-- Deployment config files: `vercel.json`, `netlify.toml`, `fly.toml`, `railway.json`, `Dockerfile`
+- Deployment config files: `vercel.json`, `netlify.toml`, `fly.toml`, `railway.json`
 - CI/CD config: `.github/workflows/`, `.gitlab-ci.yml`
 - Cloud CLI tools: `vercel`, `netlify`, `flyctl`, `railway`, `heroku`
-- `light.md → container_runtime: docker` (set by `/buildflow-docker`)
-- `docker-compose.yml` present → Docker Compose deployment available
+- `light.md -> container_runtime: docker` (set only by `/buildflow-docker`)
+- Docker/Compose deployment is available only after `/buildflow-docker` initializes Docker state
 
 Classify the deploy path:
 

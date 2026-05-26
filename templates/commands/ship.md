@@ -281,14 +281,17 @@ Build command exited with errors.
 Fix compilation errors before shipping.
 ```
 
-### Docker Build (if Dockerfile present)
+### Docker Build (only if Docker was initialized)
+Run this section only when `light.md -> container_runtime: docker` was set by `/buildflow-docker`.
+If `container_runtime` is missing or `none`, skip silently even if Docker files exist in the repo.
+
 ```bash
 # Verify the image still builds cleanly before shipping
 docker build --no-cache -t [app-name]:ship-check . 2>&1 | tail -5
 docker rmi [app-name]:ship-check 2>/dev/null
 ```
 **Docker build failure → BLOCK:** "Dockerfile builds failed. Fix image before shipping."
-**No Dockerfile:** skip silently.
+**No Docker runtime initialized:** skip silently. To enable Docker gates, run `/buildflow-docker`.
 
 ### Test Coverage
 Read the coverage threshold from `.buildflow/you/preferences.md`:

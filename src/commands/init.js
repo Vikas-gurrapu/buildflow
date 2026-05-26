@@ -175,9 +175,6 @@ function detectProjectInfo() {
     info.hasTests = existsSync(join(cwd, 'src', 'test'))
   }
 
-  // Docker detection
-  info.hasDocker = existsSync(join(cwd, 'Dockerfile')) || existsSync(join(cwd, 'docker-compose.yml')) || existsSync(join(cwd, 'docker-compose.yaml'))
-
   if (!existsSync(join(cwd, 'src')) && !existsSync(pkgPath) && !existsSync(join(cwd, 'requirements.txt'))) {
     info.projectType = 'greenfield'
   }
@@ -549,14 +546,6 @@ verbose_context: false
 
 ---
 
-## Docker
-
-\`\`\`yaml
-docker:
-  detected:         ${projectInfo.hasDocker ? 'true   # Dockerfile or docker-compose.yml found' : 'false  # run /buildflow-docker scaffold to set up'}
-  auto_build_check: true   # Verify docker build still passes after each wave (non-blocking warn)
-  scan_before_push: true   # Run image security scan before /buildflow-deploy push
-\`\`\`
 `)
 
   // ── memory/light.md ─────────────────────────────────────────────────────────
@@ -583,7 +572,7 @@ onboarded:         ${projectInfo.projectType === 'greenfield' ? 'n/a  # greenfie
 git_permission:    ${projectInfo.gitPermission || 'approved'}
 git_available:     ${projectInfo.gitPermission === 'approved' ? 'true' : 'false'}
 parked_changes:    []   # files with un-pushed changes — checked before each new phase
-container_runtime: ${projectInfo.hasDocker ? 'docker' : 'none'}
+container_runtime: none  # set by /buildflow-docker when Docker is intentionally initialized
 language:          ${projectInfo.language}
 \`\`\`
 
