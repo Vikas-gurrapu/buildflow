@@ -20,7 +20,10 @@ Before doing anything else at the start of every session:
    - Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
    - Do NOT report this to the user unless `verbose_context: true` in `preferences.md`. Context management is invisible by default.
 
-3. **Load state** — read `.buildflow/core/state.md` for current phase and status
+3. **Load state** — read `.buildflow/core/state.md` for current phase and status.
+   - If `current_phase` or `phase` is set, also read `.buildflow/phases/[N]/STATE.md` if it exists.
+   - Treat phase `STATE.md` as the compact resume contract for fresh sessions: current status, active wave, decisions, important files, risks, test strategy, and next command.
+   - If `STATE.md` conflicts with source-of-truth files (`acceptance.md`, `PLAN.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
 
 4. **Detect git permission and availability** — read `.buildflow/you/preferences.md` first:
    - If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: set `git_available: false` in `light.md` and **do not run git commands** this session, even if `.git/` exists.
@@ -90,6 +93,7 @@ Before doing anything else at the start of every session:
 - Create restore points before destructive operations (file snapshot unless `git.permission: approved`)
 - Run `/buildflow-audit` before every `/buildflow-ship`
 - No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
+- Phase `STATE.md` is mandatory for phase-driving commands — load it at command start, use it to resume, and update it before command exit
 - **Strict mode** — when `strict_mode: true` or phase planned with `--strict`: `/buildflow-check --strict` is mandatory before ship; strict violations have no override flag
 - **Folder Access Guard** — check `path_permissions` before reading or writing any folder (see below)
 
@@ -171,6 +175,55 @@ The only context events that surface:
 - `⚠ Onboard data may be stale` — when a load-bearing file or schema changed since last onboard
 - `⚠ light.md is near limit` — only when pruning cannot be done silently (manual decision needed)
 - Update available notification
+
+## Phase STATE.md
+
+For every active phase, maintain `.buildflow/phases/[N]/STATE.md` as the compact cross-session resume file.
+
+Major phase-driving commands (`/buildflow-think`, `/buildflow-spec`, `/buildflow-plan`, `/buildflow-build`, `/buildflow-check`, `/buildflow-ship`) must:
+1. Load `STATE.md` at the start if it exists.
+2. Use it to resume the current status/wave instead of asking the user to restate context.
+3. Update it before printing the final next-step block.
+
+Use this shape:
+```markdown
+# Phase [N] State
+Last updated: [ISO datetime]
+Last command: /buildflow-[command]
+
+## Current State
+Phase: [N]
+Wave: [current/M or none]
+Status: [researching/spec_locked/plan_ready/build_in_progress/built/check_passed/shipped]
+
+## Decisions
+- [decision] — [reason]
+
+## Files That Matter
+- [path] — [why]
+
+## Next Command
+/buildflow-[command]
+
+## Risks / Open Questions
+- [risk or NONE]
+
+## Test Strategy
+- [focused tests / impacted-area approval / ship regression gate]
+```
+
+Keep this file compact. It should help a fresh session continue without loading every prior artifact.
+
+## Context Clear Recommendation
+
+After every major phase-driving command, check the current context window/session token use and update `STATE.md` first. Then include a context recommendation inside the final next-step block:
+
+- If the session is large, noisy, or the command just finished a boundary (`think`, spec lock, plan ready, build complete, check complete, ship complete): recommend clearing the AI session before the next command.
+- Use the active agent's native clear command. For Claude Code, Codex, and Gemini CLI this is usually `/clear`. If the active tool uses a different context reset command, name that command instead.
+- Suggested line:
+  `Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.`
+- If context is still clean and the next command is small, say:
+  `Context: OK to continue without clearing.`
 
 ## Token Cost Tracking
 

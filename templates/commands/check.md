@@ -29,6 +29,25 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 
 Do NOT load: PRD, TDD, old phases, research files, retros.
 
+Also load `.buildflow/phases/[N]/STATE.md` if it exists. Use it to resume status, risks, and test strategy.
+
+---
+
+## Phase State Resume
+Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+
+Use `STATE.md` to understand what build completed, what tests were already run, and which risks/skips need verification. If it says `Status: check_passed` and current inputs have not changed, continue to the guided next step instead of repeating checks unless the user asks.
+
+Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
+- Current State: `Status: check_passed` or `Status: check_failed`
+- Decisions: user choices for coverage/strict/schema issues
+- Files That Matter: reports written, changed files checked, and blockers
+- Next Command: `/buildflow-ship` when passing, otherwise the exact `/buildflow-build` or `/buildflow-check` retry
+- Risks / Open Questions: failed ACs, schema drift, low coverage, strict violations, skipped checks
+- Test Strategy: checks/tests run, coverage map status, and remaining ship regression gate
+
+---
+
 ## Step 1: Load Acceptance Criteria
 Read every AC from `.buildflow/specs/acceptance.md`.
 This is the primary verification target — all other checks are secondary.
@@ -514,10 +533,13 @@ Session total:     ~[N]K tokens   (since [session_start])
 
 ## Guided Next Step
 
+Before printing this block, check session context usage. Because check results decide whether the phase can ship, recommend clearing the current AI session after saving `STATE.md` when context is large/noisy or the check has completed.
+
 ```
 ──────────────────────────────────────────────────
 → Next:  /buildflow-ship
    Why:  All [N] ACs passing, no blockers — ready to run ship gates
+   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

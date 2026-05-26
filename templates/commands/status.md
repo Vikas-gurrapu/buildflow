@@ -18,6 +18,7 @@ Full project dashboard. Shows where you are across phases, AC progress, wave com
 ## Step 1: Load State
 Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/security/DEBT.md`.
 If a current phase exists, also read `.buildflow/phases/[N]/PLAN.md`.
+If `.buildflow/phases/[N]/STATE.md` exists, read it first for the compact resume state and show any mismatch with `PLAN.md`/`light.md` as a warning.
 
 ---
 

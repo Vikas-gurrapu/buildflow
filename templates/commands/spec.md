@@ -21,6 +21,7 @@ Run after `/buildflow-start`, before `/buildflow-plan`.
 
 ## Context Packet
 - `.buildflow/core/vision.md`
+- `.buildflow/phases/[N]/STATE.md` (if current phase exists - resume status, decisions, risks, next command)
 - `.buildflow/codebase/STACK.md` (if exists — runtime, frameworks, critical dependencies)
 - `.buildflow/codebase/STRUCTURE.md` (if exists — physical layout and entry points)
 - `.buildflow/codebase/INTEGRATIONS.md` (if exists — external services, env contracts, webhooks)
@@ -31,6 +32,21 @@ Run after `/buildflow-start`, before `/buildflow-plan`.
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
 - `.buildflow/memory/light.md` (app_name, framework, phase only)
 - `.buildflow/specs/` (if regenerating)
+
+---
+
+## Phase State Resume
+Read `.buildflow/core/state.md` and `.buildflow/memory/light.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
+
+Use `STATE.md` to avoid making the user restate prior research, decisions, risks, or open questions. If it says the spec is already locked and the user did not ask for an amendment/review, continue to the guided next step instead of regenerating.
+
+Before exiting, create or update `.buildflow/phases/[N]/STATE.md` with:
+- Current State: `Status: spec_locked` when locked, or `Status: spec_draft` when still in review
+- Decisions: major product/technical decisions from PRD/TDD
+- Files That Matter: `PRD.md`, `TDD.md`, `acceptance.md`, and important mapped codebase docs
+- Next Command: `/buildflow-plan` when locked, otherwise `/buildflow-spec`
+- Risks / Open Questions: Known Risks plus unresolved spec questions
+- Test Strategy: acceptance criteria verification approach and constraints from `TESTING.md`
 
 ---
 
@@ -453,12 +469,15 @@ Update `light.md`: `last_spec_tokens: ~[N]K`
 
 ## Guided Next Step
 
+Before printing this block, check session context usage. Because a locked spec is a phase boundary, recommend clearing the current AI session after saving `STATE.md` unless context is very small and the user is continuing immediately.
+
 After printing the token line, always close with:
 
 ```
 ──────────────────────────────────────────────────
 → Next:  /buildflow-plan
    Why:  Your spec is locked — translate it into an executable wave plan
+   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

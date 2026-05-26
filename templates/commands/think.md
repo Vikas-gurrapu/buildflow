@@ -22,9 +22,25 @@ Goes beyond research — includes engineering cognition modes for architecture r
 
 ## Context Packet
 - `.buildflow/core/vision.md`
+- `.buildflow/phases/[N]/STATE.md` (if current phase exists - resume status, decisions, next command)
 - `.buildflow/memory/light.md` (app_name, framework, key decisions only)
 - `.buildflow/codebase/MAP.md` (for --arch, --debt, --complexity modes)
 - `.buildflow/specs/TDD.md` (for --arch mode, if exists)
+
+---
+
+## Phase State Resume
+Read `.buildflow/core/state.md` and `.buildflow/memory/light.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
+
+If `STATE.md` says research or architecture review for this topic already completed, summarize the saved recommendation and continue to the guided next step instead of repeating the work unless the user asks to revisit it.
+
+Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
+- Current State: `Status: research_complete` (or `architecture_review_complete` for `--arch`)
+- Decisions: recommendation and confidence
+- Files That Matter: research file path and any architecture/codebase files referenced
+- Next Command: `/buildflow-spec` (or `/buildflow-plan` for `--arch` when architecture is decided)
+- Risks / Open Questions: research gaps and risks
+- Test Strategy: testing implications discovered, or `Not applicable yet - pre-spec research`
 
 ---
 
@@ -219,10 +235,13 @@ Session total:     ~[N]K tokens   (since [session_start])
 
 ## Guided Next Step
 
+Before printing this block, check session context usage and whether the command created meaningful new context. If context is large/noisy or the research decision is complete, recommend clearing the current AI session after saving `STATE.md`; otherwise say it is OK to continue.
+
 ```
 ──────────────────────────────────────────────────
 → Next:  /buildflow-spec
    Why:  Research complete — translate findings into spec ACs and constraints
+   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

@@ -11,7 +11,10 @@ Begin your project. Works for both greenfield and existing codebases.
 
 ## Context Packet (load only these)
 - `.buildflow/memory/light.md`
+- `.buildflow/phases/[N]/STATE.md` (if current phase exists - compact resume status and next command)
 - `.buildflow/you/preferences.md`
+
+Only load the current phase `STATE.md`, not full phase specs/plans/reports.
 
 Do NOT load: specs, phases, codebase files — this is vision only.
 

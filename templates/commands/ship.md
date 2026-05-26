@@ -13,7 +13,25 @@ Finalize current phase. Three gates run before shipping: spec compliance, securi
 - `.buildflow/specs/acceptance.md`
 - `.buildflow/core/state.md`
 - `.buildflow/memory/light.md`
+- `.buildflow/phases/[N]/STATE.md` (if exists - resume status, check result, risks, test strategy)
 - Changed file list only: git diff if `git.permission: approved`; otherwise completed wave file lists from `PLAN.md`
+
+---
+
+## Phase State Resume
+Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+
+Use `STATE.md` to confirm the latest build/check status, risks, skipped tests, and intended ship path. If it says `Status: shipped` and `SHIPPED.md` exists, summarize the shipped state and continue to the next-phase recommendation instead of re-shipping unless the user explicitly asks.
+
+Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
+- Current State: `Status: shipped`, `Wave: complete`
+- Decisions: ship gate outcomes, accepted debt, post-ship advisor choice
+- Files That Matter: `SHIPPED.md`, `retro.md`, snapshots/tags, and key shipped files
+- Next Command: `/buildflow-spec "[suggested phase name]"`
+- Risks / Open Questions: open debt, deferred checks, follow-up work
+- Test Strategy: ship tests/regression results and baseline counts/coverage
+
+---
 
 ## MANDATORY Gate 0: Spec Compliance Check
 
@@ -588,12 +606,15 @@ Update `light.md`: `last_ship_tokens: ~[N]K`
 
 ## Guided Next Step
 
+Before printing this block, check session context usage. Because shipping closes a phase boundary, recommend clearing the current AI session after saving `STATE.md` before starting the next phase.
+
 The post-ship advisor (Step 6b) already surfaced the top suggestion. Close with:
 
 ```
 ──────────────────────────────────────────────────
 → Next:  /buildflow-spec "[suggested phase name]"
    Why:  Phase [N] shipped ✓ — start defining what to build next
+   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

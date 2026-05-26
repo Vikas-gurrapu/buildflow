@@ -22,6 +22,7 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `.buildflow/specs/PRD.md`
 - `.buildflow/specs/TDD.md`
 - `.buildflow/specs/acceptance.md`
+- `.buildflow/phases/[N]/STATE.md` (if exists - resume status, decisions, active risks, next command)
 - `.buildflow/codebase/MAP.md` (if exists)
 - `.buildflow/codebase/STACK.md` (if exists — runtime, frameworks, critical dependencies)
 - `.buildflow/codebase/STRUCTURE.md` (if exists — physical layout and entry points)
@@ -34,6 +35,21 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `.buildflow/memory/light.md` (phase, framework, spec_status only)
 
 Do NOT load: full codebase, old phase plans, research files, retros.
+
+---
+
+## Phase State Resume
+Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+
+Use `STATE.md` to carry forward spec decisions, unresolved risks, files that matter, and the intended next command. If `STATE.md` says `Status: plan_ready` and `PLAN.md` exists for the same spec version, do not regenerate the plan unless the user asks; continue to the guided next step.
+
+Before exiting, create or update `.buildflow/phases/[N]/STATE.md` with:
+- Current State: `Status: plan_ready`, `Wave: 0/[wave_count]`
+- Decisions: planning decisions, task splits, strict mode, and dependency/risk sequencing choices
+- Files That Matter: `PLAN.md`, spec files, codebase map files used, and high-risk planned paths
+- Next Command: `/buildflow-build`
+- Risks / Open Questions: hard blockers, unresolved dependencies, and plan assumptions
+- Test Strategy: focused post-change tests for touched files, dependency-neighborhood tests, and any user-approved broader checks
 
 ---
 
@@ -416,10 +432,13 @@ Update `light.md`: `last_plan_tokens: ~[N]K`
 
 ## Guided Next Step
 
+Before printing this block, check session context usage. Because planning creates the execution contract, recommend clearing the current AI session after saving `STATE.md` unless context is very small and the user is continuing immediately.
+
 ```
 ──────────────────────────────────────────────────
 → Next:  /buildflow-build
    Why:  Plan is ready — execute wave 1 of [N] waves ([N] tasks)
+   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

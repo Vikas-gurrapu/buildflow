@@ -16,6 +16,7 @@ Execute the current phase plan. Each Builder receives a precise context packet �
 
 ## Context Packet for this command (load only these)
 - `.buildflow/phases/[N]/PLAN.md`
+- `.buildflow/phases/[N]/STATE.md` (if exists - resume wave/status, risks, test strategy)
 - `.buildflow/codebase/PATTERNS.md` (if exists)
 - `.buildflow/codebase/STRUCTURE.md` (if exists — only relevant sections for touched paths)
 - `.buildflow/codebase/TESTING.md` (if exists — targeted test command and test layout)
@@ -24,6 +25,21 @@ Execute the current phase plan. Each Builder receives a precise context packet �
 - `.buildflow/you/preferences.md` (git.permission only)
 
 Do NOT load: full specs, full codebase, research, retros, old phases.
+
+---
+
+## Phase State Resume
+Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+
+Use `STATE.md` to resume the active wave and avoid asking the user where to continue. If `STATE.md`, `state.md`, and `PLAN.md` disagree, trust `PLAN.md` wave completion markers first, then `state.md`, then update `STATE.md` to match before building.
+
+Before exiting after each wave or full build, update `.buildflow/phases/[N]/STATE.md` with:
+- Current State: `Status: build_in_progress` with `Wave: [current]/[total]`, or `Status: built` when all waves complete
+- Decisions: deviations, user choices, implementation decisions, and any approved skips
+- Files That Matter: files touched this wave/all waves, snapshots, and drift paths
+- Next Command: next `/buildflow-build wave-[N+1]` or `/buildflow-check` when all waves are complete
+- Risks / Open Questions: drift, parked changes, skipped tests, unresolved concerns
+- Test Strategy: focused tests run for touched files, dependency-neighborhood tests, impacted-area/app-smoke user decision, and ship regression status
 
 ---
 
@@ -987,11 +1003,14 @@ Session total:     ~[N]K tokens   (since [session_start])
 
 ## Guided Next Step
 
+Before printing this block, check session context usage. After a completed wave or all-wave build, recommend clearing the current AI session after saving `STATE.md` when the session is large/noisy or a boundary has been reached; otherwise say it is OK to continue.
+
 After all waves complete:
 ```
 ──────────────────────────────────────────────────
 → Next:  /buildflow-check
    Why:  All waves complete — verify every AC is satisfied before shipping
+   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```
