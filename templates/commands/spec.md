@@ -1,6 +1,6 @@
 ---
 name: buildflow-spec
-description: Generate user-story-backed PRD, Technical Design, and Acceptance Criteria with self-critique pass
+description: Generate user-story-backed Requirements, Technical Design, and Acceptance Criteria with self-critique pass
 allowed-tools: Read, Write, WebSearch
 agent: strategist
 ---
@@ -13,8 +13,8 @@ Run after `/buildflow-start`, before `/buildflow-plan`.
 
 ## Usage
 - `/buildflow-spec` — full spec from vision
-- `/buildflow-spec prd` — regenerate PRD only
-- `/buildflow-spec tdd` — regenerate TDD only
+- `/buildflow-spec requirements` — regenerate REQUIREMENTS.md only
+- `/buildflow-spec technical-design` — regenerate TECHINICALDESIGN.md only
 - `/buildflow-spec acceptance` — regenerate ACs only
 - `/buildflow-spec --fast` — minimal spec for small features (single screen / endpoint)
 - `/buildflow-spec --review` — critique existing specs without regenerating
@@ -42,8 +42,8 @@ Use `STATE.md` to avoid making the user restate prior research, decisions, risks
 
 Before exiting, create or update `.buildflow/phases/[N]/STATE.md` with:
 - Current State: `Status: spec_locked` when locked, or `Status: spec_draft` when still in review
-- Decisions: major product/technical decisions from PRD/TDD
-- Files That Matter: `PRD.md`, `TDD.md`, `acceptance.md`, and important mapped codebase docs
+- Decisions: major product/technical decisions from REQUIREMENTS/TECHINICALDESIGN
+- Files That Matter: `REQUIREMENTS.md`, `TECHINICALDESIGN.md`, `acceptance.md`, and important mapped codebase docs
 - Next Command: `/buildflow-plan` when locked, otherwise `/buildflow-spec`
 - Risks / Open Questions: Known Risks plus unresolved spec questions
 - Test Strategy: acceptance criteria verification approach and constraints from `TESTING.md`
@@ -55,7 +55,7 @@ Read `.buildflow/core/vision.md`.
 If empty: "Run `/buildflow-start` first."
 
 If `PATTERNS.md` exists: note the existing architectural style (component structure, naming, API patterns).
-The TDD must align with these — don't invent new patterns unless explicitly asked.
+TECHINICALDESIGN.md must align with these — don't invent new patterns unless explicitly asked.
 
 If focused codebase maps exist:
 - Use `STACK.md` to constrain runtime/framework/dependency choices.
@@ -78,7 +78,7 @@ If `FEATURES.md` or `intel.json.features[]` exists:
 If `phases/*/SHIPPED.md` files exist, load the last 2. Extract:
 - Already-shipped features → exclude from this spec's scope (don't re-spec shipped ACs)
 - Open debt from prior phases → surface as constraints in new spec
-- Prior architecture decisions → TDD must not contradict them
+- Prior architecture decisions → TECHINICALDESIGN.md must not contradict them
 
 Print: "Prior phases: [N]. Already shipped: [brief list]. Open debt: [N items]."
 If no history: skip silently.
@@ -95,8 +95,8 @@ Ask only what vision.md left unanswered. Max 5 questions:
 
 ---
 
-## Step 3: Generate PRD
-Use the **Write tool** to create `.buildflow/specs/PRD.md`. Do not output the content as text — write it to disk. Create `.buildflow/specs/` directory first if it doesn't exist.
+## Step 3: Generate REQUIREMENTS.md
+Use the **Write tool** to create `.buildflow/specs/REQUIREMENTS.md`. Do not output the content as text — write it to disk. Create `.buildflow/specs/` directory first if it doesn't exist.
 
 ```markdown
 # Product Requirements Document
@@ -138,8 +138,8 @@ Use the **Write tool** to create `.buildflow/specs/PRD.md`. Do not output the co
 
 ---
 
-## Step 4: Generate TDD
-Use the **Write tool** to create `.buildflow/specs/TDD.md`. Do not output the content as text — write it to disk.
+## Step 4: Generate TECHINICALDESIGN.md
+Use the **Write tool** to create `.buildflow/specs/TECHINICALDESIGN.md`. Do not output the content as text — write it to disk.
 
 If `PATTERNS.md` exists: components and API shapes must follow existing conventions.
 
@@ -254,19 +254,19 @@ Search every AC for these banned words. Flag any found:
 For each flagged word: replace with a specific, measurable alternative or mark `[NEEDS SPECIFICITY]`.
 
 ### Coverage Check
-- Every feature in PRD has at least 2 ACs (1 happy + 1 error/edge) — flag if not
+- Every feature in REQUIREMENTS.md has at least 2 ACs (1 happy + 1 error/edge) — flag if not
 - Every user story US-XX is referenced in at least one AC's feature section — flag orphans
-- Every component in TDD maps to at least one PRD feature — flag orphans
-- Every NFR in TDD has a corresponding AC-NF — flag gaps
+- Every component in TECHINICALDESIGN.md maps to at least one REQUIREMENTS.md feature — flag orphans
+- Every NFR in TECHINICALDESIGN.md has a corresponding AC-NF — flag gaps
 
 ### Testability Check
 For each AC, verify it can be answered as a pass/fail automated test or explicit manual step.
 Flag any AC that requires human judgment to evaluate.
 
 ### Consistency Check
-- API contracts in TDD match any referenced endpoints in ACs
-- Data model changes in TDD are sufficient to support all AC outcomes
-- Technology decisions don't contradict any constraints in PRD
+- API contracts in TECHINICALDESIGN.md match any referenced endpoints in ACs
+- Data model changes in TECHINICALDESIGN.md are sufficient to support all AC outcomes
+- Technology decisions don't contradict any constraints in REQUIREMENTS.md
 
 ### Critic Report
 Show the user:
@@ -276,7 +276,7 @@ Spec Critic Report
 Vague language:   [N found — fixed N, flagged N]
 Coverage gaps:    [list any orphaned features/stories/components]
 Testability:      [list any ACs needing rework]
-Consistency:      [any TDD/PRD conflicts]
+Consistency:      [any TECHINICALDESIGN.md/REQUIREMENTS.md conflicts]
 Overall quality:  STRONG / NEEDS REVISION
 ```
 
@@ -445,7 +445,7 @@ For single-feature additions:
 
 Measure actual cost:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
-2. Estimate output from PRD.md + TDD.md + acceptance.md generated ÷ 4 = output tokens
+2. Estimate output from REQUIREMENTS.md + TECHINICALDESIGN.md + acceptance.md generated ÷ 4 = output tokens
 3. Update `state.md → session_tokens_used` by adding this command's cost
 
 Default output (minimal):
@@ -461,7 +461,7 @@ Token Cost — /buildflow-spec
 Spec locked — Phase [N] v[N]
 Features: [N]  User stories: [N]  ACs: [N]  Revision cycles: [N]
 Context loaded:    ~[N]K tokens   (vision.md + SHIPPED.md files + preferences.md)
-Output generated:  ~[N]K tokens   (PRD.md + TDD.md + acceptance.md)
+Output generated:  ~[N]K tokens   (REQUIREMENTS.md + TECHINICALDESIGN.md + acceptance.md)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```

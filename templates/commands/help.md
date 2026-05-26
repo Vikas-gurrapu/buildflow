@@ -155,7 +155,7 @@ git commit -m "feat: phase [N] wave [W] + phase [M] stacked changes (delayed com
 |---------|------|
 | `/buildflow-start` | Begin project or new session |
 | `/buildflow-think [topic]` | Research before speccing or planning |
-| `/buildflow-spec` | Define PRD + ACs before planning |
+| `/buildflow-spec` | Define Requirements + Technical Design + ACs before planning |
 | `/buildflow-plan` | Create wave plan from spec |
 | `/buildflow-build` | Execute plan — auto-tests, auto-fix |
 | `/buildflow-check` | Verify all ACs satisfied |

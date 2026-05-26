@@ -16,11 +16,11 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `/buildflow-plan phase-2` — plan a specific named phase
 - `/buildflow-plan --scaffold-first` — Wave 0 creates all file stubs before implementation begins
 - `/buildflow-plan --risk-first` — orders risky/uncertain tasks to the front of each wave (fail fast)
-- `/buildflow-plan --strict` — mark this phase as strict mode: every task must trace to a TDD component or API contract; `/buildflow-check --strict` and `/buildflow-ship` strict gate are mandatory before this phase ships
+- `/buildflow-plan --strict` — mark this phase as strict mode: every task must trace to a TECHINICALDESIGN.md component or API contract; `/buildflow-check --strict` and `/buildflow-ship` strict gate are mandatory before this phase ships
 
 ## Context Packet
-- `.buildflow/specs/PRD.md`
-- `.buildflow/specs/TDD.md`
+- `.buildflow/specs/REQUIREMENTS.md`
+- `.buildflow/specs/TECHINICALDESIGN.md`
 - `.buildflow/specs/acceptance.md`
 - `.buildflow/phases/[N]/STATE.md` (if exists - resume status, decisions, active risks, next command)
 - `.buildflow/codebase/MAP.md` (if exists)
@@ -88,7 +88,7 @@ If focused codebase maps exist:
 ---
 
 ## Step 2: Component & Task Derivation
-For each feature in PRD, derive the implementation tasks needed to satisfy its ACs:
+For each feature in REQUIREMENTS.md, derive the implementation tasks needed to satisfy its ACs:
 
 For each task ask:
 1. What code needs to exist that doesn't exist yet?
@@ -336,10 +336,10 @@ engineering_review_verdict: APPROVED
 
 When `--strict` is active:
 
-1. **Tag each task** with its TDD mapping:
-   - Every `NEW`/`MODIFY` task must reference the TDD Component Map row it implements (`[TDD: ComponentName]`)
-   - Every task implementing an API endpoint must reference its TDD API Contract row (`[TDD: POST /api/path]`)
-   - If a task cannot be mapped to a TDD entry: either add the entry to TDD.md (amendment, with spec version increment) or remove the task (out of scope)
+1. **Tag each task** with its technical design mapping:
+   - Every `NEW`/`MODIFY` task must reference the TECHINICALDESIGN.md Component Map row it implements (`[Design: ComponentName]`)
+   - Every task implementing an API endpoint must reference its TECHINICALDESIGN.md API Contract row (`[Design: POST /api/path]`)
+   - If a task cannot be mapped to a technical design entry: either add the entry to TECHINICALDESIGN.md (amendment, with spec version increment) or remove the task (out of scope)
 
 2. **Mark the plan header:**
    ```yaml
@@ -349,14 +349,14 @@ When `--strict` is active:
 
 3. **Critical module flag** — tasks touching critical module files get a `[CRITICAL]` tag in the wave table. The Builder must verify that every exported symbol in those files has an AC reference before marking the task complete.
 
-4. **If any task cannot be mapped to TDD** → flag before writing plan:
+4. **If any task cannot be mapped to TECHINICALDESIGN.md** → flag before writing plan:
    ```
-   ⚠ Strict mode: Task "[name]" has no TDD Component Map or API Contract entry.
+   ⚠ Strict mode: Task "[name]" has no TECHINICALDESIGN.md Component Map or API Contract entry.
    Options:
-     A) Add a TDD.md entry for this component (amend spec — increments spec_version)
+     A) Add a TECHINICALDESIGN.md entry for this component (amend spec — increments spec_version)
      B) Remove the task — it is out of spec scope
    ```
-   Do not write the plan until every task has a TDD mapping or is explicitly out-of-scope.
+   Do not write the plan until every task has a technical design mapping or is explicitly out-of-scope.
 
 ---
 
@@ -384,11 +384,11 @@ Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Create the dir
 ## Waves
 
 ### Wave 1 — [theme: DB/Schema]
-| Task | ACs | Est | Type | Files | Tests | TDD Ref |
+| Task | ACs | Est | Type | Files | Tests | Design Ref |
 |------|-----|-----|------|-------|-------|---------|
 | [name] | AC-001 | S | NEW | src/... | focused after change | [ComponentName / POST /path / —] |
 
-(TDD Ref column only present when `strict_mode: true`. "—" = non-critical utility task exempt from strict tracing.)
+(Design Ref column only present when `strict_mode: true`. "—" = non-critical utility task exempt from strict tracing.)
 
 ### Wave 2 — [theme: API/Services]
 ...

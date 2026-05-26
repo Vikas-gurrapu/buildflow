@@ -503,9 +503,9 @@ strict_mode: false
 #
 # true — structural spec-to-code mirroring (spec-kit style):
 #   • Every exported symbol in critical modules must have an AC reference
-#   • API response/request field names must match TDD contracts exactly
+#   • API response/request field names must match TECHINICALDESIGN.md contracts exactly
 #   • Every error/edge-case AC must have a corresponding code branch
-#   • Component map in TDD must match file structure
+#   • Component map in TECHINICALDESIGN.md must match file structure
 #   • Violations BLOCK ship — no override flag
 #   • Use for: auth, payments, crypto, compliance, infrastructure
 #   • Can also be set per-phase: /buildflow-plan --strict
@@ -720,8 +720,8 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start\` to begin.
 
 | File | Purpose |
 |------|---------|
-| \`PRD.md\` | Product Requirements — what, for whom, success criteria |
-| \`TDD.md\` | Technical Design — architecture, API contracts, decisions |
+| \`REQUIREMENTS.md\` | Product Requirements — what, for whom, success criteria |
+| \`TECHINICALDESIGN.md\` | Technical Design — architecture, API contracts, decisions |
 | \`acceptance.md\` | Acceptance Criteria — versioned, testable pass/fail conditions per feature |
 | \`approvals.md\` | Permanent approval audit trail — who approved each spec version and when |
 

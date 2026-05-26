@@ -25,7 +25,7 @@ Goes beyond research — includes engineering cognition modes for architecture r
 - `.buildflow/phases/[N]/STATE.md` (if current phase exists - resume status, decisions, next command)
 - `.buildflow/memory/light.md` (app_name, framework, key decisions only)
 - `.buildflow/codebase/MAP.md` (for --arch, --debt, --complexity modes)
-- `.buildflow/specs/TDD.md` (for --arch mode, if exists)
+- `.buildflow/specs/TECHINICALDESIGN.md` (for --arch mode, if exists)
 
 ---
 
@@ -84,8 +84,8 @@ Update `light.md` key decisions if a choice was made.
 Triggered when: designing a new system, evaluating a proposed approach, or onboarding to a codebase.
 
 ### Step 1: Load Architecture Context
-Read `MAP.md`, `TDD.md` (if exists), `PATTERNS.md`.
-If greenfield: work from vision + proposed TDD.
+Read `MAP.md`, `TECHINICALDESIGN.md` (if exists), `PATTERNS.md`.
+If greenfield: work from vision + proposed TECHINICALDESIGN.md.
 
 ### Step 2: Structural Analysis
 Evaluate:
@@ -153,7 +153,7 @@ Parallel Researchers investigate:
 | Team expertise needed | yes | some | low |
 
 ### Step 4: Recommendation
-Given project constraints (team size, timeline, compliance from PRD):
+Given project constraints (team size, timeline, compliance from REQUIREMENTS.md):
 - **Recommend:** [build / OSS / SaaS]
 - **Reason:** [top 2 factors that drove the decision]
 - **Risk:** [biggest downside of this choice]

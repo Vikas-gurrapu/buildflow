@@ -94,7 +94,7 @@ Strict verdict: PASS / FAIL
 🔴 SHIP BLOCKED — Strict Mode Violations
 
 Code structure diverges from spec structure:
-  [S1] POST /api/login — response field "accessToken" ≠ TDD contract "token"
+  [S1] POST /api/login — response field "accessToken" != TECHINICALDESIGN.md contract "token"
   [S3] src/auth/service.ts — logout() has no linked AC
   [S4] AC-004 — refreshToken() has no expiry check branch
 

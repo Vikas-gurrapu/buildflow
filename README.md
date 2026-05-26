@@ -28,7 +28,7 @@
 - [The .buildflow/ Scaffold](#the-buildflow-scaffold)
 - [Template System](#template-system)
 - [9 Specialized Agents](#9-specialized-agents)
-- [v5.0: What Changed](#v50-what-changed)
+- [v6.0: What Changed](#v60-what-changed)
 - [Token Economics](#token-economics)
 - [Contributing](#contributing)
 - [Publishing](#publishing)
@@ -46,8 +46,8 @@ Once installed, you work entirely inside your AI tool using `/buildflow-*` comma
 
 **Four core ideas that separate BuildFlow from other tools:**
 
-- **Spec-first:** Every phase starts with a formal PRD + Technical Design + Acceptance Criteria. Plans trace to ACs. Ship is blocked if any AC is unsatisfied.
-- **Context isolation:** Each agent receives a minimal context packet — only what it needs. No context rot, no wasted tokens.
+- **Spec-first:** Every phase starts with formal Requirements + Technical Design + Acceptance Criteria. Plans trace to ACs. Ship is blocked if any AC is unsatisfied.
+- **Context isolation + resume:** Each agent receives a minimal context packet, and each phase keeps a compact `STATE.md` so fresh sessions can continue cleanly.
 - **Auto-prune:** `light.md` is automatically compressed at session start and after each ship. Long sessions stay lean.
 - **Measured token costs:** Every command reports actual token usage (context loaded + output generated) and accumulates a session total — not estimates.
 
@@ -101,9 +101,9 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 |---------|-------|---------|-----------|
 | `/buildflow-start` | Strategist | Capture vision, detect drift vs last session, load phase history | ~8K |
 | `/buildflow-think [topic]` | Researcher × 3 + Synthesizer | Parallel research. Modes: `--arch`, `--build-vs-buy`, `--debt`, `--complexity` | ~30K |
-| `/buildflow-spec` | Strategist | Generate PRD + TDD + ACs with versioning, approval audit trail, and amendment gate | ~20K |
-| `/buildflow-plan` | Architect | AC-traced waves, thin-slice ordering, exclusive file ownership, [TF] failing-test-first, multi-cycle engineering review | ~22K |
-| `/buildflow-build [wave]` | Builder × N + Reviewer | Wave execution with git worktree isolation, deviation handling, schema drift check, cross-phase regression | ~50K/wave |
+| `/buildflow-spec` | Strategist | Generate Requirements + Technical Design + ACs with versioning, approval audit trail, and amendment gate | ~20K |
+| `/buildflow-plan` | Architect | AC-traced waves, thin-slice ordering, exclusive file ownership, post-change focused test plan, multi-cycle engineering review | ~22K |
+| `/buildflow-build [wave]` | Builder x N + Reviewer | Wave execution with git worktree isolation, deviation handling, schema drift check, touched-file testing, STATE.md resume updates | ~50K/wave |
 | `/buildflow-test [wave]` | Reviewer | Standalone test + fix loop — re-verify a wave or test a manual change | ~25K |
 | `/buildflow-check` | Reviewer × 4 | Spec compliance + correctness + quality + security + schema drift + spec coverage traceability | ~26K |
 | `/buildflow-ship` | Strategist + Security Auditor | 4 gates: spec version, security, tests + regression, build telemetry. Context pruning + SHIPPED.md + post-ship advisor | ~40K |
@@ -223,8 +223,8 @@ Generates three locked files with frontmatter versioning:
 
 ```
 .buildflow/specs/
-├── PRD.md          ← What, for whom, success criteria, out of scope
-├── TDD.md          ← Architecture, API contracts, component breakdown
+├── REQUIREMENTS.md ← What, for whom, success criteria, out of scope
+├── TECHINICALDESIGN.md ← Architecture, API contracts, component breakdown
 └── acceptance.md   ← Testable AC-001, AC-002... with spec_version: 1
 ```
 
@@ -241,7 +241,7 @@ The Architect produces `phases/N/PLAN.md` with:
 - Every task traced to an AC
 - **Thin-slice ordering** enforced: DB/schema → API/services → UI → integration
 - **Exclusive file ownership** — each file owned by exactly one wave, conflicts detected and resolved
-- **[TF] failing-test-first** tags on new/modified tasks — Builder must confirm test fails before implementing
+- **Post-change focused tests** - tests are written or updated after code changes, scoped to touched files and direct dependency neighborhoods
 - **Multi-cycle engineering review** — plan loops until all 7 dimensions are APPROVED
 - `spec_version` recorded in PLAN.md header for ship-time version check
 
@@ -256,8 +256,9 @@ For each wave:
 - **Deviation handling**: HARD (must resolve) / SOFT (proceed with note) / SCOPE (escalate to user)
 - **Schema drift check** at wave commit — unapplied migrations flagged immediately
 - **Build telemetry** after each wave: type-check → lint → test coverage (F/P/S prompt, never hard-block) → bundle size
-- **Cross-phase regression** at wave 4: full suite run, baseline from `last_ship_test_count`
+- **Focused tests first**: run tests for touched files and dependency neighborhoods, then ask the user before impacted-area or app smoke checks
 - **Parked-changes conflict check** before build start: warns if new phase touches files from a previous failed git commit
+- **STATE.md update** after every wave so `/clear` + new session can continue from the correct wave
 
 ### 7. Check
 
@@ -596,6 +597,9 @@ npx buildflow-dev init
         ├─ Git permission prompt   approve / deny / deny_permanent
         │                          → stored in preferences.md + light.md
         │
+        ├─ Folder access guard     path_permissions in preferences.md
+        │                          commands ask once per folder, then remember
+        │
         ├─ scaffoldBuildflow()     Creates .buildflow/ folder tree with pre-filled files:
         │                          core/, specs/, you/, memory/, codebase/, phases/,
         │                          snapshots/, security/, learnings/
@@ -606,6 +610,7 @@ npx buildflow-dev init
         │
         └─ runInstall()            Detects AI tools → writes command files per tool
                                    Loads all 21 command templates from templates/commands/
+                                   Installs shared update, folder access, and STATE.md rules
 ```
 
 ### Session start (CLAUDE.md checklist)
@@ -615,9 +620,35 @@ Every AI session runs this automatically:
 1. Check for BuildFlow updates
 2. Prune `light.md` if over 3K tokens
 3. Load `state.md` for current phase
-4. Detect git availability, set `git_available` in `light.md`
-5. Run codebase drift check against `intel.json` baseline
-6. Reset `session_tokens_used: 0` in `state.md`
+4. Load `.buildflow/phases/N/STATE.md` if a phase is active
+5. Detect git availability, set `git_available` in `light.md`
+6. Run codebase drift check against `intel.json` baseline
+7. Reset `session_tokens_used: 0` in `state.md`
+
+### Phase resume contract
+
+Every major phase command (`think`, `spec`, `plan`, `build`, `check`, `ship`) reads and updates:
+
+```
+.buildflow/phases/N/STATE.md
+```
+
+That file is intentionally small and contains:
+- current phase and wave
+- status
+- decisions
+- files that matter
+- next command
+- risks/open questions
+- test strategy
+
+After a major command, BuildFlow updates `STATE.md`, checks current context usage, and may recommend:
+
+```
+/clear
+```
+
+Then the user can start a fresh AI session and run the suggested next BuildFlow command. The new session resumes from `STATE.md` instead of relying on old chat history.
 
 ---
 
@@ -639,9 +670,13 @@ buildflow-dev/
 │   │   │                         Git permission prompt. Scaffolds .buildflow/.
 │   │   │                         Writes preferences.md, light.md, state.md, vision.md,
 │   │   │                         approvals.md, feature-suggestions.md scaffolds.
+│   │   │                         Seeds path_permissions for Folder Access Guard.
 │   │   │
 │   │   ├── install.js            TOOLS object: one entry per supported AI tool.
 │   │   │                         Each tool has: detect(), installGlobal(), installLocal().
+│   │   │                         Adds update checks, Folder Access Guard, and STATE.md
+│   │   │                         resume rules to Claude, Gemini, Codex, Cursor, Cline,
+│   │   │                         and Continue command surfaces.
 │   │   │                         loadCommandTemplates() reads all 21 .md files from
 │   │   │                         templates/commands/ and returns them as a map.
 │   │   │                         commandNames array drives which templates are installed.
@@ -666,14 +701,15 @@ buildflow-dev/
 ├── templates/
 │   ├── CLAUDE.md                 Written to project root for Claude Code.
 │   │                             Contains: session start checklist (6 steps including
-│   │                             token counter reset), v5.0 workflow, full quick reference,
-│   │                             token cost tracking explanation, core rules, agents table.
+│   │                             token counter reset), v6.0 workflow, STATE.md resume
+│   │                             contract, context clear recommendation, token cost
+│   │                             tracking explanation, core rules, agents table.
 │   │
 │   └── commands/                 21 markdown files — one per slash command.
 │       ├── start.md              Vision, drift detection, phase history load
 │       ├── think.md              Parallel research + 5 analysis modes
-│       ├── spec.md               PRD + TDD + ACs, versioning, approval audit trail, amendment gate
-│       ├── plan.md               AC-traced waves, thin-slice ordering, file ownership, [TF] tags, engineering review
+│       ├── spec.md               REQUIREMENTS + TECHINICALDESIGN + ACs, versioning, approval audit trail, amendment gate
+│       ├── plan.md               AC-traced waves, thin-slice ordering, file ownership, focused post-change test plan, engineering review
 │       ├── build.md              Wave execution, worktree isolation, deviation handling, schema drift, build telemetry
 │       ├── test.md               Standalone test + fix loop
 │       ├── check.md              4-reviewer parallel check, schema drift, spec coverage with smart prompt
@@ -711,11 +747,12 @@ buildflow-dev/
 │
 ├── you/
 │   └── preferences.md      Experience level, learning aids, safety settings, git permission,
-│                           spec coverage threshold, token tracking config, Docker config.
+│                           path_permissions, spec coverage threshold, token tracking config,
+│                           Docker config.
 │
 ├── specs/                  Generated by /buildflow-spec
-│   ├── PRD.md              Product Requirements with versioned frontmatter
-│   ├── TDD.md              Technical Design Document
+│   ├── REQUIREMENTS.md     Product Requirements with versioned frontmatter
+│   ├── TECHINICALDESIGN.md Technical Design Document
 │   ├── acceptance.md       Acceptance Criteria (AC-001…) with spec_version, changelog
 │   └── approvals.md        Permanent approval audit trail — never pruned
 │
@@ -726,7 +763,9 @@ buildflow-dev/
 │
 ├── phases/
 │   └── N/
-│       ├── PLAN.md         Wave plan with spec_version, file ownership map, [TF] column
+│       ├── PLAN.md         Wave plan with spec_version, file ownership map, focused test strategy
+│       ├── STATE.md        Compact resume contract: current wave/status, decisions,
+│       │                   files that matter, next command, risks, test strategy
 │       ├── SHIPPED.md      ≤500-token cross-phase summary loaded by future /buildflow-start
 │       ├── retro.md        Retrospective + archived light.md data
 │       └── COVERAGE-MAP.md Spec coverage traceability + exception decisions
@@ -819,7 +858,23 @@ Each agent gets a fresh context window with a minimal context packet — no cont
 
 ---
 
-## v5.0: What Changed
+## v6.0: What Changed
+
+### Phase STATE.md Resume Contract
+
+Each active phase now has `.buildflow/phases/N/STATE.md`. Major phase commands load it at the start, update it before exit, and use it to continue after a fresh AI session without relying on chat history.
+
+### Context Clear Guidance
+
+After `think`, spec lock, plan ready, completed build, check, and ship, BuildFlow checks session context usage and may recommend `/clear` before the next command. The recommendation appears only after `STATE.md` is updated.
+
+### Cross-Tool Folder Access Guard
+
+Folder approvals are stored in `preferences.md` under `path_permissions`. Claude, Gemini, Codex, Cursor, Cline, and Continue command installs all inherit the same guard: approved folders proceed silently, denied folders are skipped, unknown folders prompt once per session.
+
+### Post-Change Focused Testing
+
+BuildFlow no longer asks Builders to write or run tests before implementation. Code changes happen first, then focused tests are added/updated and run for touched files plus direct dependency neighborhoods. Broader impacted-area or application smoke checks require user approval.
 
 ### Multi-Language Support
 
@@ -841,7 +896,7 @@ Configurable threshold in `preferences.md`. Context-aware prompt at check and sh
 
 Token costs are now measured from actual loaded file sizes and generated output length — not fixed estimates. Session running total in `state.md` reset at every session start.
 
-### Earlier (v4.x) Highlights
+### Earlier Highlights
 
 | Feature | Description |
 |---------|-------------|
@@ -850,7 +905,7 @@ Token costs are now measured from actual loaded file sizes and generated output 
 | **Build telemetry** | Type-check + lint + coverage + bundle size gates at every wave |
 | **File ownership map** | Each file owned by exactly one wave, conflict detection |
 | **Thin-slice ordering** | DB → API → UI enforced in every plan |
-| **[TF] failing-test-first** | Builder must confirm test fails before implementing |
+| **Post-change focused tests** | BuildFlow writes/updates focused tests after code changes, then runs touched-file and dependency-neighborhood tests before asking about broader checks. |
 | **Multi-cycle plan review** | 7-dimension engineering review, loops until APPROVED |
 | **Deviation handling** | HARD/SOFT/SCOPE tiers with structured records |
 | **Schema drift detection** | Unapplied migrations flagged at wave commit and check |
@@ -871,7 +926,7 @@ Token costs are now measured from actual loaded file sizes and generated output 
 |----------|--------|-------|
 | Greenfield full workflow | 130–160K | All phases, one session |
 | Onboarding existing project | +35–40K | One-time cost, pays back every session |
-| `/buildflow-spec` | ~20K | Per phase — PRD + TDD + ACs |
+| `/buildflow-spec` | ~20K | Per phase — REQUIREMENTS + TECHINICALDESIGN + ACs |
 | `/buildflow-plan` | ~22K | Per phase |
 | `/buildflow-build` per wave | ~50K | Context packets keep Builders lean |
 | `/buildflow-check` | ~26K | 4 reviewers + drift + coverage |
@@ -907,18 +962,23 @@ node bin/buildflow.js --help
 - **Node 18+ compatibility** — use `dirname(fileURLToPath(import.meta.url))`, not `import.meta.dirname`.
 - **No TypeScript, no bundler** — source files run directly. Zero build step.
 - **Lazy command imports** — `bin/buildflow.js` uses `() => import(...)` for fast startup.
+- **Keep phase commands resumable** - major phase templates must read/update `.buildflow/phases/[N]/STATE.md`.
+- **Respect user permissions** - template changes that read/write project folders must mention Folder Access Guard behavior.
+- **Post-change testing only** - do not add failing-test-first or test-before-code flows. Add/update tests after implementation and keep first runs focused on touched files and dependencies.
 
 ### Adding a new AI tool
 
 1. Add an entry to the `TOOLS` object in [`src/commands/install.js`](src/commands/install.js)
 2. Implement `detect()`, `installGlobal()`, `installLocal()`, and `triggerNote`
-3. Add it to the Supported AI Tools table in this README
+3. Ensure install output includes update checks, Folder Access Guard instructions, and phase `STATE.md` resume rules
+4. Add it to the Supported AI Tools table in this README
 
 ### Adding a new slash command
 
 1. Create `templates/commands/<name>.md` with frontmatter + numbered steps
 2. Add the name to `commandNames` in `loadCommandTemplates()` in `install.js`
-3. Document it in the AI Slash Commands table in this README
+3. If it is a major phase command, add a Phase State Resume step that reads and updates `.buildflow/phases/[N]/STATE.md`
+4. Document it in the AI Slash Commands table in this README
 
 ### Adding a new auto-fix to `buildflow fix`
 
@@ -941,12 +1001,16 @@ node bin/buildflow.js --help
 ## Publishing
 
 ```bash
-# Bump version in package.json, then:
+# Verify package contents before publishing:
+npm test
+npm publish --dry-run
+
+# Bump version if needed:
+npm version major --no-git-tag-version   # or minor/patch
+
+# Then publish:
 npm login
 npm publish
-
-# Dry-run to see what gets published:
-npm publish --dry-run
 ```
 
 Only these paths are included (`files` in `package.json`):
@@ -954,6 +1018,12 @@ Only these paths are included (`files` in `package.json`):
 - `src/` — command and utility modules
 - `templates/` — slash command markdown files and CLAUDE.md template
 - `README.md` + `LICENSE`
+
+Publishing notes:
+- Update both `package.json` and `package-lock.json` when changing the version.
+- Commit source changes before publishing so the npm package and repository match.
+- After publish, run `npx buildflow-dev@latest update --check` from a sample project.
+- If publishing fails with npm 404 for a new package name, confirm npm ownership/name availability and use `npm publish --access public` for a first public scoped package.
 
 ---
 

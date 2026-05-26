@@ -27,7 +27,8 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 - `.buildflow/codebase/CONCERNS.md` (if exists — known fragile areas)
 - `.buildflow/codebase/INTEGRATIONS.md` (if exists — env/webhook/external service contracts)
 
-Do NOT load: PRD, TDD, old phases, research files, retros.
+Do NOT load: REQUIREMENTS.md, old phases, research files, retros.
+Load TECHINICALDESIGN.md only when running `--strict`.
 
 Also load `.buildflow/phases/[N]/STATE.md` if it exists. Use it to resume status, risks, and test strategy.
 
@@ -300,16 +301,16 @@ If not set, use the default list above. Any file whose path matches one of these
 
 ---
 
-### S1: TDD API Contract Verification
+### S1: Technical Design API Contract Verification
 
-Read the API Contracts table from `TDD.md`. For each contract row:
+Read the API Contracts table from `TECHINICALDESIGN.md`. For each contract row:
 
 1. Locate the handler/function in the codebase:
    ```bash
    grep -rn "router\.\(post\|get\|put\|patch\|delete\)\|app\.\(post\|get\|put\|patch\|delete\)\|@\(Post\|Get\|Put\|Patch\|Delete\)\|def [a-z_]*:" src/ --include="*.ts" --include="*.js" --include="*.py" --include="*.go" --include="*.rb" | grep -i "[path-fragment]"
    ```
 2. Verify **request shape field names** match exactly — not just "a body exists":
-   - Extract field names from TDD contract row
+   - Extract field names from TECHINICALDESIGN.md contract row
    - Grep handler for each field name
    - Flag any field that is absent or renamed
 3. Verify **response shape field names** match exactly:
@@ -323,7 +324,7 @@ Report per contract:
 ```
 S1: API Contract Verification
 ──────────────────────────────
-POST /api/login  [TDD row 1]
+POST /api/login  [TECHINICALDESIGN.md row 1]
   Request fields: { email, password }
     ✓ email    — found at src/auth/handler.ts:14
     ✓ password — found at src/auth/handler.ts:14
@@ -346,7 +347,7 @@ POST /api/login  [TDD row 1]
 
 ### S2: Component Map Verification
 
-Read the Component Map table from `TDD.md`. For each row:
+Read the Component Map table from `TECHINICALDESIGN.md`. For each row:
 
 1. **Existence check** — verify the file/module the component maps to exists:
    ```bash
@@ -356,9 +357,9 @@ Read the Component Map table from `TDD.md`. For each row:
    ```bash
    grep -n "^import\|^from\|^require" [component_file] | head -20
    ```
-3. **PRD linkage** — every component must be linked to at least one feature (F-XX). If `Interface Type` column is populated, verify the interface type matches actual implementation (REST route vs gRPC stub vs event handler vs plain function).
+3. **Requirements linkage** — every component must be linked to at least one feature (F-XX). If `Interface Type` column is populated, verify the interface type matches actual implementation (REST route vs gRPC stub vs event handler vs plain function).
 
-Reverse check — for each file **created or modified this phase**, verify it appears in the TDD Component Map:
+Reverse check — for each file **created or modified this phase**, verify it appears in the TECHINICALDESIGN.md Component Map:
 ```bash
 # git.permission approved:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/
@@ -373,11 +374,11 @@ AuthService      → src/auth/service.ts     ✓ exists  ✓ isolated  ✓ linke
 UserRepository   → src/users/repo.ts       ✓ exists  ✓ isolated  ✓ linked F-01
 LoginRoute       → src/routes/auth.ts      ✓ exists  ⚠ imports AuthService + DB directly (verify: intentional?)
 
-Ghost components  (in code this phase, not in TDD Component Map):
+Ghost components  (in code this phase, not in TECHINICALDESIGN.md Component Map):
   src/utils/tokenHelper.ts  — ✗ not mapped
-    → Add to TDD.md Component Map or mark ACCEPTABLE-UTILITY
+    → Add to TECHINICALDESIGN.md Component Map or mark ACCEPTABLE-UTILITY
 
-Orphaned components  (in TDD, not found in code):
+Orphaned components  (in TECHINICALDESIGN.md, not found in code):
   NONE
 ```
 
@@ -549,4 +550,4 @@ If schema drift detected: `→ Next: resolve schema drift (run pending migration
 If spec coverage below threshold and no exception recorded: the smart prompt in Step 4c already captured user decision — next step is whatever was chosen.
 If strict mode FAIL: `→ Next: fix strict violations listed in STRICT-REPORT.md, then re-run /buildflow-check --strict`.
 
-## Token Budget: ~26K standard / ~38K with --strict (adds TDD.md + symbol grep + branch analysis)
+## Token Budget: ~26K standard / ~38K with --strict (adds TECHINICALDESIGN.md + symbol grep + branch analysis)
