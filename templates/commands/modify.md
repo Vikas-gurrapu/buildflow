@@ -38,7 +38,7 @@ If not onboarded: "Run `/buildflow-onboard` first — impact analysis requires t
 ## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
 
 Before reading or writing any source file, apply the installed **Folder Access Guard**:
-- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 - Identify all folders in the impact chain upfront and batch into one prompt if multiple are new
 
@@ -288,11 +288,11 @@ Only proceed on explicit confirmation.
 
 ## Step 6: Restore Point
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 - If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
-- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
+- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
 **If `git.permission: approved`:**
 ```bash
@@ -303,7 +303,7 @@ git tag "pre-modify-$(date +%Y%m%d-%H%M)"
 
 **If `git.permission` is not `approved` (no-git mode):**
 Copy all files in the impact chain (from Step 2) into `.buildflow/snapshots/pre-modify-[timestamp]/` before writing any changes.
-Log in `state.md`: `last_restore_point: .buildflow/snapshots/pre-modify-[timestamp]/`
+Log in `STATE.md`: `last_restore_point: .buildflow/snapshots/pre-modify-[timestamp]/`
 To roll back: copy snapshot files back to their original paths.
 
 ---
@@ -339,7 +339,7 @@ cat requirements.txt pyproject.toml 2>/dev/null | grep pytest
 |-----------------|--------|
 | Found + test files exist | Follow existing conventions exactly |
 | Found + no test files yet | Use framework, create first test file |
-| Not found | Warn user: "No test framework detected. Tests skipped. Add [recommended framework] and re-run." Log gap to `security/DEBT.md`. |
+| Not found | Warn user: "No test framework detected. Tests skipped. Add [recommended framework] and re-run." Log gap to `phases/[N]/DEBT.md`. |
 
 For each source file touched in Step 7:
 
@@ -476,7 +476,7 @@ Use this before a risky change to understand blast radius first.
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 Default output (minimal):
 ```
@@ -484,7 +484,7 @@ Modify complete — [description] · [N] files changed · impact: [direct/level1
 Session: ~[N]K tokens
 ```
 
-Verbose output (only if `verbose_context: true` in preferences.md):
+Verbose output (only if `verbose_context: true` in PREFERENCES.md):
 ```
 Token Cost — /buildflow-modify
 ────────────────────────────────

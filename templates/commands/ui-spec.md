@@ -7,7 +7,7 @@ agent: strategist
 
 # /buildflow-ui-spec
 
-Generates `.buildflow/specs/UI-SPEC.md` — a locked design contract that Builder agents follow when writing UI code. Run before any frontend phase to prevent design inconsistency across waves.
+Generates `.buildflow/phases/[N]/UI-SPEC.md` — a locked design contract that Builder agents follow when writing UI code. Run before any frontend phase to prevent design inconsistency across waves.
 
 ## Usage
 - `/buildflow-ui-spec` — interactive: prompts for design system, palette, and component inventory
@@ -16,9 +16,9 @@ Generates `.buildflow/specs/UI-SPEC.md` — a locked design contract that Builde
 - `/buildflow-ui-spec --amend` — update UI-SPEC.md after a deliberate design change
 
 ## Context Packet
-- `.buildflow/core/vision.md`
-- `.buildflow/memory/light.md`
-- `.buildflow/specs/REQUIREMENTS.md` (if exists)
+- `.buildflow/VISION.md`
+- `.buildflow/MEMORY.md`
+- `.buildflow/phases/[N]/REQUIREMENTS.md` (if exists)
 - `.buildflow/codebase/STACK.md` (if exists — detect CSS framework)
 - `package.json` (detect: Tailwind, MUI, Chakra, Radix, shadcn, etc.)
 
@@ -26,7 +26,7 @@ Generates `.buildflow/specs/UI-SPEC.md` — a locked design contract that Builde
 
 ## Phase State Resume
 
-Read `.buildflow/core/state.md`. If `UI-SPEC.md` already exists and is locked:
+Read `.buildflow/STATE.md`. If `UI-SPEC.md` already exists and is locked:
 - Show the current spec version and ask: "Amend or replace?"
 - If amending: go to `--amend` mode.
 - If replacing: confirm before overwriting.
@@ -148,7 +148,7 @@ Navbar                organism                          desktop, mobile
 
 For each component, define:
 - **States**: default, hover, focus, disabled, loading, error
-- **AC traceability**: which acceptance criteria drive this component (from acceptance.md)
+- **AC traceability**: which acceptance criteria drive this component (from ACCEPTANCE.md)
 
 ---
 
@@ -173,7 +173,7 @@ Focus trapping:   [required in modals]
 
 ## Step 8: Write UI-SPEC.md
 
-Use the **Write tool** to create `.buildflow/specs/UI-SPEC.md`:
+Use the **Write tool** to create `.buildflow/phases/[N]/UI-SPEC.md`:
 
 ```markdown
 ---
@@ -210,7 +210,7 @@ framework: [CSS framework]
 
 Update `STATE.md`:
 - Status: `ui_spec_locked`
-- Files That Matter: `.buildflow/specs/UI-SPEC.md`
+- Files That Matter: `.buildflow/phases/[N]/UI-SPEC.md`
 - Next Command: `/buildflow-plan` (or `/buildflow-build` if plan exists)
 
 ---

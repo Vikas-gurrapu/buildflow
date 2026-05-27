@@ -16,10 +16,10 @@ Full project dashboard. Shows where you are across phases, AC progress, wave com
 ---
 
 ## Step 1: Load State
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/security/DEBT.md`.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/phases/[N]/DEBT.md`.
 If a current phase exists, also read `.buildflow/phases/[N]/PLAN.md`.
 If `.buildflow/phases/[N]/VERIFICATION.md` exists, read it as the AC verification ledger.
-If `.buildflow/phases/[N]/STATE.md` exists, read it first for the compact resume state and show any mismatch with `PLAN.md`/`light.md` as a warning.
+If `.buildflow/phases/[N]/STATE.md` exists, read it first for the compact resume state and show any mismatch with `PLAN.md`/`MEMORY.md` as a warning.
 
 ---
 
@@ -45,7 +45,7 @@ Spec Status
 ```
 
 ### AC progress bar (if spec is locked)
-Read `acceptance.md`. Prefer `.buildflow/phases/[N]/VERIFICATION.md` for each AC's latest status and evidence. If it is missing, fall back to the last `/buildflow-check` output if cached; otherwise show as `?`.
+Read `ACCEPTANCE.md`. Prefer `.buildflow/phases/[N]/VERIFICATION.md` for each AC's latest status and evidence. If it is missing, fall back to the last `/buildflow-check` output if cached; otherwise show as `?`.
 ```
 AC Progress  [Phase N — spec v[N]]
 ───────────────────────────────────
@@ -85,7 +85,7 @@ Bundle:     [N] KB  [↑ / ↓ [X]%]
 ---
 
 ## Step 4: Debt Summary
-Read `.buildflow/security/DEBT.md`. Count by category:
+Read `.buildflow/phases/[N]/DEBT.md`. Count by category:
 ```
 Security Debt
 ─────────────
@@ -104,7 +104,7 @@ Open items: [N]
 ---
 
 ## Step 5: Feature Suggestions (if available)
-If `.buildflow/learnings/feature-suggestions.md` exists and was updated in the last 7 days, show the top 3 suggestions:
+If `.buildflow/phases/[N]/SUGGESTIONS.md` exists and was updated in the last 7 days, show the top 3 suggestions:
 ```
 Next Feature Ideas  (from last ship analysis)
 ─────────────────────────────────────────────
@@ -118,7 +118,7 @@ Run /buildflow-help next for full analysis.
 ---
 
 ## Step 5b: Token Spend
-Read `state.md` for `session_tokens_used` and `session_start`. Read `light.md` for per-command costs.
+Read `STATE.md` for `session_tokens_used` and `session_start`. Read `MEMORY.md` for per-command costs.
 
 ```
 Token Spend  Phase [N]

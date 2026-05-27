@@ -22,17 +22,17 @@ Execute the current phase plan. Each Builder receives a precise context packet �
 - `.buildflow/codebase/STRUCTURE.md` (if exists — only relevant sections for touched paths)
 - `.buildflow/codebase/TESTING.md` (if exists — targeted test command and test layout)
 - `.buildflow/codebase/CONCERNS.md` (if exists — only concerns relevant to touched paths)
-- `.buildflow/memory/light.md` (app_name, framework, style_fingerprint only)
-- `.buildflow/you/preferences.md` (git.permission only)
+- `.buildflow/MEMORY.md` (app_name, framework, style_fingerprint only)
+- `.buildflow/PREFERENCES.md` (git.permission only)
 
 Do NOT load: full specs, full codebase, research, retros, old phases.
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
 
-Use `STATE.md` to resume the active wave and avoid asking the user where to continue. If `STATE.md`, `state.md`, and `PLAN.md` disagree, trust `PLAN.md` wave completion markers first, then `state.md`, then update `STATE.md` to match before building.
+Use `STATE.md` to resume the active wave and avoid asking the user where to continue. If `STATE.md`, `STATE.md`, and `PLAN.md` disagree, trust `PLAN.md` wave completion markers first, then `STATE.md`, then update `STATE.md` to match before building.
 
 Before exiting after each wave or full build, update `.buildflow/phases/[N]/STATE.md` with:
 - Current State: `Status: build_in_progress` with `Wave: [current]/[total]`, or `Status: built` when all waves complete
@@ -46,11 +46,11 @@ Before exiting after each wave or full build, update `.buildflow/phases/[N]/STAT
 
 ## Git Permission Guard (mandatory)
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 - If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Treat this session as no-git mode, even if `.git/` exists or `light.md` says `git_available: true`.
-- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Treat this session as no-git mode, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
+- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
 This guard applies to commits, tags, stash, worktrees, branches, merges, and resets.
 
@@ -59,7 +59,7 @@ This guard applies to commits, tags, stash, worktrees, branches, merges, and res
 ## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
 
 Before reading or writing any source file, apply the installed **Folder Access Guard**:
-- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 - Batch all new folders needed for this wave into a single prompt rather than asking per-file
 
@@ -71,7 +71,7 @@ Report: "Phase [N] — [N] waves, [N] tasks, [N] ACs. Est: [total]. Starting Wav
 
 **Parked-changes conflict check — runs before every build start:**
 
-Read `parked_changes` array from `light.md`. If it is non-empty, cross-reference against the new phase's PLAN.md file lists:
+Read `parked_changes` array from `MEMORY.md`. If it is non-empty, cross-reference against the new phase's PLAN.md file lists:
 
 For every file in the new plan's tasks, check if that file appears in `parked_changes`:
 
@@ -122,13 +122,13 @@ If `parked_changes` is empty: skip this check silently.
 
 **Spec amendment gate — runs before every build start:**
 1. Read `spec_version` from `PLAN.md` header (the version this plan was built against)
-2. Read `spec_version` from `.buildflow/specs/acceptance.md` frontmatter (current version)
+2. Read `spec_version` from `.buildflow/phases/[N]/ACCEPTANCE.md` frontmatter (current version)
 3. If they differ:
    ```
    🔴 BUILD BLOCKED — Spec Amended Since Plan Was Created
 
    Plan was built against spec v[plan version].
-   Current spec is v[acceptance.md version].
+   Current spec is v[ACCEPTANCE.md version].
 
    The spec changed after this plan was locked. Some plan tasks may reference
    outdated ACs. Building against a stale plan risks implementing the wrong thing.
@@ -137,7 +137,7 @@ If `parked_changes` is empty: skip this check silently.
      A) Run /buildflow-plan to regenerate the plan against the new spec (recommended)
      B) Run /buildflow-spec --review to see what changed between versions
      C) Continue anyway: /buildflow-build --accept-stale-spec
-        (logs to security/DEBT.md: "Built against stale spec v[N] — current is v[M]")
+        (logs to phases/[N]/DEBT.md: "Built against stale spec v[N] — current is v[M]")
    ```
 4. If versions match: proceed silently.
 
@@ -147,12 +147,12 @@ Check external dependency checklist if present. If unchecked items: "Verify thes
 
 ## Step 1c: Scope-Reduction Detection
 
-Before building, verify the plan covers every AC in `acceptance.md`. This catches silent requirement drops introduced during planning.
+Before building, verify the plan covers every AC in `ACCEPTANCE.md`. This catches silent requirement drops introduced during planning.
 
-**Extract AC IDs from acceptance.md:**
+**Extract AC IDs from ACCEPTANCE.md:**
 ```bash
-grep -oE "AC-NF-[0-9]+" .buildflow/specs/acceptance.md | sort -u
-grep -oE "AC-[0-9]+" .buildflow/specs/acceptance.md | grep -v "AC-NF" | sort -u
+grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/ACCEPTANCE.md | sort -u
+grep -oE "AC-[0-9]+" .buildflow/phases/[N]/ACCEPTANCE.md | grep -v "AC-NF" | sort -u
 ```
 
 **Extract AC IDs referenced in PLAN.md tasks:**
@@ -161,12 +161,12 @@ grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/PLAN.md | sort -u
 grep -oE "AC-[0-9]+" .buildflow/phases/[N]/PLAN.md | grep -v "AC-NF" | sort -u
 ```
 
-**Find ACs in acceptance.md with no reference in any PLAN.md task** — these are "dropped" requirements.
+**Find ACs in ACCEPTANCE.md with no reference in any PLAN.md task** — these are "dropped" requirements.
 
 ```
 Scope-Reduction Check
 ──────────────────────
-ACs in acceptance.md:  [N]
+ACs in ACCEPTANCE.md:  [N]
 ACs referenced in plan: [M]
 Dropped (no plan task): [list or NONE]
 ```
@@ -183,7 +183,7 @@ Dropped (no plan task): [list or NONE]
 ```
 ⚠ Scope-Reduction Warning
 ───────────────────────────
-[N] ACs in acceptance.md have no plan task:
+[N] ACs in ACCEPTANCE.md have no plan task:
   AC-004 — "Password reset via email"
   AC-007 — "Rate limiting on auth endpoints"
 
@@ -295,7 +295,7 @@ find . -path "*/src/test/*" -name "*Spec.scala" -o -name "*Test.scala" | head -5
 | Framework found + config exists + test files exist | Use it. Infer conventions from existing test files. |
 | Framework in package.json/pom/build.gradle but no test files yet | Use it. Write tests following framework docs conventions. |
 | No framework found, greenfield project | Ask: "No test framework detected. Recommend [Jest/Vitest for TS, pytest for Python, JUnit 5 for Java/Kotlin, xUnit for C#, RSpec for Ruby, PHPUnit for PHP, flutter_test for Flutter, XCTest for Swift, ScalaTest for Scala, built-in for Go/Rust]. Set it up now?" |
-| No framework, existing project with no tests | Warn: "⚠ No test framework found. Tests cannot be written until one is installed. Proceeding without tests — recommend adding [framework] before shipping." Log to `security/DEBT.md`: "No test framework — zero coverage." |
+| No framework, existing project with no tests | Warn: "⚠ No test framework found. Tests cannot be written until one is installed. Proceeding without tests — recommend adding [framework] before shipping." Log to `phases/[N]/DEBT.md`: "No test framework — zero coverage." |
 
 ### If framework found — capture test profile:
 ```
@@ -419,7 +419,7 @@ Has config:      YES / NO  ([tsconfig / mypy.ini / checkstyle.xml / .rubocop.yml
 | Type-check found | Run before each wave commit — type errors BLOCK the commit |
 | Lint found | Run before each wave commit — warnings non-blocking, errors BLOCK |
 | Build cmd found | Run before ship — compile failure BLOCKS |
-| None found | Warn once: "⚠ No build toolchain detected. Type safety and lint checks skipped." Log to `security/DEBT.md`. |
+| None found | Warn once: "⚠ No build toolchain detected. Type safety and lint checks skipped." Log to `phases/[N]/DEBT.md`. |
 
 **Language-specific test command shapes (scope before use in wave execution):**
 ```bash
@@ -630,7 +630,7 @@ Do not write or run tests before implementation. BuildFlow verifies behavior aft
 
 #### Mandatory Test Writing Rules (enforced per Builder)
 
-**Prerequisite:** Test Framework Profile from Step 2 must exist. If no framework was found and user chose to skip, mark this task's test output as SKIPPED and log to `security/DEBT.md`.
+**Prerequisite:** Test Framework Profile from Step 2 must exist. If no framework was found and user chose to skip, mark this task's test output as SKIPPED and log to `phases/[N]/DEBT.md`.
 
 **For every new source file created:**
 - Create a corresponding test file using the detected framework and location convention:
@@ -806,7 +806,7 @@ cargo tarpaulin --out Stdout [touched-test-target] 2>/dev/null
 
 If the project's coverage tool cannot scope coverage to touched files/packages, skip coverage during build and record: "Focused coverage skipped - whole-repo coverage deferred to /buildflow-ship."
 
-Extract focused coverage % and compare against `last_ship_coverage` in `light.md`:
+Extract focused coverage % and compare against `last_ship_coverage` in `MEMORY.md`:
 
 | Delta | Action |
 |-------|--------|
@@ -835,7 +835,7 @@ Options:
 
 Wait for user response:
 - **F (Fix):** pause build, list uncovered functions per file, help user write tests, re-run coverage, then continue
-- **P (Proceed):** commit wave, log to `security/DEBT.md`: "Wave [N] coverage drop: [N]% → [M]% — [files] uncovered"
+- **P (Proceed):** commit wave, log to `phases/[N]/DEBT.md`: "Wave [N] coverage drop: [N]% → [M]% — [files] uncovered"
 - **S (Skip):** skip for this wave only, do NOT log as debt
 
 Record current coverage in Build Telemetry Report regardless of choice.
@@ -1016,7 +1016,7 @@ Options:
    Snapshot: .buildflow/snapshots/phase-1-wave-2-parked/
    Files parked: [list]
    ```
-3. Update `parked_changes` in `light.md`:
+3. Update `parked_changes` in `MEMORY.md`:
    ```yaml
    parked_changes:
      - file: src/auth/service.ts
@@ -1044,7 +1044,7 @@ Options:
    ### Wave 2 — Auth Services  ✓ COMPLETE [2024-01-15 14:32]
    Snapshot: .buildflow/snapshots/phase-1-wave-2-complete/
    ```
-3. Record in `state.md`:
+3. Record in `STATE.md`:
    ```yaml
    last_wave_completed: 2
    last_wave_date: [today]
@@ -1139,14 +1139,14 @@ focused_test_count: [N]      ← focused build tests only; full regression basel
 last_build_coverage: [N]%    ← baseline for coverage drop detection
 last_build_tokens: ~[N]K     ← actual token cost of this build run
 ```
-Remove from `light.md`: per-task details from previous builds.
+Remove from `MEMORY.md`: per-task details from previous builds.
 
 **Token cost report (print at end of every build):**
 
 Measure actual cost:
 1. Sum character counts of all Context Packet files loaded across all waves ÷ 4 = input tokens
 2. Estimate output from code generated + test output + fix loop iterations ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's total
+3. Update `STATE.md → session_tokens_used` by adding this command's total
 
 ```
 Token Cost — /buildflow-build

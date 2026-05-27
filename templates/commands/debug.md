@@ -18,7 +18,7 @@ Systematic root-cause analysis for failing tests, broken builds, or unexpected b
 ## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
 
 Before reading or writing any source file, apply the installed **Folder Access Guard**:
-- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 
 ---
@@ -56,11 +56,11 @@ Before fixing:
 
 ## Step 5: Create Restore Point
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 - If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
-- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
+- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
 If `git.permission: approved`:
 ```bash
@@ -165,14 +165,47 @@ Targeted tests passed. Run full app-level test suite?
 
 ## Step 8: Prevent Recurrence
 - Add a test that would have caught this bug
-- Note the fix in `.buildflow/learnings/decisions.md` if it reveals a systemic issue
+- Note the fix in `.buildflow/phases/[N]/DECISIONS.md` if it reveals a systemic issue
+
+## Step 9: Save Debug Record
+
+Use the **Write tool** to create `.buildflow/phases/[N]/debug/DEBUG-[sequence].md` (increment sequence from existing files in that folder, starting at 001). Do not output as text — write to disk.
+
+```markdown
+# Debug Session — [short description]
+Date: [ISO datetime]
+Phase: [N]
+Status: RESOLVED / UNRESOLVED
+
+## Problem
+[symptom reported — exact error message or test failure]
+
+## Root Cause
+[the underlying reason, not just the symptom]
+
+## Hypothesis Chain
+- H1: [hypothesis] → [result: CONFIRMED / ELIMINATED]
+- H2: [hypothesis] → [result: ...]
+
+## Fix Applied
+[what changed and why — file:line references]
+
+## Files Changed
+- [path] — [what changed]
+
+## Test Evidence
+[commands run and pass/fail results]
+
+## Remaining Risk
+[any lingering concerns or NONE]
+```
 
 ## Token cost report (print at end of debug)
 
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 Default output (minimal):
 ```
@@ -180,7 +213,7 @@ Debug complete — root cause: [description] · fix applied: [yes/no]
 Session: ~[N]K tokens
 ```
 
-Verbose output (only if `verbose_context: true` in preferences.md):
+Verbose output (only if `verbose_context: true` in PREFERENCES.md):
 ```
 Token Cost — /buildflow-debug
 ──────────────────────────────

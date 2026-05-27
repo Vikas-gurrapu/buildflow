@@ -16,7 +16,7 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 - `/buildflow-check tests` — test coverage only
 
 ## Context Packet (load only these)
-- `.buildflow/specs/acceptance.md` — the source of truth for what must be true
+- `.buildflow/phases/[N]/ACCEPTANCE.md` — the source of truth for what must be true
 - `.buildflow/phases/[N]/PLAN.md` — what was supposed to be built
 - `.buildflow/phases/[N]/VERIFICATION.md` - AC verification ledger from plan/build
 - Changed files — detected as follows:
@@ -29,14 +29,14 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 - `.buildflow/codebase/INTEGRATIONS.md` (if exists — env/webhook/external service contracts)
 
 Do NOT load: REQUIREMENTS.md, old phases, research files, retros.
-Load TECHINICALDESIGN.md only when running `--strict`.
+Load DESIGN.md only when running `--strict`.
 
 Also load `.buildflow/phases/[N]/STATE.md` if it exists. Use it to resume status, risks, and test strategy.
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
 
 Use `STATE.md` to understand what build completed, what tests were already run, and which risks/skips need verification. If it says `Status: check_passed` and current inputs have not changed, continue to the guided next step instead of repeating checks unless the user asks.
 
@@ -51,29 +51,29 @@ Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
 ---
 
 ## Step 1: Load Acceptance Criteria
-Read every AC from `.buildflow/specs/acceptance.md`.
+Read every AC from `.buildflow/phases/[N]/ACCEPTANCE.md`.
 This is the primary verification target — all other checks are secondary.
-Read `.buildflow/phases/[N]/VERIFICATION.md` and compare its AC list/statuses against `acceptance.md`.
+Read `.buildflow/phases/[N]/VERIFICATION.md` and compare its AC list/statuses against `ACCEPTANCE.md`.
 
 If `VERIFICATION.md` is missing or stale:
-- Recreate or refresh it from `acceptance.md` before checking.
+- Recreate or refresh it from `ACCEPTANCE.md` before checking.
 - Preserve existing test run evidence when AC IDs still match.
 - Mark new/changed ACs as `NOT STARTED`.
 
 ## Step 1b: Scope-Reduction Detection
 
-Cross-check `acceptance.md` against `PLAN.md` and `VERIFICATION.md` for silent requirement drops.
+Cross-check `ACCEPTANCE.md` against `PLAN.md` and `VERIFICATION.md` for silent requirement drops.
 
-**Check 1 — Plan coverage:** ACs in `acceptance.md` with no task in `PLAN.md`:
+**Check 1 — Plan coverage:** ACs in `ACCEPTANCE.md` with no task in `PLAN.md`:
 ```bash
-grep -oE "AC-NF-[0-9]+" .buildflow/specs/acceptance.md | sort -u > /tmp/bf_acs_spec.txt
+grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/ACCEPTANCE.md | sort -u > /tmp/bf_acs_spec.txt
 grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/PLAN.md | sort -u > /tmp/bf_acs_plan.txt
-grep -oE "AC-[0-9]+" .buildflow/specs/acceptance.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_spec.txt
+grep -oE "AC-[0-9]+" .buildflow/phases/[N]/ACCEPTANCE.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_spec.txt
 grep -oE "AC-[0-9]+" .buildflow/phases/[N]/PLAN.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_plan.txt
 comm -23 <(sort /tmp/bf_acs_spec.txt) <(sort /tmp/bf_acs_plan.txt)
 ```
 
-**Check 2 — Execution coverage:** ACs in `acceptance.md` with no row in `VERIFICATION.md`:
+**Check 2 — Execution coverage:** ACs in `ACCEPTANCE.md` with no row in `VERIFICATION.md`:
 ```bash
 # List VERIFICATION.md AC rows
 grep -oE "AC-NF-[0-9]+|AC-[0-9]+" .buildflow/phases/[N]/VERIFICATION.md | sort -u
@@ -84,7 +84,7 @@ grep -oE "AC-NF-[0-9]+|AC-[0-9]+" .buildflow/phases/[N]/VERIFICATION.md | sort -
 ```
 Scope-Reduction Check
 ──────────────────────
-ACs in acceptance.md:     [N]
+ACs in ACCEPTANCE.md:     [N]
 ACs in plan:              [M]   (dropped from plan: [list or NONE])
 ACs in VERIFICATION.md:   [K]   (not tracked in execution: [list or NONE])
 ```
@@ -163,7 +163,7 @@ python manage.py showmigrations 2>/dev/null | grep "\[ \]"
 
 **3. Missing migration for schema change** — if schema file was modified in this phase but no new migration file was added:
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 **If `git.permission: approved`:**
 ```bash
@@ -220,7 +220,7 @@ If `--strict` and drift affects files changed in this phase, mark check as FAIL 
 ## Step 4: Spec Coverage Traceability
 
 ### 4a: Load Coverage Threshold
-Read `.buildflow/you/preferences.md` for:
+Read `.buildflow/PREFERENCES.md` for:
 ```yaml
 spec_coverage:
   threshold: 80          # % of business-logic files that must have AC traceability
@@ -241,7 +241,7 @@ grep -A2 "Files to create/modify:" .buildflow/phases/[N]/PLAN.md 2>/dev/null
 grep -rn "[filename without ext]" --include="*.test.*" --include="*.spec.*" src/ tests/ 2>/dev/null
 ```
 
-For each changed source file, cross-reference against `acceptance.md`:
+For each changed source file, cross-reference against `ACCEPTANCE.md`:
 - Does any AC's "Given/When/Then" scenario directly test the behavior in this file?
 - Does any test file cover this file AND is that test linked to an AC?
 
@@ -272,7 +272,7 @@ Coverage never hard-blocks. When coverage is below threshold, show the context-a
 Spec Coverage Below Threshold
 ──────────────────────────────
 Coverage: [N]% of business-logic files have AC traceability
-Required: [threshold]% (set in preferences.md → spec_coverage.threshold)
+Required: [threshold]% (set in PREFERENCES.md → spec_coverage.threshold)
 
 Uncovered business-logic files:
   src/utils/crypto.ts      — no AC, no test linkage
@@ -294,7 +294,7 @@ Proceed. No block.
 
 **On [N] — new coverage exception:**
 Ask: "Which files are part of the coverage build-up?" 
-Mark those files as `ACCEPTABLE — coverage in progress` in COVERAGE-MAP.md.
+Mark those files as `ACCEPTABLE — coverage in progress` in COVERAGE.md.
 Log: "Coverage below threshold [N]% — accepted: incremental coverage build-up for [files] [date]."
 Proceed. No block.
 
@@ -305,7 +305,7 @@ Pause check. User defines ACs, then re-run `/buildflow-check acceptance`.
 Log to DEBT.md: "Coverage below threshold [N]% — accepted: developer decision [date]. Address in future phase."
 Proceed. No block.
 
-Write the coverage map to `.buildflow/phases/[N]/COVERAGE-MAP.md` for the ship gate to read.
+Write the coverage map to `.buildflow/phases/[N]/COVERAGE.md` for the ship gate to read.
 Include the decision and reason taken in Step 4c.
 
 ---
@@ -321,7 +321,7 @@ Include the decision and reason taken in Step 4c.
 
 Treat UAT as a manual confirmation step. Do not mark subjective user flows, UX behavior, business workflow correctness, copy/label expectations, or external integration behavior as fully UAT-passed from code inspection alone.
 
-Build a short use-case checklist from `acceptance.md`, `PLAN.md`, and changed files:
+Build a short use-case checklist from `ACCEPTANCE.md`, `PLAN.md`, and changed files:
 ```
 Manual UAT needed
 ─────────────────
@@ -356,14 +356,14 @@ If the user skips UAT:
 
 ---
 
-## Step 5c: Strict Mode (`/buildflow-check --strict` or `strict_mode: true` in preferences.md)
+## Step 5c: Strict Mode (`/buildflow-check --strict` or `strict_mode: true` in PREFERENCES.md)
 
 Strict mode enforces **structural spec-to-code mirroring**. Use for critical infrastructure phases (auth, payments, crypto, permissions, migrations) where divergence between spec structure and code structure is a defect, not a style choice.
 
 Skip this step entirely if neither `--strict` flag nor `strict_mode: true` is set.
 
 ### Load Critical Module Patterns
-Read `strict_critical_modules` from `.buildflow/you/preferences.md`:
+Read `strict_critical_modules` from `.buildflow/PREFERENCES.md`:
 ```yaml
 strict_critical_modules:
   - auth
@@ -384,14 +384,14 @@ If not set, use the default list above. Any file whose path matches one of these
 
 ### S1: Technical Design API Contract Verification
 
-Read the API Contracts table from `TECHINICALDESIGN.md`. For each contract row:
+Read the API Contracts table from `DESIGN.md`. For each contract row:
 
 1. Locate the handler/function in the codebase:
    ```bash
    grep -rn "router\.\(post\|get\|put\|patch\|delete\)\|app\.\(post\|get\|put\|patch\|delete\)\|@\(Post\|Get\|Put\|Patch\|Delete\)\|def [a-z_]*:" src/ --include="*.ts" --include="*.js" --include="*.py" --include="*.go" --include="*.rb" | grep -i "[path-fragment]"
    ```
 2. Verify **request shape field names** match exactly — not just "a body exists":
-   - Extract field names from TECHINICALDESIGN.md contract row
+   - Extract field names from DESIGN.md contract row
    - Grep handler for each field name
    - Flag any field that is absent or renamed
 3. Verify **response shape field names** match exactly:
@@ -405,7 +405,7 @@ Report per contract:
 ```
 S1: API Contract Verification
 ──────────────────────────────
-POST /api/login  [TECHINICALDESIGN.md row 1]
+POST /api/login  [DESIGN.md row 1]
   Request fields: { email, password }
     ✓ email    — found at src/auth/handler.ts:14
     ✓ password — found at src/auth/handler.ts:14
@@ -428,7 +428,7 @@ POST /api/login  [TECHINICALDESIGN.md row 1]
 
 ### S2: Component Map Verification
 
-Read the Component Map table from `TECHINICALDESIGN.md`. For each row:
+Read the Component Map table from `DESIGN.md`. For each row:
 
 1. **Existence check** — verify the file/module the component maps to exists:
    ```bash
@@ -440,7 +440,7 @@ Read the Component Map table from `TECHINICALDESIGN.md`. For each row:
    ```
 3. **Requirements linkage** — every component must be linked to at least one feature (F-XX). If `Interface Type` column is populated, verify the interface type matches actual implementation (REST route vs gRPC stub vs event handler vs plain function).
 
-Reverse check — for each file **created or modified this phase**, verify it appears in the TECHINICALDESIGN.md Component Map:
+Reverse check — for each file **created or modified this phase**, verify it appears in the DESIGN.md Component Map:
 ```bash
 # git.permission approved:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/
@@ -455,11 +455,11 @@ AuthService      → src/auth/service.ts     ✓ exists  ✓ isolated  ✓ linke
 UserRepository   → src/users/repo.ts       ✓ exists  ✓ isolated  ✓ linked F-01
 LoginRoute       → src/routes/auth.ts      ✓ exists  ⚠ imports AuthService + DB directly (verify: intentional?)
 
-Ghost components  (in code this phase, not in TECHINICALDESIGN.md Component Map):
+Ghost components  (in code this phase, not in DESIGN.md Component Map):
   src/utils/tokenHelper.ts  — ✗ not mapped
-    → Add to TECHINICALDESIGN.md Component Map or mark ACCEPTABLE-UTILITY
+    → Add to DESIGN.md Component Map or mark ACCEPTABLE-UTILITY
 
-Orphaned components  (in TECHINICALDESIGN.md, not found in code):
+Orphaned components  (in DESIGN.md, not found in code):
   NONE
 ```
 
@@ -613,13 +613,13 @@ Before exiting, update `.buildflow/phases/[N]/VERIFICATION.md`:
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 ```
 Token Cost — /buildflow-check
 ──────────────────────────────
 ACs: [N/N passing]  Schema drift: [clean/N issues]  Coverage: [N]%  Strict: [PASS/FAIL/—]
-Context loaded:    ~[N]K tokens   (acceptance.md + PLAN.md + [N] changed files)
+Context loaded:    ~[N]K tokens   (ACCEPTANCE.md + PLAN.md + [N] changed files)
 Output generated:  ~[N]K tokens
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
@@ -643,4 +643,4 @@ If schema drift detected: `→ Next: resolve schema drift (run pending migration
 If spec coverage below threshold and no exception recorded: the smart prompt in Step 4c already captured user decision — next step is whatever was chosen.
 If strict mode FAIL: `→ Next: fix strict violations listed in STRICT-REPORT.md, then re-run /buildflow-check --strict`.
 
-## Token Budget: ~26K standard / ~38K with --strict (adds TECHINICALDESIGN.md + symbol grep + branch analysis)
+## Token Budget: ~26K standard / ~38K with --strict (adds DESIGN.md + symbol grep + branch analysis)

@@ -24,7 +24,7 @@ For automated testing during builds, this loop is already built into `/buildflow
 
 ## Step 1: Load Context
 Read `.buildflow/phases/[N]/PLAN.md` to know what this wave was supposed to deliver.
-Read `.buildflow/memory/light.md` for framework and test setup.
+Read `.buildflow/MEMORY.md` for framework and test setup.
 
 ## Step 2: Detect Test Setup
 Identify:
@@ -84,7 +84,7 @@ Test Results
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 Default output (minimal):
 ```
@@ -92,7 +92,7 @@ Tests: [N/N] passing · [N] warnings
 Session: ~[N]K tokens
 ```
 
-Verbose output (only if `verbose_context: true` in preferences.md):
+Verbose output (only if `verbose_context: true` in PREFERENCES.md):
 ```
 Token Cost — /buildflow-test
 ──────────────────────────────

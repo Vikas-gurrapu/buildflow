@@ -22,7 +22,7 @@ Diagnostic mode, recovery guide, and post-milestone advisor. Use when stuck, whe
 ---
 
 ## Step 1: Load Current State
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, and `.buildflow/security/DEBT.md`.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, and `.buildflow/phases/[N]/DEBT.md`.
 Check if `.buildflow/` is properly structured.
 
 Print a one-paragraph "here's where you are" summary:
@@ -32,7 +32,7 @@ Situation
 Project: [app_name]  Phase: [N]  Framework: [framework]
 Status: [what's happening — "mid-build wave 2", "tests failing", "just shipped phase 1", etc.]
 Outstanding debt: [N items in DEBT.md]
-Last action: [last command + date from light.md]
+Last action: [last command + date from MEMORY.md]
 ```
 
 ---
@@ -42,8 +42,8 @@ Last action: [last command + date from light.md]
 ### If `.buildflow/` is missing:
 "BuildFlow isn't initialized here. Run: `npx buildflow-dev init`"
 
-### If state.md is corrupted:
-Re-detect project and recreate state.md. Read package.json / go.mod / Cargo.toml to infer framework.
+### If STATE.md is corrupted:
+Re-detect project and recreate STATE.md. Read package.json / go.mod / Cargo.toml to infer framework.
 
 ### If stuck mid-build (tests failing repeatedly):
 Read `phases/[N]/PLAN.md` and the last fix log entries. Diagnose:
@@ -77,7 +77,7 @@ Classify the error:
 
 ### Safe abandon (current phase only):
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 **If `git.permission: approved`:**
 ```bash
@@ -89,7 +89,7 @@ The last wave snapshot in `.buildflow/snapshots/phase-[N]-wave-[M]-complete/` is
 To roll back to before the current wave: copy files from that snapshot back to their original paths.
 To see what snapshots exist: `ls .buildflow/snapshots/`
 
-In both modes: reset `plan_status: none` in `light.md`. The spec remains — restart from `/buildflow-plan`.
+In both modes: reset `plan_status: none` in `MEMORY.md`. The spec remains — restart from `/buildflow-plan`.
 
 ### Full reset (destructive — asks for confirmation):
 Removes `.buildflow/` entirely. Requires typing "RESET" to confirm.
@@ -104,13 +104,13 @@ Enable git after initially declining during setup:
 1. Verify git is installed: `git --version`
    - If not installed: direct to https://git-scm.com/downloads
 2. If no repo exists: `git init`
-3. Update `.buildflow/you/preferences.md`:
+3. Update `.buildflow/PREFERENCES.md`:
    ```yaml
    git:
      permission: approved
    ```
-4. Update `light.md`: `git_permission: approved`, `git_available: true`
-5. If any `parked_changes` exist in `light.md`: offer to commit them now (see `git-resolve-parked`)
+4. Update `MEMORY.md`: `git_permission: approved`, `git_available: true`
+5. If any `parked_changes` exist in `MEMORY.md`: offer to commit them now (see `git-resolve-parked`)
 6. Confirm: "Git enabled. From this session forward, BuildFlow will use commits, tags, and restore points."
 
 ---
@@ -118,10 +118,10 @@ Enable git after initially declining during setup:
 ### `/buildflow-help git-resolve-parked`
 Commit parked changes in the correct order once git is restored:
 
-Only run git commands here if `.buildflow/you/preferences.md` has `git.permission: approved`.
+Only run git commands here if `.buildflow/PREFERENCES.md` has `git.permission: approved`.
 If permission is denied, explain that the user must run `/buildflow-help git-enable` first or keep using snapshots.
 
-1. Read `parked_changes` from `light.md` — list all parked entries sorted by `parked_at` (oldest first)
+1. Read `parked_changes` from `MEMORY.md` — list all parked entries sorted by `parked_at` (oldest first)
 2. For each parked entry:
    ```
    Parked: Phase [N], Wave [W] — [date]
@@ -136,7 +136,7 @@ If permission is denied, explain that the user must run `/buildflow-help git-ena
    git add [files from parked entry]
    git commit -m "feat: phase [N] wave [W] (delayed commit — was parked [date])"
    ```
-4. After each successful commit: remove that entry from `parked_changes` in `light.md`
+4. After each successful commit: remove that entry from `parked_changes` in `MEMORY.md`
 5. After all committed: `parked_changes: []` — confirm "All parked changes committed. Working tree is clean."
 
 **If files were modified by a subsequent phase (stacked):** the commit will include both phases' changes for those files — that is expected and noted in the commit message:
@@ -210,7 +210,7 @@ Run this after shipping a phase to discover what to build next based on:
 2. What industry standards and engineering protocols your app type requires
 
 ### 5a — App Type Classification
-Read `vision.md` and `light.md` to classify the app type:
+Read `VISION.md` and `MEMORY.md` to classify the app type:
 ```
 App type detected: [e.g., SaaS dashboard / e-commerce / REST API / mobile app / dev tool / fintech / healthtech / social platform]
 Core features shipped so far: [list from shipped phases]
@@ -301,7 +301,7 @@ Run /buildflow-spec to define it.
 ```
 
 ### 5d — Save Suggestions
-Write suggestions to `.buildflow/learnings/feature-suggestions.md` with date.
+Write suggestions to `.buildflow/phases/[N]/SUGGESTIONS.md` with date.
 These persist across sessions and update each time `/buildflow-help next` runs.
 
 ---

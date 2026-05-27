@@ -234,23 +234,17 @@ function detectProjectInfo() {
 function scaffoldBuildflow(appName, projectInfo) {
   const base = join(process.cwd(), '.buildflow')
 
-  const dirs = [
-    'core', 'you', 'memory', 'phases',
-    'learnings', 'research', 'codebase',
-    'specs', 'snapshots',
-    'security/reports', 'security/rules',
-    'security/suppressions',
-  ]
+  const dirs = ['phases', 'codebase']
   for (const d of dirs) mkdirSync(join(base, d), { recursive: true })
 
   const today = new Date().toISOString().split('T')[0]
   const isExisting = projectInfo.projectType === 'existing'
 
-  // ── core/vision.md ──────────────────────────────────────────────────────────
-  writeFileSync(join(base, 'core', 'vision.md'), isExisting
+  // ── VISION.md ────────────────────────────────────────────────────────────────
+  writeFileSync(join(base, 'VISION.md'), isExisting
     ? `# Vision — ${appName}
 
-> **Purpose:** This file is the source of truth for what you're building.
+> **Purpose:** Source of truth for what you're building.
 > Every agent reads it at session start to stay aligned with your goals.
 > Fill it in during your first \`/buildflow-start-epic\` session.
 
@@ -288,11 +282,11 @@ function scaffoldBuildflow(appName, projectInfo) {
 
 ---
 
-*Initialized: ${today} · BuildFlow v3.0*
+*Initialized: ${today} · BuildFlow v7.0*
 `
     : `# Vision — ${appName}
 
-> **Purpose:** This file is the source of truth for what you're building.
+> **Purpose:** Source of truth for what you're building.
 > Every agent reads it at session start to stay aligned with your goals.
 > Fill it in during your first \`/buildflow-start-epic\` session.
 
@@ -348,11 +342,11 @@ function scaffoldBuildflow(appName, projectInfo) {
 
 ---
 
-*Initialized: ${today} · BuildFlow v3.0*
+*Initialized: ${today} · BuildFlow v7.0*
 `)
 
-  // ── core/state.md ───────────────────────────────────────────────────────────
-  writeFileSync(join(base, 'core', 'state.md'),
+  // ── STATE.md ─────────────────────────────────────────────────────────────────
+  writeFileSync(join(base, 'STATE.md'),
     `# Project State
 
 > **Purpose:** Tracks where you are in the BuildFlow workflow.
@@ -405,8 +399,8 @@ session_start: ${today}
 > Use \`/buildflow-status\` to see current session total.
 `)
 
-  // ── you/preferences.md ──────────────────────────────────────────────────────
-  writeFileSync(join(base, 'you', 'preferences.md'),
+  // ── PREFERENCES.md ───────────────────────────────────────────────────────────
+  writeFileSync(join(base, 'PREFERENCES.md'),
     `# Your Preferences
 
 > **Purpose:** BuildFlow reads this at session start to adapt its behavior to you.
@@ -549,9 +543,9 @@ strict_mode: false
 #
 # true — structural spec-to-code mirroring (spec-kit style):
 #   • Every exported symbol in critical modules must have an AC reference
-#   • API response/request field names must match TECHINICALDESIGN.md contracts exactly
+#   • API response/request field names must match DESIGN.md contracts exactly
 #   • Every error/edge-case AC must have a corresponding code branch
-#   • Component map in TECHINICALDESIGN.md must match file structure
+#   • Component map in DESIGN.md must match file structure
 #   • Violations BLOCK ship — no override flag
 #   • Use for: auth, payments, crypto, compliance, infrastructure
 #   • Can also be set per-phase: /buildflow-plan --strict
@@ -599,15 +593,15 @@ workflow:
 token_tracking:
   enabled:          true    # Track token usage per command and session
   report_at_end:    true    # Print token cost at end of each command
-  session_running_total: true  # Accumulate session total in state.md
+  session_running_total: true  # Accumulate session total in STATE.md
 
 verbose_context: false
 # false (default) — context management is invisible:
-#   • light.md pruning happens silently, no report shown
+#   • MEMORY.md pruning happens silently, no report shown
 #   • Token cost shows as one line: "Session: ~NK tokens"
 #   • Drift detection only surfaces actionable warnings
 # true — show full detail:
-#   • "Context pruned: light.md X → Y tokens" reported
+#   • "Context pruned: MEMORY.md X → Y tokens" reported
 #   • Full token breakdown per command (context/output/this/total)
 \`\`\`
 
@@ -615,9 +609,9 @@ verbose_context: false
 
 `)
 
-  // ── memory/light.md ─────────────────────────────────────────────────────────
-  writeFileSync(join(base, 'memory', 'light.md'),
-    `# Light Memory
+  // ── MEMORY.md ────────────────────────────────────────────────────────────────
+  writeFileSync(join(base, 'MEMORY.md'),
+    `# Memory
 
 > **Purpose:** Persists essential project context across AI sessions.
 > Loaded at the start of every BuildFlow session to avoid re-detecting things.
@@ -657,7 +651,7 @@ language:          ${projectInfo.language}
 ## Key Decisions
 
 > Major architectural or technology decisions. Summarized here so agents
-> don't relitigate them. Full details are in \`learnings/decisions.md\`.
+> don't relitigate them. Full details are in each phase's DECISIONS.md.
 
 *(not yet populated)*
 
@@ -670,8 +664,8 @@ language:          ${projectInfo.language}
 Phase 0 — Initial setup complete. Run \`/buildflow-start-epic\` to begin.
 `)
 
-  // ── learnings/glossary.md ───────────────────────────────────────────────────
-  writeFileSync(join(base, 'learnings', 'glossary.md'),
+  // ── GLOSSARY.md ──────────────────────────────────────────────────────────────
+  writeFileSync(join(base, 'GLOSSARY.md'),
     `# Glossary
 
 > **Purpose:** Defines terms used across BuildFlow sessions.
@@ -687,10 +681,11 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start-epic\` to begin.
 |------|------------|
 | **context-rot** | AI quality degrades as conversation grows long. BuildFlow avoids this by using fresh agent sessions per task. |
 | **confidence-calibration** | Asking for a 1–5 confidence score before locking major decisions. Score below 3 triggers alternatives or research. |
-| **light memory** | The \`memory/light.md\` file — essential project context kept under 5K tokens, loaded at every session start. |
+| **memory** | The \`.buildflow/MEMORY.md\` file — essential project context kept under 5K tokens, loaded at every session start. |
 | **wave** | A group of tasks that can run in parallel because they have no dependencies on each other. |
 | **restore point** | A file snapshot, or a git checkpoint only when \`git.permission: approved\`, created before a destructive operation so \`/buildflow-back\` can undo it. |
 | **blast radius** | The set of files affected by a code change — mapped before modifying anything in Surgeon mode. |
+| **phase folder** | \`.buildflow/phases/N/\` — single source of truth for one phase: research, decisions, spec, plan, build, check, ship artifacts all live here. |
 
 ---
 
@@ -717,148 +712,17 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start-epic\` to begin.
 *(add terms as your project evolves)*
 `)
 
-  // ── learnings/decisions.md ──────────────────────────────────────────────────
-  writeFileSync(join(base, 'learnings', 'decisions.md'),
-    `# Decision Log
-
-> **Purpose:** Records major architectural and technology decisions.
-> Prevents relitigating the same choices in future sessions.
-> Each decision includes what was decided, why, and how confident you were.
-> Updated by agents during \`/buildflow-think\` and \`/buildflow-plan\`.
-
----
-
-## How to Read This Log
-
-| Field | Meaning |
-|-------|---------|
-| **Decision** | What was chosen |
-| **Alternatives** | What else was considered |
-| **Rationale** | Why this option won |
-| **Confidence** | 1–5 at time of decision (5 = very sure) |
-| **Revisit if** | Conditions that would make this worth reconsidering |
-
----
-
-## Log
-
-### ${today} — Initial Setup
-
-| Field | Value |
-|-------|-------|
-| **Decision** | Use BuildFlow v3.0 for development orchestration |
-| **Type** | ${projectInfo.projectType} · ${projectInfo.framework} |
-| **Confidence** | 5/5 |
-| **Revisit if** | — |
-
----
-
-*New decisions are appended below by \`/buildflow-think\` and \`/buildflow-plan\`.*
-`)
-
-  // ── learnings/feature-suggestions.md ────────────────────────────────────────
-  writeFileSync(join(base, 'learnings', 'feature-suggestions.md'),
-    `# Feature Suggestions
-
-> Auto-populated by \`/buildflow-ship\` and \`/buildflow-help next\` after each milestone.
-> Each entry includes market gap analysis and engineering standards check for your app type.
-
----
-
-*No suggestions yet — ship your first phase to generate market and standards analysis.*
-`)
-
-  // ── specs/ ──────────────────────────────────────────────────────────────────
-  writeFileSync(join(base, 'specs', 'README.md'),
-    `# Specs
-
-> Generated by \`/buildflow-spec\`. Run it after \`/buildflow-start-epic\`.
-
-| File | Purpose |
-|------|---------|
-| \`REQUIREMENTS.md\` | Product Requirements — what, for whom, success criteria |
-| \`TECHINICALDESIGN.md\` | Technical Design — architecture, API contracts, decisions |
-| \`acceptance.md\` | Acceptance Criteria — versioned, testable pass/fail conditions per feature |
-| \`approvals.md\` | Permanent approval audit trail — who approved each spec version and when |
-
-Additional generated files:
-- \`index.md\` - registry of named spec workflow folders for revert/resume
-- \`[spec-slug]/\` - per-workflow spec folder containing that spec docs and metadata
-
-These files are the source of truth for planning and verification.
-\`/buildflow-plan\` traces every task to an AC.
-\`/buildflow-check\` verifies every AC is satisfied.
-\`/buildflow-ship\` blocks if any AC is unmet.
-`)
-
-  // ── specs/approvals.md ──────────────────────────────────────────────────────
-  writeFileSync(join(base, 'specs', 'index.md'),
-    `# BuildFlow Spec Index
-
-| Spec Slug | Spec Name | Phase | Status | Current | Created | Updated |
-|-----------|-----------|-------|--------|---------|---------|---------|
-
-No specs yet. Run \`/buildflow-spec <spec-or-task-name>\`.
-`)
-
-  writeFileSync(join(base, 'specs', 'approvals.md'),
-    `# Spec Approvals
-
-> Permanent audit trail. Never delete or overwrite entries.
-> Appended automatically by \`/buildflow-spec\` on each approval or amendment.
-
----
-
-*No approvals yet — run \`/buildflow-spec\` to generate and lock your first spec.*
-`)
-
-  // ── security/DEBT.md ────────────────────────────────────────────────────────
-  writeFileSync(join(base, 'security', 'DEBT.md'),
-    `# Security Debt
-
-> **Purpose:** Tracks security issues that were found but not immediately fixed.
-> Populated by \`buildflow fix\` (log to debt option) and \`/buildflow-ship\`
-> when high-severity issues are found but you choose to ship anyway.
-> Review this before every major release.
-
----
-
-## Severity Reference
-
-| Level | Icon | Action Required |
-|-------|------|-----------------|
-| Critical | 🔴 | Fix before next commit. Blocks \`/buildflow-ship\`. |
-| High | 🟡 | Fix this sprint. Logged here when shipping despite warning. |
-| Medium | 🟠 | Fix when in the area. Won't block shipping. |
-| Low | 🔵 | Fix opportunistically. |
-
----
-
-## Active Issues
-
-> Issues that need to be addressed.
-
-*None — clean slate.*
-
----
-
-## Resolved Issues
-
-> Move items here (with resolution date and fix description) when addressed.
-
-*None yet.*
-`)
-
   return base
 }
 
 function patchGitignore() {
   const gitignorePath = join(process.cwd(), '.gitignore')
-  const entry = '\n# BuildFlow security reports (may contain sensitive findings)\n.buildflow/security/reports/\n# BuildFlow file snapshots (restore points — not needed in version control)\n.buildflow/snapshots/\n'
+  const marker = '.buildflow/phases/*/SNAPSHOTS/'
+  const entry = '\n# BuildFlow phase snapshots (restore points — not needed in version control)\n.buildflow/phases/*/SNAPSHOTS/\n'
 
   if (existsSync(gitignorePath)) {
     const existing = readFileSync(gitignorePath, 'utf8')
-    if (!existing.includes('.buildflow/security/reports')) {
+    if (!existing.includes(marker)) {
       writeFileSync(gitignorePath, existing + entry)
     }
   } else {

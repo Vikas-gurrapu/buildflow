@@ -38,9 +38,9 @@ ls Dockerfile Dockerfile.* docker-compose.yml docker-compose.yaml docker-compose
 docker compose ps 2>/dev/null || docker-compose ps 2>/dev/null
 ```
 
-Read `.buildflow/memory/light.md` for `framework`, `language`, `app_name`.
+Read `.buildflow/MEMORY.md` for `framework`, `language`, `app_name`.
 
-After detection, update `.buildflow/memory/light.md`:
+After detection, update `.buildflow/MEMORY.md`:
 ```yaml
 docker_initialized: true
 docker_available: [true/false]
@@ -66,7 +66,7 @@ If no command given after state summary: show the menu and wait for user choice.
 ## Step 2: `scaffold` — Generate Dockerfile + Compose
 
 ### 2a: Detect Language and Framework
-Read from `light.md` (set by `init`). If missing, auto-detect from project root files:
+Read from `MEMORY.md` (set by `init`). If missing, auto-detect from project root files:
 - `package.json` → Node.js/TypeScript (check for Next.js, React SPA, Express, NestJS, Fastify)
 - `pom.xml` / `build.gradle` / `build.gradle.kts` → Java / Kotlin
 - `requirements.txt` / `pyproject.toml` → Python (check for Django, FastAPI, Flask)
@@ -484,7 +484,7 @@ Next steps:
   3. Run: /buildflow-docker run
 ```
 
-Write `container_runtime: docker` to `light.md`.
+Write `container_runtime: docker` to `MEMORY.md`.
 
 ---
 
@@ -623,8 +623,8 @@ Base image: [image:tag]
 Suggestion: [suggest slimmer/newer base if large CVE count — e.g., "switch from debian to alpine"]
 ```
 
-**Critical CVEs found → append to `.buildflow/security/DEBT.md`.**
-Write scan report to `.buildflow/security/reports/docker-scan-[date].md`.
+**Critical CVEs found → append to `.buildflow/phases/[N]/DEBT.md`.**
+Write scan report to `.buildflow/phases/[N]/docker-scan-[date].md`.
 
 ---
 
@@ -647,7 +647,7 @@ Print: "Removed [N] dangling images ([X] MB freed), [N] stopped containers."
 ## Docker Integration With BuildFlow Pipeline
 
 ### At `/buildflow-build` wave completion (only after Docker initialization):
-Only if `light.md -> container_runtime: docker`, verify the Docker image still builds:
+Only if `MEMORY.md -> container_runtime: docker`, verify the Docker image still builds:
 ```bash
 docker build -q -t [app_name]:wave-check . 2>&1 | tail -3
 docker rmi [app_name]:wave-check -f 2>/dev/null
@@ -658,7 +658,7 @@ If build fails: WARN (non-blocking) — "⚠ Docker build failed after this wave
 Blocking Docker build check — see ship.md Gate 3 Docker section.
 
 ### At `/buildflow-deploy`:
-If `container_runtime: docker` in `light.md`: use Docker deployment path in deploy.md.
+If `container_runtime: docker` in `MEMORY.md`: use Docker deployment path in deploy.md.
 
 ---
 
@@ -667,7 +667,7 @@ If `container_runtime: docker` in `light.md`: use Docker deployment path in depl
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used`
+3. Update `STATE.md → session_tokens_used`
 
 Default output (minimal):
 ```

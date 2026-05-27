@@ -23,7 +23,7 @@ What is being explained?
 - **Flow**: Trace the data/control flow end-to-end
 
 ## Step 2: Adapt to Experience Level
-Read `.buildflow/you/preferences.md` for experience level.
+Read `.buildflow/PREFERENCES.md` for experience level.
 - Junior: Use analogies, avoid jargon, explain the why
 - Senior: Be concise, assume fundamentals, focus on nuance
 - Unknown: Start at an intermediate level
@@ -48,6 +48,6 @@ Read `.buildflow/you/preferences.md` for experience level.
 3. How to fix it
 
 ## Step 4: Add to Glossary
-If explaining a new term, append to `.buildflow/learnings/glossary.md`.
+If explaining a new term, append to `.buildflow/GLOSSARY.md`.
 
 ## Token Budget: ~2K

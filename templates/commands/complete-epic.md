@@ -18,9 +18,9 @@ Run after every phase in the milestone is `/buildflow-ship`'ed.
 - `/buildflow-complete-epic --dry-run` — preview what would be archived, no writes
 
 ## Context Packet (load only these)
-- `.buildflow/core/state.md`
-- `.buildflow/memory/light.md`
-- `.buildflow/core/vision.md` (summary section only)
+- `.buildflow/STATE.md`
+- `.buildflow/MEMORY.md`
+- `.buildflow/VISION.md` (summary section only)
 - All `.buildflow/phases/*/SHIPPED.md` files (each ≤500 tokens — safe to load all)
 
 Do NOT load: full phase PLAN.md files, spec files, retros, codebase maps.
@@ -28,15 +28,15 @@ Do NOT load: full phase PLAN.md files, spec files, retros, codebase maps.
 ---
 
 ## Git Permission Guard
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 - `git.permission: approved` → git tagging is allowed
-- Anything else → skip tagging; record milestone version in state.md only
+- Anything else → skip tagging; record milestone version in STATE.md only
 
 ---
 
 ## Step 1: Verify All Phases Are Shipped
 
-Collect all phases from `state.md → Phase History` table. For each phase in the current milestone cycle:
+Collect all phases from `STATE.md → Phase History` table. For each phase in the current milestone cycle:
 
 ```bash
 # List all phase directories
@@ -69,7 +69,7 @@ From each `SHIPPED.md`, extract:
 - Key decisions made
 - Debt deferred
 
-From `light.md`:
+From `MEMORY.md`:
 - Stack/framework
 - `parked_changes` — if non-empty, warn before archiving
 
@@ -177,14 +177,14 @@ Print:
 
 If `--no-tag` or git unavailable:
 ```
-Version recorded in state.md (no git tag — use 'git tag [version]' later if needed)
+Version recorded in STATE.md (no git tag — use 'git tag [version]' later if needed)
 ```
 
 ---
 
 ## Step 7: Reset State for Next Milestone
 
-Use the **Write tool** to update `.buildflow/core/state.md`:
+Use the **Write tool** to update `.buildflow/STATE.md`:
 - Set `Phase: [next number]` (highest completed phase + 1)
 - Set `Status: Initialized`
 - Append milestone summary row to Phase History table:
@@ -193,7 +193,7 @@ Use the **Write tool** to update `.buildflow/core/state.md`:
   ```
 - Reset `session_tokens_used: 0`
 
-Use the **Write tool** to update `.buildflow/memory/light.md`:
+Use the **Write tool** to update `.buildflow/MEMORY.md`:
 - Update `phase:` to next phase number
 - Update `last_session:` to today
 - Clear `parked_changes: []` if empty
@@ -217,7 +217,7 @@ Use the **Write tool** to append to `~/.buildflow/learnings/global.md` (create i
 ```markdown
 ## [Milestone Name] — [Framework] — [ISO date]
 
-**Project type:** [app type from vision.md]
+**Project type:** [app type from VISION.md]
 **Framework:** [framework]
 **Language:** [language]
 
@@ -252,7 +252,7 @@ Archived to: .buildflow/milestones/[slug]/MILESTONE.md
 ──────────────────────────────────────────────────
 → Next:  /buildflow-spec "[first feature of next milestone]"
    Why:  Milestone archived. Memory pruned. Ready for the next development cycle.
-   Context: Saved to state.md. Run /clear before starting next phase — milestone boundary.
+   Context: Saved to STATE.md. Run /clear before starting next phase — milestone boundary.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```
@@ -264,6 +264,6 @@ Session: ~[N]K tokens
 Measure actual cost at the end:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used`
+3. Update `STATE.md → session_tokens_used`
 
 ## Token Budget: ~12K

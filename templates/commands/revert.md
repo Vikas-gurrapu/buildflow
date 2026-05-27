@@ -1,173 +1,158 @@
 ---
 name: buildflow-revert
-description: Revert the current or named BuildFlow spec/workflow safely
+description: Revert the current or a named phase's spec and plan artifacts safely
 allowed-tools: Read, Write, Bash, Glob
 agent: strategist
 ---
 
 # /buildflow-revert
 
-Safely remove or roll back BuildFlow workflow artifacts for the current, last, named, or all specs.
+Safely remove or roll back BuildFlow planning and spec artifacts for the current or a named phase.
 
-This command reverts BuildFlow planning/spec metadata first. It only reverts source code after explicit user confirmation, and only for the current in-progress workflow.
+This command reverts BuildFlow planning/spec metadata first. It only reverts source code after explicit user confirmation, and only for the current in-progress phase.
 
 ## Usage
-- `/buildflow-revert` - revert the current in-progress spec/workflow; if none is active, revert the last spec
-- `/buildflow-revert --spec <name-or-slug>` - revert a specific spec folder or task/spec name
-- `/buildflow-revert --task <name-or-slug>` - alias for `--spec`; useful when the user remembers the task name
-- `/buildflow-revert --last` - revert the most recently created spec/workflow
-- `/buildflow-revert --all` - delete all generated spec workflow folders and latest spec files after confirmation
-- `/buildflow-revert --list` - list known specs/workflows and their status
+- `/buildflow-revert` - revert the current in-progress phase; if none is active, revert the last phase
+- `/buildflow-revert --phase <N>` - revert a specific phase by number
+- `/buildflow-revert --last` - revert the most recently created phase
+- `/buildflow-revert --all` - delete all phase folders and spec artifacts after confirmation
+- `/buildflow-revert --list` - list known phases and their status
 
 ## Scope
 
-Spec/workflow artifacts include:
-- `.buildflow/specs/[spec-slug]/REQUIREMENTS.md`
-- `.buildflow/specs/[spec-slug]/TECHINICALDESIGN.md`
-- `.buildflow/specs/[spec-slug]/acceptance.md`
-- `.buildflow/specs/[spec-slug]/approvals.md`
-- `.buildflow/specs/[spec-slug]/meta.md`
-- latest compatibility files under `.buildflow/specs/REQUIREMENTS.md`, `TECHINICALDESIGN.md`, and `acceptance.md` when they point to the reverted spec
-- phase artifacts linked to the spec: `.buildflow/phases/[N]/PLAN.md`, `VERIFICATION.md`, `STATE.md`, `STRICT-REPORT.md`, `COVERAGE-MAP.md` when their header/frontmatter references the target `spec_slug`, `spec_name`, or `spec_version`
+Phase artifacts that can be reverted:
+- `.buildflow/phases/[N]/REQUIREMENTS.md`
+- `.buildflow/phases/[N]/DESIGN.md`
+- `.buildflow/phases/[N]/ACCEPTANCE.md`
+- `.buildflow/phases/[N]/PLAN.md`
+- `.buildflow/phases/[N]/VERIFICATION.md`
+- `.buildflow/phases/[N]/STATE.md`
+- `.buildflow/phases/[N]/COVERAGE.md`
 
-Do not delete `.buildflow/specs/approvals.md`. Append a revert record there instead. It is the permanent audit trail.
+Do not delete `.buildflow/phases/[N]/APPROVALS.md`. Append a revert record there instead — it is the permanent audit trail.
+Do not delete `SHIPPED.md` or `RETRO.md` unless `--all` and the user explicitly confirms completed history deletion.
 
 ## Step 1: Load Registry
 
 Read:
-- `.buildflow/specs/index.md` if it exists
-- `.buildflow/memory/light.md`
-- `.buildflow/core/state.md`
-- `.buildflow/specs/*/meta.md`
-- `.buildflow/phases/*/STATE.md` and `.buildflow/phases/*/PLAN.md` only as needed to map phases to a spec
+- `.buildflow/MEMORY.md`
+- `.buildflow/STATE.md`
+- `.buildflow/phases/*/STATE.md` (header only — phase number, status, last command)
 
 If `--list`:
 Print:
 ```
-Known BuildFlow specs
-─────────────────────
-1. [spec_slug] — [spec_name] — status: [draft/locked/planned/building/shipped/reverted] — phase: [N] — updated: [date]
+Known BuildFlow phases
+──────────────────────
+1. Phase [N] — status: [draft/spec_locked/plan_ready/build_in_progress/built/check_passed/shipped/reverted] — updated: [date]
 ```
 Then stop.
 
 ## Step 2: Resolve Target
 
 Resolve target in this order:
-1. `--all`: target all spec folders under `.buildflow/specs/*/`
-2. `--spec <name-or-slug>` or `--task <name-or-slug>`: match against folder slug, `meta.md` spec name, task name, title, or index row
-3. `--last`: newest spec by `meta.md` updated/created date; if unavailable, newest folder modified time
-4. default: current active spec from `light.md` (`current_spec_slug`, `spec_slug`, or current phase `STATE.md`)
-5. if no current spec exists: last spec
+1. `--all`: target all phase folders under `.buildflow/phases/*/`
+2. `--phase <N>`: match the exact phase number
+3. `--last`: newest phase by `STATE.md` updated date; if unavailable, newest folder modified time
+4. default: current active phase from `MEMORY.md` (`current_phase`) or `STATE.md`
+5. if no current phase exists: last phase
 
-If multiple targets match a name, show choices and ask the user to select one.
-If no target matches, show known specs and stop.
+If no target matches, show known phases and stop.
 
 ## Step 3: Determine Status
 
 Classify the target:
-- **current/in-progress**: status is draft, locked, planned, building, check_failed, or current phase points to it
-- **completed**: status is shipped, archived, or phase has `SHIPPED.md`
-- **unknown**: no phase/status metadata is available
+- **current/in-progress**: status is draft, spec_locked, plan_ready, build_in_progress, built, check_passed, or check_failed
+- **completed**: status is shipped or phase has `SHIPPED.md`
+- **unknown**: no phase/status metadata available
 
-For current/in-progress specs, source code may have been changed. For completed specs, do not revert source code from this command; delete only BuildFlow markdown artifacts unless the user explicitly runs `/buildflow-back` for a restore point.
+For current/in-progress phases, source code may have been changed. For completed phases, do not revert source code from this command; delete only BuildFlow markdown artifacts unless the user explicitly uses a restore point.
 
 ## Step 4: Show Impact and Confirm
 
 For a single target:
 ```
-Revert target: [spec_name] ([spec_slug])
+Revert target: Phase [N]
 Status: [current/in-progress/completed/unknown]
 
 BuildFlow files to remove/update:
 - [list exact files]
 
-Phase files affected:
-- [list exact phase files]
-
 Source code:
-- [if current/in-progress] Code changes may exist for this workflow.
+- [if current/in-progress] Code changes may exist for this phase.
 - [if completed] Code will not be reverted by this command.
 ```
 
 Ask:
 ```
 Choose revert scope:
-1. Spec files only - delete BuildFlow spec/phase markdown for this workflow
-2. Spec files + code revert - only available for current/in-progress workflows
+1. Spec files only - delete BuildFlow phase markdown for this phase
+2. Spec files + code revert - only available for current/in-progress phases
 3. Cancel
 ```
 
 Rules:
-- Option 2 requires `git.permission: approved` or a BuildFlow snapshot that clearly maps to this workflow.
-- If `git.permission` is not approved, do not run git commands. Offer snapshot restore if an exact matching snapshot exists; otherwise say code revert needs `/buildflow-back` or manual review.
-- For completed specs, hide option 2 and state: "Completed workflows only remove BuildFlow markdown here. Use `/buildflow-back` with an explicit restore point for code rollback."
+- Option 2 requires `git.permission: approved` or a BuildFlow snapshot that clearly maps to this phase.
+- If `git.permission` is not approved, do not run git commands. Offer snapshot restore if an exact matching snapshot exists; otherwise say code revert needs manual review.
+- For completed phases, hide option 2 and state: "Completed phases only remove BuildFlow markdown here. Use a restore point for code rollback."
 
 For `--all`, require stronger confirmation:
 ```
-This will delete all generated spec workflow folders and latest spec files.
-Type: delete all buildflow specs
+This will delete all phase folders and their artifacts.
+Type: delete all buildflow phases
 ```
 
 ## Step 5: Revert BuildFlow Files
 
 For each selected target:
-1. Delete the target folder `.buildflow/specs/[spec-slug]/`.
-2. Delete phase markdown files linked to that target:
+1. Delete these phase markdown files from `.buildflow/phases/[N]/`:
+   - `REQUIREMENTS.md`
+   - `DESIGN.md`
+   - `ACCEPTANCE.md`
    - `PLAN.md`
    - `VERIFICATION.md`
    - `STATE.md`
-   - `STRICT-REPORT.md`
-   - `COVERAGE-MAP.md`
-   - Do not delete `SHIPPED.md` or `retro.md` unless `--all` and user explicitly confirms completed history deletion.
-3. If latest compatibility files under `.buildflow/specs/` match the target, remove them or replace them with the newest remaining spec's files:
-   - `REQUIREMENTS.md`
-   - `TECHINICALDESIGN.md`
-   - `acceptance.md`
-4. Update `.buildflow/specs/index.md`:
-   - mark reverted specs as `reverted` with timestamp, or remove them entirely when `--all` was confirmed
-   - set `current: false`
-   - set the newest remaining non-reverted spec as current
-5. Append to `.buildflow/specs/approvals.md`:
+   - `COVERAGE.md`
+2. Do not delete: `APPROVALS.md`, `SHIPPED.md`, `RETRO.md` (unless `--all` with explicit confirmation).
+3. Append to `.buildflow/phases/[N]/APPROVALS.md`:
    ```
-   ## Reverted — [spec_slug] — [datetime]
+   ## Reverted — Phase [N] — [datetime]
    Reason: user requested /buildflow-revert [args]
    Scope: spec files only / spec files + code revert / all
    ```
 
-## Step 6: Optional Code Revert for Current Workflows
+## Step 6: Optional Code Revert for Current Phases
 
 Only run this step if the user selected "Spec files + code revert".
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 If `git.permission: approved`:
-- Prefer a BuildFlow-created branch/tag/checkpoint that maps to the target.
+- Prefer a BuildFlow-created branch/tag/checkpoint that maps to the target phase.
 - If no exact checkpoint exists, show changed files and ask before reverting.
 - Never run `git reset --hard` without an explicit restore point and explicit confirmation.
 
 If no-git mode:
-- Restore only from a BuildFlow snapshot whose metadata maps to this spec/workflow.
+- Restore only from a BuildFlow snapshot whose metadata maps to this phase.
 - If no exact snapshot exists, stop and explain which files likely need manual review.
 
 ## Step 7: Update State
 
-Update `.buildflow/memory/light.md`:
-- Clear `current_spec_slug`, `current_spec_name`, `spec_status`, and `spec_version` if the reverted target was current.
-- Clear `current_phase` only when its phase artifacts were removed.
-- Set `last_revert: [datetime] [spec_slug]`.
+Update `.buildflow/MEMORY.md`:
+- Clear `current_phase`, `spec_status`, and `spec_version` if the reverted phase was current.
+- Set `last_revert: [datetime] Phase [N]`.
 
-Update `.buildflow/core/state.md`:
-- Add a phase/history note that `[spec_slug]` was reverted.
-- If another spec remains current, point next action to `/buildflow-plan` or `/buildflow-build` based on that spec's status.
+Update `.buildflow/STATE.md`:
+- Add a history note that Phase [N] was reverted.
+- If another phase is still active, point next action to `/buildflow-plan` or `/buildflow-build` based on that phase's status.
 
 ## Step 8: Result
 
 Print:
 ```
-Reverted: [spec_name] ([spec_slug])
+Reverted: Phase [N]
 Scope: [spec files only / spec files + code / all]
 Files removed: [N]
-Latest spec now: [spec_slug or none]
 
 Next: /buildflow-status
 ```

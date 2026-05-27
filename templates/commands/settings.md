@@ -7,7 +7,7 @@ agent: strategist
 
 # /buildflow-settings
 
-View and update BuildFlow preferences interactively. Reads `.buildflow/you/preferences.md` and writes your changes back — no manual markdown editing required.
+View and update BuildFlow preferences interactively. Reads `.buildflow/PREFERENCES.md` and writes your changes back — no manual markdown editing required.
 
 ## Usage
 - `/buildflow-settings` — show all current settings, then present the change menu
@@ -23,7 +23,7 @@ View and update BuildFlow preferences interactively. Reads `.buildflow/you/prefe
 - `/buildflow-settings reset` — restore all settings to BuildFlow defaults (asks for confirmation)
 
 ## Context Packet (load only these)
-- `.buildflow/you/preferences.md`
+- `.buildflow/PREFERENCES.md`
 
 Do NOT load any other file.
 
@@ -31,7 +31,7 @@ Do NOT load any other file.
 
 ## Step 1: Load and Display Current Settings
 
-Read `.buildflow/you/preferences.md` and extract current values. Display a clean summary:
+Read `.buildflow/PREFERENCES.md` and extract current values. Display a clean summary:
 
 ```
 BuildFlow Settings
@@ -78,7 +78,7 @@ Current: [value]
 New value: 
 ```
 
-Update `experience:` in `preferences.md`.
+Update `experience:` in `PREFERENCES.md`.
 
 ---
 
@@ -96,8 +96,8 @@ Current: [value]
 New value:
 ```
 
-Update `git.permission:` in `preferences.md`.
-Also update `git_available:` in `.buildflow/memory/light.md` to match (`true` if approved, `false` otherwise).
+Update `git.permission:` in `PREFERENCES.md`.
+Also update `git_available:` in `.buildflow/MEMORY.md` to match (`true` if approved, `false` otherwise).
 
 ---
 
@@ -113,7 +113,7 @@ Current: [value]
 New value:
 ```
 
-Update `token_tracking.enabled:` in `preferences.md`.
+Update `token_tracking.enabled:` in `PREFERENCES.md`.
 
 ---
 
@@ -129,7 +129,7 @@ Current: [value]
 New value:
 ```
 
-Update `verbose_context:` in `preferences.md`.
+Update `verbose_context:` in `PREFERENCES.md`.
 
 ---
 
@@ -149,7 +149,7 @@ Below this threshold, /buildflow-check and /buildflow-ship prompt you (never a h
 New threshold (%):
 ```
 
-Update `spec_coverage.threshold:` in `preferences.md`.
+Update `spec_coverage.threshold:` in `PREFERENCES.md`.
 
 ---
 
@@ -165,7 +165,7 @@ Current: [value]
 New value:
 ```
 
-Update `spec_coverage.strict_mode:` in `preferences.md`.
+Update `spec_coverage.strict_mode:` in `PREFERENCES.md`.
 
 ---
 
@@ -185,7 +185,7 @@ Current: [value]
 New value:
 ```
 
-Update `strict_mode:` in `preferences.md`.
+Update `strict_mode:` in `PREFERENCES.md`.
 
 ---
 
@@ -201,7 +201,7 @@ Current: [value]
 New value:
 ```
 
-Update `parallel.enabled:` in `preferences.md`.
+Update `parallel.enabled:` in `PREFERENCES.md`.
 
 ---
 
@@ -219,7 +219,7 @@ Max parallel researchers controls how many Researcher agents run simultaneously 
 New value:
 ```
 
-Update `parallel.max_researchers:` in `preferences.md`.
+Update `parallel.max_researchers:` in `PREFERENCES.md`.
 
 ---
 
@@ -236,7 +236,7 @@ Current: [value]
 New value:
 ```
 
-Update `security.pre_ship_gate:` in `preferences.md`.
+Update `security.pre_ship_gate:` in `PREFERENCES.md`.
 
 ---
 
@@ -253,7 +253,7 @@ Current: [value]
 New value:
 ```
 
-Update `learning.show_explanations:`, `learning.confidence_calibration:`, `learning.source_citations:` together in `preferences.md`.
+Update `learning.show_explanations:`, `learning.confidence_calibration:`, `learning.source_citations:` together in `PREFERENCES.md`.
 
 ---
 
@@ -269,7 +269,7 @@ Current: [value]
 New value:
 ```
 
-Update `safety.enable_undo:` and `safety.restore_points:` in `preferences.md`.
+Update `safety.enable_undo:` and `safety.restore_points:` in `PREFERENCES.md`.
 
 ---
 
@@ -294,7 +294,7 @@ Workflow toggles control which phases are required and how autonomous BuildFlow 
 Enter a number to toggle, or "back" to return to main menu:
 ```
 
-Update the corresponding `workflow.*` keys in `preferences.md`.
+Update the corresponding `workflow.*` keys in `PREFERENCES.md`.
 
 ---
 
@@ -312,18 +312,18 @@ This will restore all preferences to BuildFlow defaults:
 Type "reset" to confirm, or anything else to cancel:
 ```
 
-If confirmed: use the **Write tool** to rewrite the relevant yaml blocks in `preferences.md` with default values.
+If confirmed: use the **Write tool** to rewrite the relevant yaml blocks in `PREFERENCES.md` with default values.
 
 ---
 
 ## Step 3: Write Changes
 
-For each changed setting, use the **Write tool** to update the corresponding yaml block in `.buildflow/you/preferences.md`. Preserve all other content in the file — only replace the specific yaml value that changed.
+For each changed setting, use the **Write tool** to update the corresponding yaml block in `.buildflow/PREFERENCES.md`. Preserve all other content in the file — only replace the specific yaml value that changed.
 
 After all changes are written, print:
 
 ```
-Settings saved to .buildflow/you/preferences.md
+Settings saved to .buildflow/PREFERENCES.md
 
 Changed:
   experience: junior → senior

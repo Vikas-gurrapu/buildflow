@@ -86,7 +86,7 @@ Skip: node_modules, test files, .env.example
 
 ## Phase 2b: Container Security Scan (only if Docker was initialized)
 
-Run this section only when `light.md -> container_runtime: docker` was set by `/buildflow-docker`.
+Run this section only when `MEMORY.md -> container_runtime: docker` was set by `/buildflow-docker`.
 If Docker was not initialized through `/buildflow-docker`, skip container scanning silently.
 
 Check if `Dockerfile` exists. If yes, and if a built image exists:
@@ -115,7 +115,7 @@ Check Dockerfile itself for common misconfigurations:
 
 ## Phase 3: Generate Report
 
-Write to `.buildflow/security/reports/audit-[date].md`:
+Write to `.buildflow/phases/[N]/audit-[date].md`:
 
 ```
 # Security Audit Report
@@ -158,7 +158,7 @@ ship_safe: true/false
 Measure actual cost before printing:
 1. Sum character counts of all files scanned ÷ 4 = input tokens
 2. Estimate output ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used`
+3. Update `STATE.md → session_tokens_used`
 
 Default output (minimal):
 ```
