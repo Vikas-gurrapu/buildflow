@@ -1,6 +1,6 @@
 # {{APP_NAME}} — Claude Code Configuration
 
-This project uses **BuildFlow v5.0** for spec-driven, multi-agent development orchestration.
+This project uses **BuildFlow v7.0** for spec-driven, multi-agent development orchestration.
 
 ## Session Start Checklist (Run Every Time)
 
@@ -36,7 +36,13 @@ Before doing anything else at the start of every session:
      > "⚠ Git not detected. BuildFlow is running in **no-git mode**: restore points use file snapshots, wave commits are tracked in PLAN.md, and phase tags are recorded in state.md instead. All core features still work."
    - Never let `light.md` override `preferences.md`. If `git.permission` is not `approved`, no-git mode wins.
 
-5. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
+5. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start-epic` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
+
+5b. **Global learnings check** — read `~/.buildflow/learnings/global.md` if it exists (cross-project insights written by `/buildflow-complete-epic`).
+   - Filter entries matching the current framework or language (from `light.md`).
+   - If 1–3 relevant entries exist, surface them silently as a one-line note: `💡 [N] global insight(s) from past projects — relevant to [framework]. Read with /buildflow-help.`
+   - If no matches or file absent: proceed silently.
+   - Never load more than 5 entries into context — take the 5 most recent matching ones.
 
 6. **Reset session token counter** — update `state.md`:
    ```yaml
@@ -47,12 +53,13 @@ Before doing anything else at the start of every session:
 
 ---
 
-## BuildFlow v5.0 Workflow
+## BuildFlow v7.0 Workflow
 
 ```
-/buildflow-start    → capture vision
+/buildflow-start-epic    → capture vision
 /buildflow-think    → research (optional)
-/buildflow-spec     → generate Requirements + Technical Design + Acceptance Criteria  ← NEW
+/buildflow-discuss  → lock key decisions before speccing (optional)
+/buildflow-spec     → generate Requirements + Technical Design + Acceptance Criteria
 /buildflow-plan     → map tasks to ACs, group into waves
 /buildflow-build    → execute waves with auto-test + auto-fix
 /buildflow-check    → verify all ACs satisfied
@@ -64,7 +71,8 @@ Before doing anything else at the start of every session:
 
 | Command | When to use |
 |---------|-------------|
-| `/buildflow-start` | Begin or continue the project |
+| `/buildflow-start-epic` | Begin or continue the project |
+| `/buildflow-discuss` | Capture key architectural decisions before speccing or planning |
 | `/buildflow-spec` | Define Requirements, Technical Design, Acceptance Criteria before planning |
 | `/buildflow-plan` | Create spec-traced wave plan |
 | `/buildflow-build` | Execute plan — auto-tests and auto-fixes each wave |
@@ -80,7 +88,11 @@ Before doing anything else at the start of every session:
 | `/buildflow-workspace` | Multi-repo/monorepo cross-service impact analysis |
 | `/buildflow-docker` | Docker scaffolding, build, run, push, and image security scan |
 | `/buildflow-audit` | OWASP Top 10 security scan + container CVE scan |
+| `/buildflow-ui-spec` | Generate UI design contract — colors, typography, spacing, components |
+| `/buildflow-ui-review` | Audit UI implementation against design contract across 6 dimensions |
 | `/buildflow-status` | See current phase and progress |
+| `/buildflow-complete-epic` | Archive milestone, tag release, reset for next cycle |
+| `/buildflow-settings` | Interactively view and update preferences |
 | `/buildflow-help` | Diagnostic mode + recovery |
 
 ## Core Rules
@@ -93,6 +105,7 @@ Before doing anything else at the start of every session:
 - Create restore points before destructive operations (file snapshot unless `git.permission: approved`)
 - Run `/buildflow-audit` before every `/buildflow-ship`
 - No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
+- **Yolo mode** — when `workflow.skip_prompts: true` in `preferences.md`: auto-proceed at all non-destructive confirmation gates (wave start, coverage prompts, proceed-to-next-wave). Only destructive gates (full reset, permanent delete, force-ship with critical security findings) still require explicit confirmation
 - Phase `STATE.md` is mandatory for phase-driving commands — load it at command start, use it to resume, and update it before command exit
 - **Strict mode** — when `strict_mode: true` or phase planned with `--strict`: `/buildflow-check --strict` is mandatory before ship; strict violations have no override flag
 - **Folder Access Guard** — check `path_permissions` before reading or writing any folder (see below)

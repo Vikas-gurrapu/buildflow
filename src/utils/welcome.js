@@ -54,7 +54,7 @@ export async function showWelcome() {
       console.log(chalk.cyan('    /buildflow-modify  ') + chalk.dim('  Change existing code safely'))
       console.log(chalk.cyan('    /buildflow-refactor') + chalk.dim('  Improve existing code'))
     } else {
-      console.log(chalk.cyan('    /buildflow-start  ') + chalk.dim('  Begin your project'))
+      console.log(chalk.cyan('    /buildflow-start-epic') + chalk.dim('  Begin your project'))
       console.log(chalk.cyan('    /buildflow-think  ') + chalk.dim('  Discuss & research'))
       console.log(chalk.cyan('    /buildflow-plan   ') + chalk.dim('  Create execution plan'))
     }

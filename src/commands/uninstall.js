@@ -7,10 +7,12 @@ import { homedir } from 'os'
 const { prompt } = enquirer
 
 const COMMAND_NAMES = [
-  'start', 'think', 'spec', 'plan', 'build', 'test', 'check', 'ship',
+  'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship',
   'onboard', 'modify', 'refactor', 'hotfix', 'audit',
   'debug', 'deploy', 'docker', 'workspace',
-  'status', 'explain', 'back', 'help',
+  'status', 'explain', 'back', 'revert', 'help',
+  'complete-epic', 'settings',
+  'ui-spec', 'ui-review',
 ]
 
 const TOOL_IDS = ['claude', 'gemini', 'codex', 'cursor', 'cline', 'continue']

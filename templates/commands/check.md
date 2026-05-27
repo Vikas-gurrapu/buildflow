@@ -60,6 +60,41 @@ If `VERIFICATION.md` is missing or stale:
 - Preserve existing test run evidence when AC IDs still match.
 - Mark new/changed ACs as `NOT STARTED`.
 
+## Step 1b: Scope-Reduction Detection
+
+Cross-check `acceptance.md` against `PLAN.md` and `VERIFICATION.md` for silent requirement drops.
+
+**Check 1 — Plan coverage:** ACs in `acceptance.md` with no task in `PLAN.md`:
+```bash
+grep -oE "AC-NF-[0-9]+" .buildflow/specs/acceptance.md | sort -u > /tmp/bf_acs_spec.txt
+grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/PLAN.md | sort -u > /tmp/bf_acs_plan.txt
+grep -oE "AC-[0-9]+" .buildflow/specs/acceptance.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_spec.txt
+grep -oE "AC-[0-9]+" .buildflow/phases/[N]/PLAN.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_plan.txt
+comm -23 <(sort /tmp/bf_acs_spec.txt) <(sort /tmp/bf_acs_plan.txt)
+```
+
+**Check 2 — Execution coverage:** ACs in `acceptance.md` with no row in `VERIFICATION.md`:
+```bash
+# List VERIFICATION.md AC rows
+grep -oE "AC-NF-[0-9]+|AC-[0-9]+" .buildflow/phases/[N]/VERIFICATION.md | sort -u
+# Find any not tracked at all
+```
+
+**Output:**
+```
+Scope-Reduction Check
+──────────────────────
+ACs in acceptance.md:     [N]
+ACs in plan:              [M]   (dropped from plan: [list or NONE])
+ACs in VERIFICATION.md:   [K]   (not tracked in execution: [list or NONE])
+```
+
+- **Dropped from plan:** Means the plan was written without covering these requirements. Surface as FAIL in Step 6 regardless of other reviewer findings.
+- **Not tracked in VERIFICATION.md:** Means execution never attempted to satisfy these ACs. Mark those rows as `NOT STARTED` in VERIFICATION.md immediately, then include them in Reviewer A's check.
+- **0 issues in both checks:** Silent — proceed.
+
+---
+
 ## Step 2: Parallel Review (4 reviewers)
 
 **Reviewer A — Spec Compliance (most important):**

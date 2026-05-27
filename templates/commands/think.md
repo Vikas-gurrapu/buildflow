@@ -26,6 +26,7 @@ Goes beyond research — includes engineering cognition modes for architecture r
 - `.buildflow/memory/light.md` (app_name, framework, key decisions only)
 - `.buildflow/codebase/MAP.md` (for --arch, --debt, --complexity modes)
 - `.buildflow/specs/TECHINICALDESIGN.md` (for --arch mode, if exists)
+- `~/.buildflow/learnings/global.md` — filter to entries matching current framework/language; include at most 3 relevant entries as prior context for researchers
 
 ---
 
@@ -246,7 +247,7 @@ Before printing this block, check session context usage and whether the command 
 Session: ~[N]K tokens
 ```
 
-If verdict is OVER-SCOPED: `→ Next: /buildflow-start` (revise the vision scope before speccing).
+If verdict is OVER-SCOPED: `→ Next: /buildflow-start-epic` (revise the vision scope before speccing).
 If this was `--arch`: `→ Next: /buildflow-plan` (architecture decided — ready to plan implementation).
 
 ## Token Budget: ~30K (standard) / ~35K (--arch or --build-vs-buy) / ~20K (--debt or --complexity)
