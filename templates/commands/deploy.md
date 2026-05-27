@@ -16,8 +16,8 @@ Pre-flight checks and deployment orchestration. Ensures the build is safe to dep
 - `/buildflow-deploy --dry-run` — show what would happen without deploying
 
 ## Step 1: Load Context
-Read `.buildflow/core/state.md` for current phase and status.
-Read `.buildflow/memory/light.md` for project framework and deploy config.
+Read `.buildflow/STATE.md` for current phase and status.
+Read `.buildflow/MEMORY.md` for project framework and deploy config.
 
 ## Step 2: Pre-flight Gate
 
@@ -41,7 +41,7 @@ Check for:
 - Deployment config files: `vercel.json`, `netlify.toml`, `fly.toml`, `railway.json`
 - CI/CD config: `.github/workflows/`, `.gitlab-ci.yml`
 - Cloud CLI tools: `vercel`, `netlify`, `flyctl`, `railway`, `heroku`
-- `light.md -> container_runtime: docker` (set only by `/buildflow-docker`)
+- `MEMORY.md -> container_runtime: docker` (set only by `/buildflow-docker`)
 - Docker/Compose deployment is available only after `/buildflow-docker` initializes Docker state
 
 Classify the deploy path:
@@ -151,7 +151,7 @@ Shows the pre-flight checklist results and what deploy command would run — wit
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used`
+3. Update `STATE.md → session_tokens_used`
 
 Default output (minimal):
 ```

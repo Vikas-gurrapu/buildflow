@@ -50,7 +50,7 @@ Once installed, you work entirely inside your AI tool using `/buildflow-*` comma
 
 - **Spec-first:** Every phase starts with formal Requirements + Technical Design + Acceptance Criteria. Plans trace to ACs. Ship is blocked if any AC is unsatisfied.
 - **Context isolation + resume:** Each agent receives a minimal context packet, and each phase keeps a compact `STATE.md` so fresh sessions can continue cleanly.
-- **Auto-prune:** `light.md` is automatically compressed at session start and after each ship. Long sessions stay lean.
+- **Auto-prune:** `MEMORY.md` is automatically compressed at session start and after each ship. Long sessions stay lean.
 - **Measured token costs:** Every command reports actual token usage (context loaded + output generated) and accumulates a session total — not estimates.
 - **Cross-project intelligence:** Global learnings written at every milestone completion surface relevant insights in future projects using the same framework.
 
@@ -160,7 +160,7 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 | `/buildflow-status` | Strategist | Phase progress, AC bar, build quality, debt, session token total, next action | ~5K |
 | `/buildflow-explain <term/file>` | Strategist | Plain-language explanation of code, concepts, or errors | ~2K |
 | `/buildflow-back [n]` | Strategist | Undo to restore point (git stash or file snapshot), update state | ~3K |
-| `/buildflow-revert [--spec name]` | Strategist | Revert current, last, named, or all spec workflows; asks before code rollback | ~4K |
+| `/buildflow-revert [--phase N]` | Strategist | Revert current, last, or named phase's spec and plan artifacts; asks before code rollback | ~4K |
 | `/buildflow-discuss [topic]` | Strategist + Researcher | Pre-plan decision workshop — surface open decisions, optionally research options, lock with confidence score | ~20–35K |
 | `/buildflow-complete-epic` | Strategist | Archive shipped phases into named milestone, write global learnings, create release tag, reset for next cycle | ~12K |
 | `/buildflow-settings` | Strategist | Interactive settings menu — 13 settings including workflow toggles, yolo mode, and spec coverage | ~3K |
@@ -210,7 +210,7 @@ npx buildflow-dev uninstall --local --project-data
 
 BuildFlow will:
 - Auto-detect language, framework, and existing tests
-- Ask for git permission (stored permanently in `preferences.md`)
+- Ask for git permission (stored permanently in `PREFERENCES.md`)
 - Scaffold `.buildflow/` with all config files
 - Install commands into detected AI tools
 
@@ -228,7 +228,7 @@ Loads vision, detects codebase drift vs last session (file count, schema changes
 /buildflow-think auth-strategy
 ```
 
-3 Researchers run in parallel. Synthesizer combines results. Output saved to `.buildflow/research/`.
+3 Researchers run in parallel. Synthesizer combines results. Output saved to `.buildflow/phases/[N]/RESEARCH.md`.
 
 ### 3b. Discuss — lock key decisions before speccing (optional)
 
@@ -236,7 +236,7 @@ Loads vision, detects codebase drift vs last session (file count, schema changes
 /buildflow-discuss database-choice
 ```
 
-Structured decision workshop. Surfaces open architectural decisions, optionally spawns Researchers per option, produces a locked decision with confidence score. Saved to `.buildflow/learnings/decisions.md` and carried forward as spec constraints.
+Structured decision workshop. Surfaces open architectural decisions, optionally spawns Researchers per option, produces a locked decision with confidence score. Saved to `.buildflow/phases/[N]/DECISIONS.md` and carried forward as spec constraints.
 
 ### 4. Spec — formal artifacts required before planning
 
@@ -247,17 +247,14 @@ Structured decision workshop. Surfaces open architectural decisions, optionally 
 Generates three locked files with frontmatter versioning:
 
 ```
-.buildflow/specs/
-|-- REQUIREMENTS.md       Latest/current Product Requirements copy
-|-- TECHINICALDESIGN.md   Latest/current Technical Design copy
-|-- acceptance.md         Latest/current AC copy with spec_version
-|-- approvals.md          Permanent approval audit trail
-|-- index.md              Registry of named spec workflows
-`-- [spec-slug]/          Per-workflow copies plus meta.md for revert/resume
+.buildflow/phases/[N]/
+|-- REQUIREMENTS.md       Product Requirements
+|-- DESIGN.md             Technical Design
+|-- ACCEPTANCE.md         Acceptance Criteria with spec_version
+`-- APPROVALS.md          Permanent approval audit trail
 ```
 
-Approval is written to `specs/approvals.md` (permanent audit trail, never pruned).
-Named spec folders make multiple workflows possible. Use `/buildflow-revert --spec <name>` to remove a specific workflow, or `/buildflow-revert --all` to clear generated spec workflows after confirmation.
+Approval is written to `phases/[N]/APPROVALS.md` (permanent audit trail, never pruned).
 If the spec changes mid-phase, an amendment gate requires explicit confirmation and marks PLAN.md stale.
 
 ### 5. Plan — waves with AC tracing and safety checks
@@ -312,7 +309,7 @@ Before `/buildflow-ship`, `/buildflow-check` asks the user to manually confirm s
 
 | Gate | What it checks | On failure |
 |------|---------------|------------|
-| **Gate 0a** | `spec_version` in PLAN.md matches current `acceptance.md` | BLOCK |
+| **Gate 0a** | `spec_version` in PLAN.md matches current `ACCEPTANCE.md` | BLOCK |
 | **Gate 0b** | Every AC is ✓ PASS | BLOCK |
 | **Gate 1** | Security scan (changed files only) | CRITICAL → BLOCK, HIGH → WARN |
 | **Gate 2a** | Current phase tests pass | BLOCK |
@@ -320,8 +317,8 @@ Before `/buildflow-ship`, `/buildflow-check` asks the user to manually confirm s
 | **Gate 3** | Type-check BLOCK ? Lint errors BLOCK ? Compile BLOCK ? Coverage smart-prompt ? Bundle size alert ? Docker build only after `/buildflow-docker` initializes Docker | Type/compile/Docker -> BLOCK |
 
 After gates pass:
-- Retrospective written to `phases/N/retro.md`
-- `light.md` pruned to under 3K tokens
+- Retrospective written to `phases/N/RETRO.md`
+- `MEMORY.md` pruned to under 3K tokens
 - `phases/N/SHIPPED.md` written (≤500 tokens, loaded by future phases)
 - Git tag OR file snapshot (no-git mode)
 - **Post-ship feature advisor** auto-runs (market research + engineering standards gaps)
@@ -349,7 +346,7 @@ At `init`, BuildFlow asks once:
     Deny permanently — always use file snapshots, never ask again
 ```
 
-The choice is stored in `.buildflow/you/preferences.md` under `git.permission` and in `light.md` under `git_available`. It persists across all sessions.
+The choice is stored in `.buildflow/PREFERENCES.md` under `git.permission` and in `MEMORY.md` under `git_available`. It persists across all sessions.
 
 **To re-enable git after denying:**
 ```
@@ -366,9 +363,9 @@ When git is unavailable or denied, all BuildFlow features continue to work using
 
 | Git feature | No-git equivalent |
 |-------------|------------------|
-| `git stash` | `.buildflow/snapshots/pre-modify-[timestamp]/` |
+| `git stash` | `.buildflow/phases/[N]/SNAPSHOTS/` |
 | Wave commit | Recorded in `PLAN.md` task file lists |
-| Phase tag | `state.md` entry with snapshot path |
+| Phase tag | `STATE.md` entry with snapshot path |
 | Changed-file detection | PLAN.md task `Files to create/modify` fields |
 
 **Parked changes**: If git fails mid-build, BuildFlow prompts:
@@ -376,7 +373,7 @@ When git is unavailable or denied, all BuildFlow features continue to work using
 - **Park** — save a snapshot, continue working, commit later
 - **Warn only** — proceed without committing
 
-Parked entries are tracked in `light.md → parked_changes[]`. When a new phase touches files with parked changes, BuildFlow warns and offers to resolve or take a stack snapshot.
+Parked entries are tracked in `MEMORY.md → parked_changes[]`. When a new phase touches files with parked changes, BuildFlow warns and offers to resolve or take a stack snapshot.
 
 **To commit parked changes once git is restored:**
 ```
@@ -392,7 +389,7 @@ Every command measures and reports its **actual** token usage — not estimates.
 **How it works:**
 1. At command start: sum character counts of all loaded files ÷ 4 = input tokens
 2. At command end: measure generated text length ÷ 4 = output tokens
-3. Add to `state.md → session_tokens_used` running total
+3. Add to `STATE.md → session_tokens_used` running total
 4. Print the breakdown
 
 **Token cost report (shown at end of every command):**
@@ -407,7 +404,7 @@ Session total:     ~52K tokens   (since 2026-05-25 09:14)
 
 **Session total** is reset at every `/buildflow-start-epic`. View anytime with `/buildflow-status`.
 
-**Configure in `preferences.md`:**
+**Configure in `PREFERENCES.md`:**
 ```yaml
 token_tracking:
   enabled: true
@@ -422,7 +419,7 @@ token_tracking:
 BuildFlow's spec layer is versioned, auditable, and enforced at every gate.
 
 ### Versioning
-Every `acceptance.md` has a frontmatter header:
+Every `ACCEPTANCE.md` has a frontmatter header:
 ```yaml
 spec_version: 2
 status: locked
@@ -434,7 +431,7 @@ changelog:
 ```
 
 ### Approval audit trail
-Every approval is appended to `specs/approvals.md` — a permanent file that is **never pruned or deleted**, even after ship.
+Every approval is appended to `phases/[N]/APPROVALS.md` — a permanent file that is **never pruned or deleted**, even after ship.
 
 ### Amendment gate
 If you change the spec while a build is in progress:
@@ -449,7 +446,7 @@ If you change the spec while a build is in progress:
 Shows a side-by-side before/after of every changed AC between the current spec version and the version the plan was built against.
 
 ### Version consistency enforcement
-At plan time, at build start, and at ship Gate 0a — the `spec_version` in `PLAN.md` is checked against the current `acceptance.md`. Any mismatch blocks progression.
+At plan time, at build start, and at ship Gate 0a — the `spec_version` in `PLAN.md` is checked against the current `ACCEPTANCE.md`. Any mismatch blocks progression.
 
 ### Spec coverage threshold
 Configure how strictly AC traceability is enforced:
@@ -506,7 +503,7 @@ Handles authentication, tagging, and push for all major registries.
 /buildflow-docker scan
 ```
 
-Runs `docker scout` (if available) or Trivy. Reports CVEs by severity, suggests base image improvements, appends critical findings to `security/DEBT.md`.
+Runs `docker scout` (if available) or Trivy. Reports CVEs by severity, suggests base image improvements, appends critical findings to `phases/[N]/DEBT.md`.
 
 ### Pipeline integration
 
@@ -517,7 +514,7 @@ Runs `docker scout` (if available) or Trivy. Reports CVEs by severity, suggests 
 | `/buildflow-deploy` | Full Docker path: build → scan → push → pull on host → migrate → health check |
 | `/buildflow-audit` | Dockerfile misconfiguration scan (running as root, secrets in ENV/ARG, missing HEALTHCHECK) + image CVE scan |
 
-**Configure in `preferences.md`:**
+**Configure in `PREFERENCES.md`:**
 ```yaml
 docker:
   detected: true
@@ -613,7 +610,7 @@ Your debt right now: 3 items in DEBT.md
 Suggested next: /buildflow-spec "Auth hardening + recurring tasks"
 ```
 
-Saved to `.buildflow/learnings/feature-suggestions.md`. Also available anytime via `/buildflow-help next`.
+Saved to `.buildflow/phases/[N]/SUGGESTIONS.md`. Also available anytime via `/buildflow-help next`.
 
 ---
 
@@ -633,16 +630,16 @@ npx buildflow-dev init
         │                            Scala, Elixir, C/C++, Haskell
         │
         ├─ Git permission prompt   approve / deny / deny_permanent
-        │                          → stored in preferences.md + light.md
+        │                          → stored in PREFERENCES.md + MEMORY.md
         │
-        ├─ Folder access guard     path_permissions in preferences.md
+        ├─ Folder access guard     path_permissions in PREFERENCES.md
         │                          commands ask once per folder, then remember
         │
         ├─ scaffoldBuildflow()     Creates .buildflow/ folder tree with pre-filled files:
-        │                          core/, specs/, you/, memory/, codebase/, phases/,
-        │                          snapshots/, security/, learnings/
+        │                          phases/, codebase/
+        │                          
         │
-        ├─ patchGitignore()        Adds .buildflow/security/reports/ and snapshots/
+        ├─ patchGitignore()        Adds .buildflow/phases/*/SNAPSHOTS/
         │
         ├─ ensureGit()             Only if git.permission === 'approved'
         │
@@ -656,13 +653,13 @@ npx buildflow-dev init
 Every AI session runs this automatically:
 
 1. Check for BuildFlow updates
-2. Prune `light.md` if over 3K tokens
-3. Load `state.md` for current phase
+2. Prune `MEMORY.md` if over 3K tokens
+3. Load `STATE.md` for current phase
 4. Load `.buildflow/phases/N/STATE.md` if a phase is active
-5. Detect git availability, set `git_available` in `light.md`
+5. Detect git availability, set `git_available` in `MEMORY.md`
 5b. Check `~/.buildflow/learnings/global.md` — surface matching insights for current framework
 6. Run codebase drift check against `intel.json` baseline
-7. Reset `session_tokens_used: 0` in `state.md`
+7. Reset `session_tokens_used: 0` in `STATE.md`
 
 ### Phase resume contract
 
@@ -707,8 +704,8 @@ buildflow-dev/
 │   ├── commands/
 │   │   ├── init.js               Detects languages/frameworks. Docker is opt-in via /buildflow-docker.
 │   │   │                         Git permission prompt. Scaffolds .buildflow/.
-│   │   │                         Writes preferences.md, light.md, state.md, vision.md,
-│   │   │                         approvals.md, feature-suggestions.md scaffolds.
+│   │   │                         Writes PREFERENCES.md, MEMORY.md, STATE.md, VISION.md, GLOSSARY.md
+│   │   │                         scaffolds phases/ and codebase/ directories.
 │   │   │                         Seeds path_permissions for Folder Access Guard.
 │   │   │
 │   │   ├── install.js            TOOLS object: one entry per supported AI tool.
@@ -727,9 +724,9 @@ buildflow-dev/
 │   │   │
 │   │   ├── fix.js                Same scan as audit.js, split into autoFixable vs needsPrompt.
 │   │   │                         autoFix.apply() rewrites file content.
-│   │   │                         logSecurityDebt() appends to security/DEBT.md.
+│   │   │                         logSecurityDebt() appends to phases/[N]/DEBT.md.
 │   │   │
-│   │   ├── status.js             Reads state.md + light.md, prints project state.
+│   │   ├── status.js             Reads STATE.md + MEMORY.md, prints project state.
 │   │   │                         --verbose walks .buildflow/ tree.
 │   │   │
 │   │   └── update.js             Re-runs install.js to refresh command files.
@@ -740,7 +737,7 @@ buildflow-dev/
 ├── templates/
 │   ├── CLAUDE.md                 Written to project root for Claude Code.
 │   │                             Contains: session start checklist (6 steps including
-│   │                             token counter reset), v6.0 workflow, STATE.md resume
+│   │                             token counter reset), v7.0 workflow, STATE.md resume
 │   │                             contract, context clear recommendation, token cost
 │   │                             tracking explanation, core rules, agents table.
 │   │
@@ -748,7 +745,7 @@ buildflow-dev/
 │       ├── start-epic.md         Vision, drift detection, phase history load
 │       ├── think.md              Parallel research + 5 analysis modes + global learnings context
 │       ├── discuss.md            Pre-plan decision workshop — surface, research, lock decisions with confidence scores
-│       ├── spec.md               REQUIREMENTS + TECHINICALDESIGN + ACs, versioning, approval audit trail, amendment gate
+│       ├── spec.md               REQUIREMENTS + DESIGN + ACs, versioning, approval audit trail, amendment gate
 │       ├── plan.md               AC-traced waves, VERIFICATION.md ledger, thin-slice ordering, file ownership, focused post-change test plan, engineering review
 │       ├── build.md              Wave execution, worktree isolation, deviation handling, schema drift, focused testing, scope-reduction detection
 │       ├── test.md               Standalone test + fix loop
@@ -766,7 +763,7 @@ buildflow-dev/
 │       ├── status.md             Phase, AC bar, token spend with session total, debt, suggestions
 │       ├── explain.md            Plain-language explanation
 │       ├── back.md               Undo with dual-mode restore point
-│       ├── revert.md             Revert current, last, named, or all spec workflows
+│       ├── revert.md             Revert current, last, or named phase spec and plan artifacts
 │       ├── complete-epic.md      Milestone archival, global learnings write, release tag, state reset
 │       ├── settings.md           13-item interactive settings menu (git, workflow, yolo, coverage, security)
 │       ├── ui-spec.md            UI design contract — color system, typography, spacing, components, a11y
@@ -783,75 +780,50 @@ buildflow-dev/
 
 ## The .buildflow/ Scaffold
 
+Global files are created at init. Phase-specific files are created on demand by the command that needs them.
+
 ```
 .buildflow/
 │
-├── core/
-│   ├── vision.md           Project purpose, target users, success criteria. Read by all agents.
-│   └── state.md            Phase, status, phase history table, token tracking counter.
+├── VISION.md           ← created at init — what we're building (global, all phases)
+├── STATE.md            ← created at init — current phase, status, phase history
+├── PREFERENCES.md      ← created at init — experience level, git permission, workflow
+│                         toggles, spec coverage threshold, path_permissions
+├── MEMORY.md           ← created at init — persistent context ≤3K tokens, auto-pruned
+├── GLOSSARY.md         ← created at init — project terminology, grows with /buildflow-explain
 │
-├── you/
-│   └── preferences.md      Experience level, learning aids, safety settings, git permission,
-│                           path_permissions, spec coverage threshold, token tracking config,
-│                           Docker opt-in config.
+├── phases/             ← created at init (subdirs added per phase)
+│   ├── 0/              ← isolated catch-all (hotfix/debug run outside any active phase)
+│   │   ├── debug/          ← /buildflow-debug records when no phase is active
+│   │   │   └── DEBUG-001.md
+│   │   └── hotfix/         ← /buildflow-hotfix records when no phase is active
+│   │       └── HOTFIX-001.md
+│   └── N/              ← single source of truth for phase N — all workflow artifacts live here
+│       ├── STATE.md        Compact resume contract — loaded at every session start
+│       ├── RESEARCH.md     ← /buildflow-think output with source citations
+│       ├── DECISIONS.md    ← /buildflow-discuss locked decisions log
+│       ├── REQUIREMENTS.md ← /buildflow-spec product requirements
+│       ├── DESIGN.md       ← /buildflow-spec technical design + API contracts
+│       ├── ACCEPTANCE.md   ← /buildflow-spec acceptance criteria (AC-001…)
+│       ├── APPROVALS.md    ← /buildflow-spec approval audit trail — never pruned
+│       ├── PLAN.md         ← /buildflow-plan wave plan with spec_version + file ownership
+│       ├── VERIFICATION.md ← /buildflow-build AC ledger with test evidence
+│       ├── COVERAGE.md     ← /buildflow-check spec coverage traceability + decisions
+│       ├── AUDIT.md        ← /buildflow-audit OWASP security scan report
+│       ├── SHIPPED.md      ← /buildflow-ship ≤500-token cross-phase summary
+│       ├── RETRO.md        ← /buildflow-ship archived MEMORY.md data after ship
+│       ├── DEBT.md         ← deferred issues: CVEs accepted, coverage drops, parked debt
+│       ├── SUGGESTIONS.md  ← /buildflow-ship post-ship feature advisor output
+│       ├── UI-SPEC.md      ← /buildflow-ui-spec UI design contract
+│       ├── debug/          ← /buildflow-debug session records
+│       │   └── DEBUG-001.md    Root cause, hypothesis chain, fix, test evidence
+│       └── hotfix/         ← /buildflow-hotfix records
+│           └── HOTFIX-001.md   Problem, fix, files changed, restore point, test results
 │
-├── specs/                  Generated by /buildflow-spec
-│   ├── REQUIREMENTS.md     Product Requirements with versioned frontmatter
-│   ├── TECHINICALDESIGN.md Technical Design Document
-│   ├── acceptance.md       Acceptance Criteria (AC-001…) with spec_version, changelog
-│   └── approvals.md        Permanent approval audit trail — never pruned
-|   |-- index.md            Registry of named spec workflows
-|   `-- [spec-slug]/        Per-workflow spec folder with meta.md and doc copies
-│
-├── memory/
-│   └── light.md            Persistent context ≤3K tokens. Auto-pruned at session start
-│                           and after each ship. Tracks: phase, framework, git_available,
-│                           container_runtime, parked_changes, last build/test metrics.
-│
-├── phases/
-│   └── N/
-│       ├── PLAN.md         Wave plan with spec_version, file ownership map, focused test strategy
-│       ├── VERIFICATION.md AC verification ledger with test evidence and current status
-│       ├── STATE.md        Compact resume contract: current wave/status, decisions,
-│       │                   files that matter, next command, risks, test strategy
-│       ├── SHIPPED.md      ≤500-token cross-phase summary loaded by future /buildflow-start-epic
-│       ├── retro.md        Retrospective + archived light.md data
-│       └── COVERAGE-MAP.md Spec coverage traceability + exception decisions
-│
-├── codebase/               Generated by /buildflow-onboard
-│   ├── MAP.md              Architecture, module boundaries, load-bearing files, feature summary
-│   ├── STACK.md            Languages, runtimes, frameworks, package managers, critical dependencies
-│   ├── STRUCTURE.md        Directory layout, entry points, generated/static assets, path conventions
-│   ├── INTEGRATIONS.md     External services, data stores, webhooks, env contracts
-│   ├── TESTING.md          Test frameworks, commands, layout, targeted test strategy
-│   ├── CONCERNS.md         Known risks, fragile areas, mapping blind spots
-│   ├── GRAPH.md            File-level import graph + symbol caller index
-│   ├── PATTERNS.md         Code conventions, test framework profile, build toolchain profile
-│   ├── FEATURES.md         User/operator-facing capabilities, local + locale support evidence, confidence, blind spots
-│   ├── DEPENDENCIES.md     Dependencies with purpose, criticality, CVE status
-│   ├── HOTSPOTS.md         Files with risk score ≥ 3.5
-│   └── intel.json          Machine-readable index: file_index with symbol-level data,
-│                           symbol_callers map, features, local_support, locale_support,
-│                           tech_stack, security_surface, schema, drift_baseline
-│
-├── snapshots/              File-based restore points (used when git unavailable)
-│   ├── pre-modify-[ts]/    Files backed up before /buildflow-modify
-│   ├── pre-hotfix-[ts]/    Files backed up before /buildflow-hotfix
-│   ├── phase-N-wave-M-parked/    Parked wave snapshot (git commit failed)
-│   └── phase-N-shipped/   Full src/ snapshot at ship time (no-git mode)
-│
-├── learnings/
-│   ├── glossary.md         Project-specific terminology. Grows with /buildflow-explain.
-│   ├── decisions.md        Architectural decisions with confidence levels
-│   └── feature-suggestions.md   Post-ship market + standards gap analysis (auto-updated)
-│
-├── research/               Output from /buildflow-think sessions
-│
-└── security/
-    ├── DEBT.md             Deferred issues: coverage drops, CVEs accepted, parked debt
-    ├── reports/            Timestamped audit reports (gitignored)
-    ├── rules/              Custom security rules
-    └── suppressions/       False-positive suppressions
+└── codebase/           ← /buildflow-onboard (existing projects only)
+    ├── MAP.md, STACK.md, STRUCTURE.md, INTEGRATIONS.md, TESTING.md
+    ├── CONCERNS.md, GRAPH.md, PATTERNS.md, FEATURES.md, HOTSPOTS.md
+    └── intel.json          Machine-readable index with symbol-level data and drift baseline
 ```
 
 ---
@@ -910,19 +882,19 @@ Each agent gets a fresh context window with a minimal context packet — no cont
 
 ### `/buildflow-discuss` — Pre-Plan Decision Workshop
 
-New command that captures key architectural decisions before speccing. Surfaces blocking and high-impact open decisions, optionally spawns parallel Researchers per option, produces a locked decision with confidence score (1–5), and saves it to `.buildflow/learnings/decisions.md` as a spec constraint. Usage: `/buildflow-discuss`, `/buildflow-discuss "database choice"`, `/buildflow-discuss --review`.
+New command that captures key architectural decisions before speccing. Surfaces blocking and high-impact open decisions, optionally spawns parallel Researchers per option, produces a locked decision with confidence score (1–5), and saves it to `.buildflow/phases/[N]/DECISIONS.md` as a spec constraint. Usage: `/buildflow-discuss`, `/buildflow-discuss "database choice"`, `/buildflow-discuss --review`.
 
 ### Scope-Reduction Detection
 
-`/buildflow-build` and `/buildflow-check` now cross-reference every AC in `acceptance.md` against tasks in `PLAN.md`. Dropped ACs surface as WARN (1–2 dropped) or BLOCK (3+ or >20%). Prevents the AI from silently shrinking the spec during planning.
+`/buildflow-build` and `/buildflow-check` now cross-reference every AC in `ACCEPTANCE.md` against tasks in `PLAN.md`. Dropped ACs surface as WARN (1–2 dropped) or BLOCK (3+ or >20%). Prevents the AI from silently shrinking the spec during planning.
 
 ### `/buildflow-ui-spec` — UI Design Contract
 
-Generates a locked `.buildflow/specs/UI-SPEC.md` before any frontend phase. Detects existing CSS framework (Tailwind, MUI, Chakra, etc.), documents color system, typography scale, spacing, component inventory with variants and states, responsive breakpoints, and accessibility requirements. Builder agents follow this contract automatically.
+Generates a locked `.buildflow/phases/[N]/UI-SPEC.md` before any frontend phase. Detects existing CSS framework (Tailwind, MUI, Chakra, etc.), documents color system, typography scale, spacing, component inventory with variants and states, responsive breakpoints, and accessibility requirements. Builder agents follow this contract automatically.
 
 ### `/buildflow-ui-review` — 6-Dimension UI Audit
 
-Retroactive audit of UI implementation against the design contract. Scores 6 dimensions — color consistency, typography, spacing, component coverage, responsive behavior, accessibility — with PASS/WARN/FAIL verdicts and a prioritized fix list. Saves report to `.buildflow/security/reports/`.
+Retroactive audit of UI implementation against the design contract. Scores 6 dimensions — color consistency, typography, spacing, component coverage, responsive behavior, accessibility — with PASS/WARN/FAIL verdicts and a prioritized fix list. Saves report to `.buildflow/phases/[N]/AUDIT.md`.
 
 ### Global Learnings Store
 
@@ -930,7 +902,7 @@ Retroactive audit of UI implementation against the design contract. Scores 6 dim
 
 ### Workflow Toggles + Yolo Mode
 
-New `workflow` block in `preferences.md`: `require_think`, `require_check`, `research_depth` (quick/standard/thorough), `auto_wave_retry`, and `skip_prompts`. When `skip_prompts: true` (yolo mode), all non-destructive confirmation gates auto-proceed. Destructive gates still require explicit confirmation.
+New `workflow` block in `PREFERENCES.md`: `require_think`, `require_check`, `research_depth` (quick/standard/thorough), `auto_wave_retry`, and `skip_prompts`. When `skip_prompts: true` (yolo mode), all non-destructive confirmation gates auto-proceed. Destructive gates still require explicit confirmation.
 
 ### Interactive Settings (`/buildflow-settings`)
 
@@ -979,7 +951,7 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 | Greenfield full workflow | 130–160K | All phases, one session |
 | Onboarding existing project | +35–40K | One-time cost, pays back every session |
 | `/buildflow-discuss` | ~20–35K | Optional pre-spec decision workshop (no research: 20K, with parallel researchers: 35K) |
-| `/buildflow-spec` | ~20K | Per phase — REQUIREMENTS + TECHINICALDESIGN + ACs |
+| `/buildflow-spec` | ~20K | Per phase — REQUIREMENTS + DESIGN + ACs |
 | `/buildflow-plan` | ~22K | Per phase |
 | `/buildflow-build` per wave | ~50K | Context packets keep Builders lean |
 | `/buildflow-check` | ~26K | 4 reviewers + drift + coverage + scope-reduction check |
@@ -993,10 +965,10 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 | Context pruning savings | −5–15K | Stale phase data archived not reloaded |
 
 **Token efficiency strategy:**
-- `light.md` stays under 3K (auto-pruned at session start and after each ship)
+- `MEMORY.md` stays under 3K (auto-pruned at session start and after each ship)
 - Each agent gets a minimal context packet: task spec + relevant files only
 - Builders never load the full codebase — context packets have max 5 relevant files
-- Old phase data archived to `phases/N/retro.md`, never reloaded unless explicitly requested
+- Old phase data archived to `phases/N/RETRO.md`, never reloaded unless explicitly requested
 - Symbol-level intel.json lookups replace loading full GRAPH.md (−10K per modify)
 
 ---

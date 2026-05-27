@@ -17,7 +17,7 @@ Improve code quality, readability, or performance — without changing observabl
 ## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
 
 Before reading or writing any source file, apply the installed **Folder Access Guard**:
-- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 
 ---
@@ -42,11 +42,11 @@ The refactor must NOT change this contract.
 
 ## Step 4: Restore Point
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 - If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
-- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
+- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
 **If `git.permission: approved`:**
 ```bash

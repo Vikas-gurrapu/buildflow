@@ -10,17 +10,17 @@ agent: strategist
 Begin your project. Works for both greenfield and existing codebases.
 
 ## Context Packet (load only these)
-- `.buildflow/memory/light.md`
+- `.buildflow/MEMORY.md`
 - `.buildflow/phases/[N]/STATE.md` (if current phase exists - compact resume status and next command)
-- `.buildflow/you/preferences.md`
+- `.buildflow/PREFERENCES.md`
 
 Only load the current phase `STATE.md`, not full phase specs/plans/reports.
 
 Do NOT load: specs, phases, codebase files — this is vision only.
 
 ## Step 1: Load Memory
-Read `.buildflow/memory/light.md` and `.buildflow/you/preferences.md`.
-If `light.md` is over 3K tokens: prune it now (see pruning rules below).
+Read `.buildflow/MEMORY.md` and `.buildflow/PREFERENCES.md`.
+If `MEMORY.md` is over 3K tokens: prune it now (see pruning rules below).
 
 ## Step 1b: Codebase Drift Detection (runs if onboard_status: yes)
 
@@ -110,8 +110,8 @@ Check if `.buildflow/codebase/MAP.md` exists.
 - If YES: Load MAP.md summary only (not full file). Ask about goals for this session.
 
 ## Step 3: Save Vision
-Use the **Write tool** to create `.buildflow/core/vision.md` — do not just output the content as text, write it to disk.
-Use the **Write tool** to create or update `.buildflow/memory/light.md` with:
+Use the **Write tool** to create `.buildflow/VISION.md` — do not just output the content as text, write it to disk.
+Use the **Write tool** to create or update `.buildflow/MEMORY.md` with:
 ```yaml
 app_name: [name]
 framework: [detected or stated]
@@ -154,10 +154,10 @@ Session: ~[N]K tokens
 
 Never show a table to the user — pick one command and explain why.
 
-## light.md Pruning Rules (silent — never shown to user)
-If `light.md` exceeds 3K tokens on session start:
+## MEMORY.md Pruning Rules (silent — never shown to user)
+If `MEMORY.md` exceeds 3K tokens on session start:
 - Remove: completed phase task lists, wave details, build timestamps older than last phase
-- Archive these to the most recent `phases/[N]/retro.md`
+- Archive these to the most recent `phases/[N]/RETRO.md`
 - Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
 - Do NOT report this operation. It is invisible.
 

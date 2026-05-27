@@ -24,16 +24,29 @@ Do NOT use for: new features, refactors, or anything that touches more than ~5 f
 - `/buildflow-hotfix src/api/auth.ts "rate limiting not applying to /refresh"`
 
 ## Context Packet (minimal — load only what's needed)
-- `.buildflow/memory/light.md` (app_name, framework fields only)
+- `.buildflow/MEMORY.md` (app_name, framework fields only)
 - Target file(s) if specified
 - Do NOT load: specs, phases, codebase MAP, PATTERNS — keep it fast
 
 ## Folder Access Guard (mandatory before any file read/write outside .buildflow/)
 
 Before reading or writing any source file, apply the installed **Folder Access Guard**:
-- Check `path_permissions.[folder]` in `.buildflow/you/preferences.md`
+- Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 - Identify the fix's target folder(s) upfront — ask once, not per file
+
+## Phase Resolution (resolve [N] before any file write)
+
+Read `.buildflow/STATE.md`:
+- If `current_phase` is set → use that value as `[N]`
+- If `current_phase` is absent or file does not exist → set `[N] = 0`
+
+Phase `0` is the catch-all for hotfixes run outside any active phase (e.g., production incident on a fresh install, or between phases). All record files for isolated hotfixes go to `.buildflow/phases/0/hotfix/`.
+
+Note this at the top of the final HOTFIX record:
+```yaml
+phase: 0   # isolated — no active phase at time of hotfix
+```
 
 ---
 
@@ -53,11 +66,11 @@ Count files that need to change.
 
 ## Step 3: Create Restore Point
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 - If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `light.md` says `git_available: true`.
-- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
+- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
 **If `git.permission: approved`:**
 ```bash
@@ -72,7 +85,7 @@ Copy every file that will be modified into `.buildflow/snapshots/pre-hotfix-[tim
 .buildflow/snapshots/pre-hotfix-20240115-143200/
 └── src/auth/service.ts   ← copy of file BEFORE the fix
 ```
-Log in `state.md`:
+Log in `STATE.md`:
 ```yaml
 last_restore_point: .buildflow/snapshots/pre-hotfix-20240115-143200/
 last_restore_reason: "hotfix: [description]"
@@ -155,7 +168,7 @@ find . -name "*.test.ts" -o -name "*.test.js" -o -name "test_*.py" | head -3
 ```
 
 - **Framework found:** write the regression test using it
-- **No framework found:** warn — "No test framework detected. Regression test skipped. This bug may recur." Log to `security/DEBT.md`: "Hotfix [description] shipped without regression test — no framework available."
+- **No framework found:** warn — "No test framework detected. Regression test skipped. This bug may recur." Log to `phases/[N]/DEBT.md`: "Hotfix [description] shipped without regression test — no framework available."
 - Do not block the hotfix for a missing framework, but always log the gap.
 
 For the specific behavior being fixed:
@@ -261,15 +274,15 @@ git commit -m "hotfix: [description]"
 
 **If `git.permission` is not `approved` (no-git mode):**
 Take a post-fix snapshot of changed files into `.buildflow/snapshots/post-hotfix-[timestamp]/`.
-Record in `state.md`:
+Record in `STATE.md`:
 ```yaml
 last_hotfix: [today]
 last_hotfix_desc: [description]
 last_hotfix_snapshot: .buildflow/snapshots/post-hotfix-[timestamp]/
 ```
 
-Do not create a phase, do not update state.md phase number.
-Update `light.md`:
+Do not create a phase, do not update STATE.md phase number.
+Update `MEMORY.md`:
 ```yaml
 last_hotfix: [today]
 last_hotfix_desc: [description]
@@ -288,12 +301,41 @@ Time: fast-path (no planning)
 
 If no test coverage existed: "⚠ No test covers this area. Consider adding one."
 
+## Final Step: Save Hotfix Record
+
+Use the **Write tool** to create `.buildflow/phases/[N]/hotfix/HOTFIX-[sequence].md` (increment sequence from existing files in that folder, starting at 001). Do not output as text — write to disk.
+
+```markdown
+# Hotfix — [short description]
+Date: [ISO datetime]
+Phase: [N]
+Triggered by: [bug description or incident reference]
+
+## Problem
+[what was broken and why it needed an immediate fix — not a planned wave]
+
+## Fix
+[what was changed and why this approach was chosen]
+
+## Files Changed
+- [path] — [what changed]
+
+## Restore Point
+[snapshot path if created, or "git restore point: [commit hash]", or NONE]
+
+## Test Results
+[focused test commands run and pass/fail results]
+
+## Risk
+[any risk this hotfix introduces or side-effects to watch, or NONE]
+```
+
 ## Token cost report (print at end of hotfix)
 
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 Default output (minimal):
 ```
@@ -301,7 +343,7 @@ Hotfix complete — [description] · [N] files changed
 Session: ~[N]K tokens
 ```
 
-Verbose output (only if `verbose_context: true` in preferences.md):
+Verbose output (only if `verbose_context: true` in PREFERENCES.md):
 ```
 Token Cost — /buildflow-hotfix
 ────────────────────────────────

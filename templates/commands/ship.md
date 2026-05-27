@@ -10,9 +10,9 @@ agents: strategist, security-auditor
 Finalize current phase. Three gates run before shipping: spec compliance, security scan, and test pass. After shipping, session context is pruned so the next phase starts clean.
 
 ## Context Packet (load only these)
-- `.buildflow/specs/acceptance.md`
-- `.buildflow/core/state.md`
-- `.buildflow/memory/light.md`
+- `.buildflow/phases/[N]/ACCEPTANCE.md`
+- `.buildflow/STATE.md`
+- `.buildflow/MEMORY.md`
 - `.buildflow/phases/[N]/VERIFICATION.md`
 - `.buildflow/phases/[N]/STATE.md` (if exists - resume status, check result, risks, test strategy)
 - Changed file list only: git diff if `git.permission: approved`; otherwise completed wave file lists from `PLAN.md`
@@ -20,14 +20,14 @@ Finalize current phase. Three gates run before shipping: spec compliance, securi
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
 
 Use `STATE.md` to confirm the latest build/check status, risks, skipped tests, and intended ship path. If it says `Status: shipped` and `SHIPPED.md` exists, summarize the shipped state and continue to the next-phase recommendation instead of re-shipping unless the user explicitly asks.
 
 Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
 - Current State: `Status: shipped`, `Wave: complete`
 - Decisions: ship gate outcomes, accepted debt, post-ship advisor choice
-- Files That Matter: `SHIPPED.md`, `retro.md`, snapshots/tags, and key shipped files
+- Files That Matter: `SHIPPED.md`, `RETRO.md`, snapshots/tags, and key shipped files
 - Next Command: `/buildflow-spec "[suggested phase name]"`
 - Risks / Open Questions: open debt, deferred checks, follow-up work
 - Test Strategy: ship tests/regression results and baseline counts/coverage
@@ -37,7 +37,7 @@ Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
 ## MANDATORY Gate 0: Spec Compliance Check
 
 **0a — Version consistency check:**
-Read `spec_version` from `acceptance.md` frontmatter and from `PLAN.md` header.
+Read `spec_version` from `ACCEPTANCE.md` frontmatter and from `PLAN.md` header.
 If they differ:
 ```
 🔴 SHIP BLOCKED — Plan Built Against Old Spec
@@ -50,7 +50,7 @@ Override: /buildflow-ship --skip-spec (logs to DEBT.md)
 ```
 
 **0b — Full AC compliance:**
-Read `.buildflow/specs/acceptance.md`. Verify every AC is satisfied.
+Read `.buildflow/phases/[N]/ACCEPTANCE.md`. Verify every AC is satisfied.
 Read `.buildflow/phases/[N]/VERIFICATION.md` first and use it as the evidence ledger. Every AC must be `PASS` or have equivalent fresh evidence from this ship run. `IN PROGRESS`, `FAIL`, `BLOCKED`, `DEFERRED`, or missing AC rows block ship.
 
 ```
@@ -74,7 +74,7 @@ Override (skips spec gate only): /buildflow-ship --skip-spec
 
 **If versions match and all ACs pass → proceed to Gate 0c.**
 
-**0c — Strict Mode Gate (if `strict_mode: true` in preferences.md OR phase was planned with `--strict`):**
+**0c — Strict Mode Gate (if `strict_mode: true` in PREFERENCES.md OR phase was planned with `--strict`):**
 
 Read `.buildflow/phases/[N]/STRICT-REPORT.md`.
 If the file does not exist: "Run `/buildflow-check --strict` first — strict mode is enabled for this phase."
@@ -96,7 +96,7 @@ Strict verdict: PASS / FAIL
 🔴 SHIP BLOCKED — Strict Mode Violations
 
 Code structure diverges from spec structure:
-  [S1] POST /api/login — response field "accessToken" != TECHINICALDESIGN.md contract "token"
+  [S1] POST /api/login — response field "accessToken" != DESIGN.md contract "token"
   [S3] src/auth/service.ts — logout() has no linked AC
   [S4] AC-004 — refreshToken() has no expiry check branch
 
@@ -161,7 +161,7 @@ cargo test         # runs all crates
 ```
 
 Check for regressions introduced by this phase's changes:
-1. Pull the baseline passing test count from `light.md` field `last_ship_test_count` (set after previous ship)
+1. Pull the baseline passing test count from `MEMORY.md` field `last_ship_test_count` (set after previous ship)
 2. Compare: if current passing count < baseline → regression detected
 
 **Regression detected → BLOCK:**
@@ -196,7 +196,7 @@ Update `.buildflow/phases/[N]/VERIFICATION.md` after Gate 2:
 Run the full build quality pipeline — type safety and compilation correctness are non-negotiable before shipping.
 
 ### Type Check
-Run the type-check command from the Build Toolchain Profile detected in Step 2b of `/buildflow-build` (stored in `light.md → build_toolchain`). If not recorded, detect now:
+Run the type-check command from the Build Toolchain Profile detected in Step 2b of `/buildflow-build` (stored in `MEMORY.md → build_toolchain`). If not recorded, detect now:
 
 ```bash
 # TypeScript
@@ -290,7 +290,7 @@ Fix compilation errors before shipping.
 ```
 
 ### Docker Build (only if Docker was initialized)
-Run this section only when `light.md -> container_runtime: docker` was set by `/buildflow-docker`.
+Run this section only when `MEMORY.md -> container_runtime: docker` was set by `/buildflow-docker`.
 If `container_runtime` is missing or `none`, skip silently even if Docker files exist in the repo.
 
 ```bash
@@ -302,21 +302,21 @@ docker rmi [app-name]:ship-check 2>/dev/null
 **No Docker runtime initialized:** skip silently. To enable Docker gates, run `/buildflow-docker`.
 
 ### Test Coverage
-Read the coverage threshold from `.buildflow/you/preferences.md`:
+Read the coverage threshold from `.buildflow/PREFERENCES.md`:
 ```yaml
 spec_coverage:
   threshold: 80   # default: 70 if not set
 ```
 
-Run coverage and compare against `last_ship_coverage` in `light.md`:
+Run coverage and compare against `last_ship_coverage` in `MEMORY.md`:
 ```bash
 npx jest --coverage --coverageReporters=json-summary --passWithNoTests 2>/dev/null
 pytest --cov=src --cov-report=term-missing 2>/dev/null
 go test ./... -cover 2>/dev/null
 ```
 
-Also check `.buildflow/phases/[N]/COVERAGE-MAP.md` (written by `/buildflow-check`):
-- If COVERAGE-MAP.md has a recorded exception decision (bugfix/incremental), inherit that decision — no re-prompt needed. Log inherited decision and proceed.
+Also check `.buildflow/phases/[N]/COVERAGE.md` (written by `/buildflow-check`):
+- If COVERAGE.md has a recorded exception decision (bugfix/incremental), inherit that decision — no re-prompt needed. Log inherited decision and proceed.
 
 | Coverage state | Action |
 |----------------|--------|
@@ -332,7 +332,7 @@ Coverage at Ship
 ────────────────
 Last shipped:    [N]%
 Current:         [M]%
-Your threshold:  [T]%  (set in preferences.md)
+Your threshold:  [T]%  (set in PREFERENCES.md)
 
 Uncovered areas:
   [file] — [N] uncovered functions
@@ -391,21 +391,21 @@ Ask:
 3. What did you learn?
 4. Confidence in deliverables (1-5)?
 
-Save to `.buildflow/phases/[N]/retro.md`
+Save to `.buildflow/phases/[N]/RETRO.md`
 
 ---
 
 ## Step 3: Context Pruning (token efficiency)
 
-After a successful ship, prune `light.md` to stay lean for the next phase:
+After a successful ship, prune `MEMORY.md` to stay lean for the next phase:
 
-**Archive** these from `light.md` to `phases/[N]/retro.md`:
+**Archive** these from `MEMORY.md` to `phases/[N]/RETRO.md`:
 - Phase-specific task lists
 - Wave completion details
 - Build timestamps
 - Hotfix history older than current phase
 
-**Keep** in `light.md`:
+**Keep** in `MEMORY.md`:
 - app_name, framework, language
 - current_phase (update to N+1 or "complete")
 - spec_status (reset to "none" for next phase)
@@ -415,12 +415,12 @@ After a successful ship, prune `light.md` to stay lean for the next phase:
 - onboard_status
 
 **Never archive or delete:**
-- `.buildflow/specs/approvals.md` — permanent audit trail, never pruned
+- `.buildflow/phases/[N]/APPROVALS.md` — permanent audit trail, never pruned
 - `.buildflow/phases/[N]/PLAN.md` `## Deviations` section — permanent record
 
-**Target:** `light.md` must be under 3K tokens after pruning.
+**Target:** `MEMORY.md` must be under 3K tokens after pruning.
 
-Update `light.md`:
+Update `MEMORY.md`:
 ```yaml
 current_phase: [N+1 or complete]
 last_ship_date: [today]
@@ -472,17 +472,17 @@ This file is ≤500 tokens. It is the only cross-phase context future `/buildflo
 
 ## Step 5: Update Docs
 - README if public-facing features shipped
-- `vision.md` if pivots occurred during the phase
+- `VISION.md` if pivots occurred during the phase
 
 ---
 
 ## Step 5: Tag Release
 
-Before any git command, read `.buildflow/you/preferences.md`.
+Before any git command, read `.buildflow/PREFERENCES.md`.
 
 - If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use no-git snapshot mode, even if `.git/` exists or `light.md` says `git_available: true`.
-- If `preferences.md` is missing or `git.permission` is absent: ask the user before running any git command.
+- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use no-git snapshot mode, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
+- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
 **If `git.permission: approved`:**
 ```bash
@@ -493,7 +493,7 @@ git tag "phase-[N]-complete"
 
 **If `git.permission` is not `approved` (no-git mode):**
 Take a full snapshot of `src/` into `.buildflow/snapshots/phase-[N]-shipped/`.
-Record phase completion in `state.md`:
+Record phase completion in `STATE.md`:
 ```yaml
 phase_[N]_status: shipped
 phase_[N]_shipped_at: [ISO datetime]
@@ -515,12 +515,12 @@ Your feature is built, tested, and all acceptance criteria are satisfied.
 
 Code snapshot:   .buildflow/snapshots/phase-[N]-shipped/
 Phase record:    .buildflow/phases/[N]/SHIPPED.md
-State:           .buildflow/core/state.md  (phase_[N]_status: shipped)
+State:           .buildflow/STATE.md  (phase_[N]_status: shipped)
 
 To add version control at any time:
   1. Install git: https://git-scm.com/downloads
   2. Run in terminal: git init && git add . && git commit -m "feat: phase [N] complete"
-  3. Enable in BuildFlow: edit .buildflow/you/preferences.md
+  3. Enable in BuildFlow: edit .buildflow/PREFERENCES.md
      set: git.permission: approved
   4. In your AI tool run: /buildflow-help git-enable
 
@@ -542,7 +542,7 @@ Options:
   [L] Leave       — continue to next phase (parked changes remain in working tree)
   [H] Help        — run /buildflow-help git-resolve-parked for step-by-step guide
 ```
-Clear resolved entries from `parked_changes` in `light.md` after the user commits them.
+Clear resolved entries from `parked_changes` in `MEMORY.md` after the user commits them.
 
 ---
 
@@ -551,7 +551,7 @@ Clear resolved entries from `parked_changes` in `light.md` after the user commit
 After shipping, automatically run the feature advisor from `/buildflow-help next` — no need for the user to ask separately.
 
 ### 6a — What's left in the roadmap
-If `vision.md` contains a roadmap or future features list: surface the next 2–3 items.
+If `VISION.md` contains a roadmap or future features list: surface the next 2–3 items.
 "Remaining from your vision: [items]"
 
 ### 6b — Market & standards gap (auto-runs, parallel)
@@ -583,14 +583,14 @@ Your debt right now: [N items in DEBT.md] — consider a cleanup phase if > 5
 Suggested next: /buildflow-spec "[suggested phase name]"
 ```
 
-Save to `.buildflow/learnings/feature-suggestions.md` (appends, doesn't overwrite).
+Save to `.buildflow/phases/[N]/SUGGESTIONS.md` (appends, doesn't overwrite).
 
 ---
 
 ## Override Flags
-- `--skip-spec` — skips spec gate only. Logs to `security/DEBT.md`: "Spec gate skipped — [reason]"
+- `--skip-spec` — skips spec gate only. Logs to `phases/[N]/DEBT.md`: "Spec gate skipped — [reason]"
 - `--force` — skips security gate only. Requires typed confirmation. Logged with timestamp.
-- `--skip-telemetry` — skips Gate 3. Logs to `security/DEBT.md`: "Build telemetry gate skipped — [reason]"
+- `--skip-telemetry` — skips Gate 3. Logs to `phases/[N]/DEBT.md`: "Build telemetry gate skipped — [reason]"
 
 No flag skips the test gate (Gate 2) or type errors in Gate 3. Type safety and green tests are non-negotiable.
 
@@ -599,7 +599,7 @@ No flag skips the test gate (Gate 2) or type errors in Gate 3. Type safety and g
 Measure actual cost before printing:
 1. Sum character counts of all files read in Context Packet + gate-loaded files ÷ 4 = input tokens
 2. Estimate output from text generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 ```
 Token Cost — /buildflow-ship
@@ -607,13 +607,13 @@ Token Cost — /buildflow-ship
 Ship complete — Phase [N]
 Gates: 0a ✓  1 ✓  2a ✓  2b ✓  3 ✓
 ACs verified: [N/N]
-Context loaded:    ~[N]K tokens   (acceptance.md + state.md + light.md + changed files)
+Context loaded:    ~[N]K tokens   (ACCEPTANCE.md + STATE.md + MEMORY.md + changed files)
 Output generated:  ~[N]K tokens   (gates output + SHIPPED.md + retro.md)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
 
-Update `light.md`: `last_ship_tokens: ~[N]K`
+Update `MEMORY.md`: `last_ship_tokens: ~[N]K`
 
 ## Guided Next Step
 

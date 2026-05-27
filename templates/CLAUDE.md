@@ -10,41 +10,41 @@ Before doing anything else at the start of every session:
    ```
    npx buildflow-dev@latest update --check
    ```
-   - If `.buildflow/core/UPDATE.md` exists after the check, show the user:
+   - If `.buildflow/UPDATE.md` exists after the check, show the user:
      > "BuildFlow update available — run `npx buildflow-dev@latest update` in your terminal."
      Then display the contents of UPDATE.md.
    - If the file does not exist, proceed silently.
 
-2. **Prune memory** — read `.buildflow/memory/light.md`. If over 3K tokens, prune it silently:
-   - Archive phase task lists and build timestamps to `phases/[last phase]/retro.md`
+2. **Prune memory** — read `.buildflow/MEMORY.md`. If over 3K tokens, prune it silently:
+   - Archive phase task lists and build timestamps to `phases/[last phase]/RETRO.md`
    - Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
-   - Do NOT report this to the user unless `verbose_context: true` in `preferences.md`. Context management is invisible by default.
+   - Do NOT report this to the user unless `verbose_context: true` in `PREFERENCES.md`. Context management is invisible by default.
 
-3. **Load state** — read `.buildflow/core/state.md` for current phase and status.
+3. **Load state** — read `.buildflow/STATE.md` for current phase and status.
    - If `current_phase` or `phase` is set, also read `.buildflow/phases/[N]/STATE.md` if it exists.
    - Treat phase `STATE.md` as the compact resume contract for fresh sessions: current status, active wave, decisions, important files, risks, test strategy, and next command.
-   - If `STATE.md` conflicts with source-of-truth files (`acceptance.md`, `PLAN.md`, `VERIFICATION.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
+   - If `STATE.md` conflicts with source-of-truth files (`ACCEPTANCE.md`, `PLAN.md`, `VERIFICATION.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
 
-4. **Detect git permission and availability** — read `.buildflow/you/preferences.md` first:
-   - If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: set `git_available: false` in `light.md` and **do not run git commands** this session, even if `.git/` exists.
+4. **Detect git permission and availability** — read `.buildflow/PREFERENCES.md` first:
+   - If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: set `git_available: false` in `MEMORY.md` and **do not run git commands** this session, even if `.git/` exists.
    - If `git.permission` is `approved`: git operations are allowed. Then run:
    ```bash
    git rev-parse --git-dir 2>/dev/null && echo "GIT_OK" || echo "NO_GIT"
    ```
-   - `GIT_OK` + `git.permission: approved` → set `git_available: true` in `light.md`. Git operations work normally.
-   - `NO_GIT` → set `git_available: false` in `light.md`. Show **once per session**:
-     > "⚠ Git not detected. BuildFlow is running in **no-git mode**: restore points use file snapshots, wave commits are tracked in PLAN.md, and phase tags are recorded in state.md instead. All core features still work."
-   - Never let `light.md` override `preferences.md`. If `git.permission` is not `approved`, no-git mode wins.
+   - `GIT_OK` + `git.permission: approved` → set `git_available: true` in `MEMORY.md`. Git operations work normally.
+   - `NO_GIT` → set `git_available: false` in `MEMORY.md`. Show **once per session**:
+     > "⚠ Git not detected. BuildFlow is running in **no-git mode**: restore points use file snapshots, wave commits are tracked in PLAN.md, and phase tags are recorded in STATE.md instead. All core features still work."
+   - Never let `MEMORY.md` override `PREFERENCES.md`. If `git.permission` is not `approved`, no-git mode wins.
 
-5. **Drift check** — if `onboard_status: yes` in `light.md`, run the fast drift check from `/buildflow-start-epic` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
+5. **Drift check** — if `onboard_status: yes` in `MEMORY.md`, run the fast drift check from `/buildflow-start-epic` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
 
 5b. **Global learnings check** — read `~/.buildflow/learnings/global.md` if it exists (cross-project insights written by `/buildflow-complete-epic`).
-   - Filter entries matching the current framework or language (from `light.md`).
+   - Filter entries matching the current framework or language (from `MEMORY.md`).
    - If 1–3 relevant entries exist, surface them silently as a one-line note: `💡 [N] global insight(s) from past projects — relevant to [framework]. Read with /buildflow-help.`
    - If no matches or file absent: proceed silently.
    - Never load more than 5 entries into context — take the 5 most recent matching ones.
 
-6. **Reset session token counter** — update `state.md`:
+6. **Reset session token counter** — update `STATE.md`:
    ```yaml
    session_tokens_used: 0
    session_start: [ISO datetime]
@@ -98,14 +98,14 @@ Before doing anything else at the start of every session:
 ## Core Rules
 
 - Each agent receives a **minimal context packet** — only what it needs, nothing else
-- `light.md` must stay under 3K tokens — prune silently at session start if over
+- `MEMORY.md` must stay under 3K tokens — prune silently at session start if over
 - Ask confidence (1-5) before locking major decisions
 - Run `/buildflow-spec` before `/buildflow-plan` — no spec, no plan
 - `/buildflow-ship` blocks if any Acceptance Criterion is unsatisfied
 - Create restore points before destructive operations (file snapshot unless `git.permission: approved`)
 - Run `/buildflow-audit` before every `/buildflow-ship`
-- No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, state.md records phase milestones
-- **Yolo mode** — when `workflow.skip_prompts: true` in `preferences.md`: auto-proceed at all non-destructive confirmation gates (wave start, coverage prompts, proceed-to-next-wave). Only destructive gates (full reset, permanent delete, force-ship with critical security findings) still require explicit confirmation
+- No-git mode: all features work — snapshots replace stash, PLAN.md tracks wave progress, STATE.md records phase milestones
+- **Yolo mode** — when `workflow.skip_prompts: true` in `PREFERENCES.md`: auto-proceed at all non-destructive confirmation gates (wave start, coverage prompts, proceed-to-next-wave). Only destructive gates (full reset, permanent delete, force-ship with critical security findings) still require explicit confirmation
 - Phase `STATE.md` is mandatory for phase-driving commands — load it at command start, use it to resume, and update it before command exit
 - **Strict mode** — when `strict_mode: true` or phase planned with `--strict`: `/buildflow-check --strict` is mandatory before ship; strict violations have no override flag
 - **Folder Access Guard** — check `path_permissions` before reading or writing any folder (see below)
@@ -117,9 +117,9 @@ Applies to every command that reads or writes files outside `.buildflow/`.
 **Before accessing a folder for the first time this session:**
 
 1. Extract the top-level folder of the target path — e.g., `src/auth/service.ts` → `src/`, `tests/auth/` → `tests/`, `config/db.ts` → `config/`.
-2. Read `.buildflow/you/preferences.md` → `path_permissions.[folder]`:
+2. Read `.buildflow/PREFERENCES.md` → `path_permissions.[folder]`:
    - **`approved`**: proceed immediately — no prompt.
-   - **`denied`**: skip this path. Warn once: "Access to `[folder]/` is denied in preferences.md."
+   - **`denied`**: skip this path. Warn once: "Access to `[folder]/` is denied in PREFERENCES.md."
    - **not listed**: show the prompt below **once per folder per session**, then cache the response for the rest of the session.
 
 **Access prompt (shown when folder is not listed in path_permissions):**
@@ -132,14 +132,14 @@ BuildFlow needs access to [folder]/
 ──────────────────────────────────────────────────
 ```
 
-- **[1]:** Proceed. Cache approval for this session only — do not write to preferences.md.
-- **[2]:** Use the **Write tool** to add `  [folder]/: approved` under `path_permissions` in `.buildflow/you/preferences.md`. Then proceed.
-- **[3]:** Use the **Write tool** to add `  [folder]/: denied` under `path_permissions` in `.buildflow/you/preferences.md`. Skip this path for the rest of the session.
+- **[1]:** Proceed. Cache approval for this session only — do not write to PREFERENCES.md.
+- **[2]:** Use the **Write tool** to add `  [folder]/: approved` under `path_permissions` in `.buildflow/PREFERENCES.md`. Then proceed.
+- **[3]:** Use the **Write tool** to add `  [folder]/: denied` under `path_permissions` in `.buildflow/PREFERENCES.md`. Skip this path for the rest of the session.
 
 **Rules:**
 - Ask once per folder per session — after the user responds, cache it and never ask again for files in that same folder this session.
 - `.buildflow/` is always accessible — never prompt for it.
-- If preferences.md is missing or `path_permissions` key is absent: treat all folders as not listed (prompt).
+- If PREFERENCES.md is missing or `path_permissions` key is absent: treat all folders as not listed (prompt).
 - Batch folders when a command needs multiple new folders at once — list them all in one prompt instead of asking separately for each.
 
 ## Strict Mode
@@ -153,8 +153,8 @@ Strict mode enforces structural spec-to-code mirroring for critical infrastructu
 - Any phase where "spec says X, code does Y" is a security or correctness defect
 
 **What strict mode checks (in `/buildflow-check --strict`):**
-1. **API contracts** — response/request field names must match TECHINICALDESIGN.md exactly (not just "a body exists")
-2. **Component map** — every file created this phase must appear in the TECHINICALDESIGN.md Component Map
+1. **API contracts** — response/request field names must match `phases/[N]/DESIGN.md` exactly (not just "a body exists")
+2. **Component map** — every file created this phase must appear in the `DESIGN.md` Component Map
 3. **Critical symbol coverage** — every exported function in critical modules must have an AC reference
 4. **AC branch completeness** — every error/edge-case AC must have a corresponding code branch
 
@@ -164,8 +164,8 @@ Strict mode enforces structural spec-to-code mirroring for critical infrastructu
 - Does not block on warnings — only on structural divergences
 
 **To enable per-phase:** `/buildflow-plan --strict`
-**To enable globally:** set `strict_mode: true` in `.buildflow/you/preferences.md`
-**Critical module patterns:** configurable via `strict_critical_modules` in preferences.md
+**To enable globally:** set `strict_mode: true` in `.buildflow/PREFERENCES.md`
+**Critical module patterns:** configurable via `strict_critical_modules` in PREFERENCES.md
 
 ## Guided Mode
 
@@ -182,11 +182,11 @@ Session: ~[N]K tokens
 
 If multiple valid paths exist (e.g., fix an AC vs ship anyway): show the recommended path first with `→ Next:`, then show the alternative as `   Or:`.
 
-Context management events (pruning, drift detection, token accumulation) are **never surfaced** unless they require action. The developer should never think about `light.md`.
+Context management events (pruning, drift detection, token accumulation) are **never surfaced** unless they require action. The developer should never think about `MEMORY.md`.
 
 The only context events that surface:
 - `⚠ Onboard data may be stale` — when a load-bearing file or schema changed since last onboard
-- `⚠ light.md is near limit` — only when pruning cannot be done silently (manual decision needed)
+- `⚠ MEMORY.md is near limit` — only when pruning cannot be done silently (manual decision needed)
 - Update available notification
 
 ## Phase STATE.md
@@ -246,7 +246,7 @@ Every command measures and reports its actual token usage at the end:
 1. At the START of a command, measure the total size of all files in its Context Packet: sum of file character counts ÷ 4 = **input tokens**
 2. At the END of a command, estimate output tokens from the length of text generated (character count ÷ 4)
 3. **Command token cost** = input + output
-4. **Add to running total** in `state.md → session_tokens_used`
+4. **Add to running total** in `STATE.md → session_tokens_used`
 5. Print the cost report at command end
 
 **Token cost report format — two modes:**
@@ -256,7 +256,7 @@ Every command measures and reports its actual token usage at the end:
 Session: ~[N]K tokens used this session
 ```
 
-**Verbose (only if `verbose_context: true` in preferences.md):**
+**Verbose (only if `verbose_context: true` in PREFERENCES.md):**
 ```
 Token Cost — /buildflow-[command]
 ──────────────────────────────────
@@ -294,36 +294,45 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 
 ```
 .buildflow/
-├── core/
-│   ├── vision.md       ← What we're building
-│   └── state.md        ← Current phase and status
-├── specs/              ← Generated by /buildflow-spec  ← NEW
-│   ├── REQUIREMENTS.md ← Product Requirements
-│   ├── TECHINICALDESIGN.md ← Technical Design
-│   └── acceptance.md   ← Acceptance Criteria (AC-001, AC-002...)
-├── you/
-│   └── preferences.md  ← Experience level, style prefs
-├── memory/
-│   └── light.md        ← Persistent context (≤3K tokens, auto-pruned)
-├── codebase/           ← Generated by /buildflow-onboard
-│   ├── MAP.md
-│   ├── STACK.md
-│   ├── STRUCTURE.md
-│   ├── INTEGRATIONS.md
-│   ├── TESTING.md
-│   ├── CONCERNS.md
-│   ├── GRAPH.md
-│   ├── PATTERNS.md
-│   ├── FEATURES.md
-│   ├── DEPENDENCIES.md
-│   ├── HOTSPOTS.md
-│   └── intel.json
-├── security/
-│   ├── DEBT.md
-│   └── reports/
-├── phases/             ← Per-phase work, STATE.md resume files, VERIFICATION.md AC ledgers, and retros
-├── snapshots/          ← File-based restore points (used when git unavailable)
-└── learnings/
-    ├── glossary.md
-    └── decisions.md
+├── VISION.md           ← What we're building (global, all phases)
+├── STATE.md            ← Current phase and status (global)
+├── PREFERENCES.md      ← Experience level, style prefs, git permissions
+├── MEMORY.md           ← Persistent context (≤3K tokens, auto-pruned)
+├── GLOSSARY.md         ← Project and BuildFlow term definitions
+├── UPDATE.md           ← Created by update --check when update available
+├── phases/             ← Single source of truth per phase
+│   ├── 0/              ← isolated catch-all (no active phase)
+│   │   ├── debug/          ← debug sessions run outside any phase
+│   │   └── hotfix/         ← hotfixes run outside any phase
+│   └── [N]/            ← Everything for phase N lives here
+│       ├── STATE.md        ← Cross-session resume contract
+│       ├── RESEARCH.md     ← /buildflow-think output
+│       ├── DECISIONS.md    ← /buildflow-discuss decisions log
+│       ├── REQUIREMENTS.md ← /buildflow-spec: product requirements
+│       ├── DESIGN.md       ← /buildflow-spec: technical design
+│       ├── ACCEPTANCE.md   ← /buildflow-spec: acceptance criteria (AC-001…)
+│       ├── PLAN.md         ← /buildflow-plan: wave plan + task list
+│       ├── COVERAGE.md     ← /buildflow-check: AC coverage map
+│       ├── VERIFICATION.md ← /buildflow-check: AC ledger
+│       ├── AUDIT.md        ← /buildflow-audit: security scan report
+│       ├── SHIPPED.md      ← /buildflow-ship: ship record
+│       ├── RETRO.md        ← /buildflow-complete-epic: phase retrospective
+│       ├── DEBT.md         ← Security issues deferred from this phase
+│       ├── debug/          ← /buildflow-debug session records
+│       │   └── DEBUG-[N].md
+│       └── hotfix/         ← /buildflow-hotfix records
+│           └── HOTFIX-[N].md
+└── codebase/           ← Generated by /buildflow-onboard (existing projects)
+    ├── MAP.md
+    ├── STACK.md
+    ├── STRUCTURE.md
+    ├── INTEGRATIONS.md
+    ├── TESTING.md
+    ├── CONCERNS.md
+    ├── GRAPH.md
+    ├── PATTERNS.md
+    ├── FEATURES.md
+    ├── DEPENDENCIES.md
+    ├── HOTSPOTS.md
+    └── intel.json
 ```

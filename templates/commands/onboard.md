@@ -936,7 +936,7 @@ If matches found: stop, show file:line references, ask user to confirm false pos
 
 ## Step 14: Update Memory
 
-Update `.buildflow/memory/light.md`:
+Update `.buildflow/MEMORY.md`:
 ```yaml
 onboarded: true
 onboarded_date: [today]
@@ -1011,7 +1011,7 @@ Knowledge files written:
 Measure actual cost before printing:
 1. Sum character counts of all source files read during onboarding ÷ 4 = input tokens
 2. Sum character counts of all files written ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used`
+3. Update `STATE.md → session_tokens_used`
 
 Default output (minimal):
 ```
@@ -1019,7 +1019,7 @@ Onboard complete — [N] files · [N] modules · [N] hotspots · 11 knowledge fi
 Session: ~[N]K tokens
 ```
 
-Verbose output (only if `verbose_context: true` in preferences.md):
+Verbose output (only if `verbose_context: true` in PREFERENCES.md):
 ```
 Token Cost — /buildflow-onboard
 ────────────────────────────────
@@ -1030,7 +1030,7 @@ This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
 
-Update `light.md`: `last_onboard_tokens: ~[N]K`
+Update `MEMORY.md`: `last_onboard_tokens: ~[N]K`
 
 ## Guided Next Step
 

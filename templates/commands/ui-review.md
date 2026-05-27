@@ -7,7 +7,7 @@ agent: strategist
 
 # /buildflow-ui-review
 
-Audits the current UI implementation against `.buildflow/specs/UI-SPEC.md`. Produces a scored report across 6 dimensions with PASS / WARN / FAIL verdicts and a prioritized fix list.
+Audits the current UI implementation against `.buildflow/phases/[N]/UI-SPEC.md`. Produces a scored report across 6 dimensions with PASS / WARN / FAIL verdicts and a prioritized fix list.
 
 Run after building a frontend phase, or any time UI consistency is in question.
 
@@ -18,8 +18,8 @@ Run after building a frontend phase, or any time UI consistency is in question.
 - `/buildflow-ui-review --fix` — generate a prioritized fix list after auditing
 
 ## Context Packet
-- `.buildflow/specs/UI-SPEC.md` (required — must exist)
-- `.buildflow/memory/light.md` (framework, language)
+- `.buildflow/phases/[N]/UI-SPEC.md` (required — must exist)
+- `.buildflow/MEMORY.md` (framework, language)
 - UI source files — Glob `src/**/*.{tsx,jsx,vue,svelte,html,css,scss}` (limit to 30 most recently modified)
 
 If `UI-SPEC.md` does not exist:
@@ -201,7 +201,7 @@ LOW (cleanup, non-blocking):
 Total: [N] issues  ([N] high, [N] medium, [N] low)
 ```
 
-Use the **Write tool** to save the report to `.buildflow/security/reports/ui-review-phase-[N]-[date].md`.
+Use the **Write tool** to save the report to `.buildflow/phases/[N]/ui-review-phase-[N]-[date].md`.
 
 ---
 
@@ -221,7 +221,7 @@ If PASS or WARN:
 ──────────────────────────────────────────────────
 → Next:  /buildflow-ship
    Why:  UI review complete — [N] minor issues logged, none blocking
-   Context: Report saved to .buildflow/security/reports/. OK to continue without clearing.
+   Context: Report saved to .buildflow/phases/[N]/. OK to continue without clearing.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

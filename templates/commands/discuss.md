@@ -16,17 +16,17 @@ Structured pre-plan decision capture. Run before `/buildflow-spec` or `/buildflo
 - `/buildflow-discuss --reopen <title>` — revisit a previously closed decision
 
 ## Context Packet
-- `.buildflow/core/vision.md`
-- `.buildflow/memory/light.md`
-- `.buildflow/learnings/decisions.md` (if exists)
+- `.buildflow/VISION.md`
+- `.buildflow/MEMORY.md`
+- `.buildflow/phases/[N]/DECISIONS.md` (if exists)
 - `.buildflow/phases/[N]/STATE.md` (if current phase exists)
-- `.buildflow/specs/REQUIREMENTS.md` (if exists — for phase-level discussions)
+- `.buildflow/phases/[N]/REQUIREMENTS.md` (if exists — for phase-level discussions)
 
 ---
 
 ## Phase State Resume
 
-Read `.buildflow/core/state.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
+Read `.buildflow/STATE.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
 
 If `STATE.md` shows decisions already captured for this phase, surface them and ask:
 - "Add more decisions?" or "Review existing ones?"
@@ -40,10 +40,10 @@ Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
 
 ## Step 1: Surface Open Decisions
 
-Read `vision.md`, any existing `REQUIREMENTS.md`, and `decisions.md`. Identify decisions that are:
+Read `VISION.md`, any existing `REQUIREMENTS.md`, and `DECISIONS.md`. Identify decisions that are:
 1. **Blocking** — can't write a good spec without resolving these
 2. **High-impact** — wrong choice is expensive to reverse
-3. **Open** — not yet captured in `decisions.md`
+3. **Open** — not yet captured in `DECISIONS.md`
 
 If no topic specified: surface up to 5 open decisions, ordered by impact.
 If a topic specified: focus entirely on that area.
@@ -86,7 +86,7 @@ If this is a factual/technical decision with meaningful tradeoffs:
   - Source trust score (1–5)
 - If no: proceed with the user's stated reasoning.
 
-Use `research_depth` from preferences.md to set research thoroughness (quick/standard/thorough).
+Use `research_depth` from PREFERENCES.md to set research thoroughness (quick/standard/thorough).
 
 ### 2c — Recommendation
 
@@ -107,12 +107,12 @@ If this turns out wrong:
 ### 2d — Lock or Defer
 
 ```
-  [L] Lock   — save to decisions.md as a firm constraint
+  [L] Lock   — save to DECISIONS.md as a firm constraint
   [D] Defer  — mark as open; flag as an explicit question in the next spec
   [R] Revisit — discuss further (re-run step 2 with more context)
 ```
 
-**If Lock:** use the **Write tool** to append to `.buildflow/learnings/decisions.md`:
+**If Lock:** use the **Write tool** to append to `.buildflow/phases/[N]/DECISIONS.md`:
 
 ```markdown
 ## [decision title]
@@ -125,14 +125,14 @@ If this turns out wrong:
 **Status:** locked
 ```
 
-Also add a one-line entry to `light.md → Key Decisions`:
+Also add a one-line entry to `MEMORY.md → Key Decisions`:
 ```
 - [title]: [choice] (confidence [N]/5, [date])
 ```
 
 Report: `✓ Locked: [decision] → [choice] (confidence [N]/5)`
 
-**If Defer:** append to `decisions.md`:
+**If Defer:** append to `DECISIONS.md`:
 ```markdown
 ## [decision title]
 
@@ -148,7 +148,7 @@ Report: `✓ Locked: [decision] → [choice] (confidence [N]/5)`
 
 If invoked as `/buildflow-discuss --review`:
 
-Read `decisions.md` and print a summary table:
+Read `DECISIONS.md` and print a summary table:
 
 ```
 Decision Log — [App Name]

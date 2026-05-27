@@ -21,17 +21,17 @@ Goes beyond research — includes engineering cognition modes for architecture r
 - `/buildflow-think --complexity` — is the proposed plan too complex for the team/timeline?
 
 ## Context Packet
-- `.buildflow/core/vision.md`
+- `.buildflow/VISION.md`
 - `.buildflow/phases/[N]/STATE.md` (if current phase exists - resume status, decisions, next command)
-- `.buildflow/memory/light.md` (app_name, framework, key decisions only)
+- `.buildflow/MEMORY.md` (app_name, framework, key decisions only)
 - `.buildflow/codebase/MAP.md` (for --arch, --debt, --complexity modes)
-- `.buildflow/specs/TECHINICALDESIGN.md` (for --arch mode, if exists)
+- `.buildflow/phases/[N]/DESIGN.md` (for --arch mode, if exists)
 - `~/.buildflow/learnings/global.md` — filter to entries matching current framework/language; include at most 3 relevant entries as prior context for researchers
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md` and `.buildflow/memory/light.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
+Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
 
 If `STATE.md` says research or architecture review for this topic already completed, summarize the saved recommendation and continue to the guided next step instead of repeating the work unless the user asks to revisit it.
 
@@ -75,8 +75,8 @@ If confidence < 3: "Low confidence. Here's what would increase it: [specific gap
 If confidence ≥ 4: suggest next step (spec / plan / build)
 
 ### Step 6: Save
-Write `.buildflow/research/[topic]-[date].md`
-Update `light.md` key decisions if a choice was made.
+Write `.buildflow/phases/[N]/RESEARCH.md`
+Update `MEMORY.md` key decisions if a choice was made.
 
 ---
 
@@ -85,8 +85,8 @@ Update `light.md` key decisions if a choice was made.
 Triggered when: designing a new system, evaluating a proposed approach, or onboarding to a codebase.
 
 ### Step 1: Load Architecture Context
-Read `MAP.md`, `TECHINICALDESIGN.md` (if exists), `PATTERNS.md`.
-If greenfield: work from vision + proposed TECHINICALDESIGN.md.
+Read `MAP.md`, `DESIGN.md` (if exists), `PATTERNS.md`.
+If greenfield: work from vision + proposed DESIGN.md.
 
 ### Step 2: Structural Analysis
 Evaluate:
@@ -216,7 +216,7 @@ Verdict: FEASIBLE / RISKY / OVER-SCOPED
 Measure actual cost before printing:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used`
+3. Update `STATE.md → session_tokens_used`
 
 Default output (minimal):
 ```

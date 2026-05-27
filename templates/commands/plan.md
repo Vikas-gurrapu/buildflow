@@ -16,12 +16,12 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `/buildflow-plan phase-2` — plan a specific named phase
 - `/buildflow-plan --scaffold-first` — Wave 0 creates all file stubs before implementation begins
 - `/buildflow-plan --risk-first` — orders risky/uncertain tasks to the front of each wave (fail fast)
-- `/buildflow-plan --strict` — mark this phase as strict mode: every task must trace to a TECHINICALDESIGN.md component or API contract; `/buildflow-check --strict` and `/buildflow-ship` strict gate are mandatory before this phase ships
+- `/buildflow-plan --strict` — mark this phase as strict mode: every task must trace to a DESIGN.md component or API contract; `/buildflow-check --strict` and `/buildflow-ship` strict gate are mandatory before this phase ships
 
 ## Context Packet
-- `.buildflow/specs/REQUIREMENTS.md`
-- `.buildflow/specs/TECHINICALDESIGN.md`
-- `.buildflow/specs/acceptance.md`
+- `.buildflow/phases/[N]/REQUIREMENTS.md`
+- `.buildflow/phases/[N]/DESIGN.md`
+- `.buildflow/phases/[N]/ACCEPTANCE.md`
 - `.buildflow/phases/[N]/STATE.md` (if exists - resume status, decisions, active risks, next command)
 - `.buildflow/codebase/MAP.md` (if exists)
 - `.buildflow/codebase/STACK.md` (if exists — runtime, frameworks, critical dependencies)
@@ -32,14 +32,14 @@ Run after `/buildflow-spec`. Refuses to plan without locked specs.
 - `.buildflow/codebase/FEATURES.md` (if exists — existing capabilities, local support, and locale support)
 - `.buildflow/codebase/GRAPH.md` (if exists — for dependency chain reasoning)
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
-- `.buildflow/memory/light.md` (phase, framework, spec_status only)
+- `.buildflow/MEMORY.md` (phase, framework, spec_status only)
 
 Do NOT load: full codebase, old phase plans, research files, retros.
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/core/state.md`, `.buildflow/memory/light.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
 
 Use `STATE.md` to carry forward spec decisions, unresolved risks, files that matter, and the intended next command. If `STATE.md` says `Status: plan_ready` and `PLAN.md` exists for the same spec version, do not regenerate the plan unless the user asks; continue to the guided next step.
 
@@ -56,16 +56,16 @@ Before exiting, create or update `.buildflow/phases/[N]/STATE.md` with:
 ## Step 1: Validate Specs
 
 **Check 1 — Spec locked:**
-Read `spec_status` from `light.md` and `status` from `acceptance.md` frontmatter.
+Read `spec_status` from `MEMORY.md` and `status` from `ACCEPTANCE.md` frontmatter.
 If either is not `locked`: "Run `/buildflow-spec` first. No spec, no plan."
 
 **Check 2 — Version consistency:**
-Read `spec_version` from `acceptance.md` frontmatter.
-Read `spec_version` from `light.md`.
-If they differ: "Spec version mismatch — `acceptance.md` is v[A] but `light.md` records v[B]. Re-run `/buildflow-spec` to reconcile."
+Read `spec_version` from `ACCEPTANCE.md` frontmatter.
+Read `spec_version` from `MEMORY.md`.
+If they differ: "Spec version mismatch — `ACCEPTANCE.md` is v[A] but `MEMORY.md` records v[B]. Re-run `/buildflow-spec` to reconcile."
 
 **Check 3 — No active amendment in progress:**
-Read `acceptance.md` frontmatter. If `status: AMENDING` exists: "Spec amendment in progress. Complete or cancel it in `/buildflow-spec` before planning."
+Read `ACCEPTANCE.md` frontmatter. If `status: AMENDING` exists: "Spec amendment in progress. Complete or cancel it in `/buildflow-spec` before planning."
 
 Record the locked `spec_version` in `PLAN.md` header — this is the version this plan was built against.
 
@@ -337,9 +337,9 @@ engineering_review_verdict: APPROVED
 When `--strict` is active:
 
 1. **Tag each task** with its technical design mapping:
-   - Every `NEW`/`MODIFY` task must reference the TECHINICALDESIGN.md Component Map row it implements (`[Design: ComponentName]`)
-   - Every task implementing an API endpoint must reference its TECHINICALDESIGN.md API Contract row (`[Design: POST /api/path]`)
-   - If a task cannot be mapped to a technical design entry: either add the entry to TECHINICALDESIGN.md (amendment, with spec version increment) or remove the task (out of scope)
+   - Every `NEW`/`MODIFY` task must reference the DESIGN.md Component Map row it implements (`[Design: ComponentName]`)
+   - Every task implementing an API endpoint must reference its DESIGN.md API Contract row (`[Design: POST /api/path]`)
+   - If a task cannot be mapped to a technical design entry: either add the entry to DESIGN.md (amendment, with spec version increment) or remove the task (out of scope)
 
 2. **Mark the plan header:**
    ```yaml
@@ -349,11 +349,11 @@ When `--strict` is active:
 
 3. **Critical module flag** — tasks touching critical module files get a `[CRITICAL]` tag in the wave table. The Builder must verify that every exported symbol in those files has an AC reference before marking the task complete.
 
-4. **If any task cannot be mapped to TECHINICALDESIGN.md** → flag before writing plan:
+4. **If any task cannot be mapped to DESIGN.md** → flag before writing plan:
    ```
-   ⚠ Strict mode: Task "[name]" has no TECHINICALDESIGN.md Component Map or API Contract entry.
+   ⚠ Strict mode: Task "[name]" has no DESIGN.md Component Map or API Contract entry.
    Options:
-     A) Add a TECHINICALDESIGN.md entry for this component (amend spec — increments spec_version)
+     A) Add a DESIGN.md entry for this component (amend spec — increments spec_version)
      B) Remove the task — it is out of spec scope
    ```
    Do not write the plan until every task has a technical design mapping or is explicitly out-of-scope.
@@ -402,7 +402,7 @@ Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Create the dir
 | AC-001 | Task C, Task E |
 ```
 
-Also create `.buildflow/phases/[N]/VERIFICATION.md` from every AC in `.buildflow/specs/acceptance.md`. This is the phase verification ledger. Do not put test status only in PLAN.md.
+Also create `.buildflow/phases/[N]/VERIFICATION.md` from every AC in `.buildflow/phases/[N]/ACCEPTANCE.md`. This is the phase verification ledger. Do not put test status only in PLAN.md.
 
 ```markdown
 # Phase [N] Verification
@@ -436,7 +436,7 @@ Also create `.buildflow/phases/[N]/VERIFICATION.md` from every AC in `.buildflow
 
 Update `STATE.md` Files That Matter to include `VERIFICATION.md`.
 
-Update `light.md`:
+Update `MEMORY.md`:
 ```yaml
 current_phase: [N]
 plan_status: ready
@@ -450,7 +450,7 @@ est_total: [size]
 Measure actual cost:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
 2. Estimate output from PLAN.md generated ÷ 4 = output tokens
-3. Update `state.md → session_tokens_used` by adding this command's cost
+3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 ```
 Token Cost — /buildflow-plan
@@ -462,7 +462,7 @@ Output generated:  ~[N]K tokens   (PLAN.md)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
-Update `light.md`: `last_plan_tokens: ~[N]K`
+Update `MEMORY.md`: `last_plan_tokens: ~[N]K`
 
 ## Guided Next Step
 
