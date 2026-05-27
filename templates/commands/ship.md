@@ -466,7 +466,7 @@ v[N] (approved [date])
 [N]% ([N] passing tests)
 ```
 
-This file is ≤500 tokens. It is the only cross-phase context future `/buildflow-start` sessions load — not the full plan or spec.
+This file is ≤500 tokens. It is the only cross-phase context future `/buildflow-start-epic` sessions load — not the full plan or spec.
 
 ---
 

@@ -9,7 +9,7 @@ agent: strategist
 
 Spec-Driven Development layer. Produces formally structured, self-critiqued spec artifacts before any code is planned or written. Every plan task, every build output, and every ship gate references these docs.
 
-Run after `/buildflow-start`, before `/buildflow-plan`.
+Run after `/buildflow-start-epic`, before `/buildflow-plan`.
 
 ## Usage
 - `/buildflow-spec <spec-or-task-name>` - create a named spec workflow folder
@@ -54,7 +54,7 @@ Before exiting, create or update `.buildflow/phases/[N]/STATE.md` with:
 
 ## Step 1: Validate Vision
 Read `.buildflow/core/vision.md`.
-If empty: "Run `/buildflow-start` first."
+If empty: "Run `/buildflow-start-epic` first."
 
 If `PATTERNS.md` exists: note the existing architectural style (component structure, naming, API patterns).
 TECHINICALDESIGN.md must align with these — don't invent new patterns unless explicitly asked.

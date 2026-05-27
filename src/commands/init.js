@@ -175,6 +175,55 @@ function detectProjectInfo() {
     info.hasTests = existsSync(join(cwd, 'src', 'test'))
   }
 
+  // Elixir
+  if (existsSync(join(cwd, 'mix.exs'))) {
+    info.language = 'elixir'
+    info.projectType = 'existing'
+    try {
+      const mix = readFileSync(join(cwd, 'mix.exs'), 'utf8')
+      if (mix.includes(':phoenix')) info.framework = 'Phoenix'
+      else if (mix.includes(':nerves')) info.framework = 'Nerves'
+      else info.framework = 'Elixir / Mix'
+    } catch { info.framework = 'Elixir / Mix' }
+    info.hasTests = existsSync(join(cwd, 'test'))
+  }
+
+  // C / C++
+  if (existsSync(join(cwd, 'CMakeLists.txt'))) {
+    info.language = 'cpp'
+    info.framework = 'CMake'
+    info.projectType = 'existing'
+    info.hasTests = existsSync(join(cwd, 'tests')) || existsSync(join(cwd, 'test'))
+  } else if (existsSync(join(cwd, 'Makefile')) && !existsSync(join(cwd, 'package.json'))) {
+    try {
+      const makefile = readFileSync(join(cwd, 'Makefile'), 'utf8')
+      if (makefile.includes('.cpp') || makefile.includes('.cc') || makefile.includes('g++') || makefile.includes('clang++')) {
+        info.language = 'cpp'
+        info.framework = 'Make / C++'
+        info.projectType = 'existing'
+        info.hasTests = existsSync(join(cwd, 'tests')) || existsSync(join(cwd, 'test'))
+      } else if (makefile.includes('.c ') || makefile.includes('gcc') || makefile.includes('clang ')) {
+        info.language = 'c'
+        info.framework = 'Make / C'
+        info.projectType = 'existing'
+        info.hasTests = existsSync(join(cwd, 'tests')) || existsSync(join(cwd, 'test'))
+      }
+    } catch {}
+  }
+
+  // Haskell
+  if (existsSync(join(cwd, 'stack.yaml'))) {
+    info.language = 'haskell'
+    info.framework = 'Stack'
+    info.projectType = 'existing'
+    info.hasTests = existsSync(join(cwd, 'test'))
+  } else if (existsSync(join(cwd, 'cabal.project')) || (() => { try { return readdirSync(cwd).some(f => f.endsWith('.cabal')) } catch { return false } })()) {
+    info.language = 'haskell'
+    info.framework = 'Cabal'
+    info.projectType = 'existing'
+    info.hasTests = existsSync(join(cwd, 'test'))
+  }
+
   if (!existsSync(join(cwd, 'src')) && !existsSync(pkgPath) && !existsSync(join(cwd, 'requirements.txt'))) {
     info.projectType = 'greenfield'
   }
@@ -203,7 +252,7 @@ function scaffoldBuildflow(appName, projectInfo) {
 
 > **Purpose:** This file is the source of truth for what you're building.
 > Every agent reads it at session start to stay aligned with your goals.
-> Fill it in during your first \`/buildflow-start\` session.
+> Fill it in during your first \`/buildflow-start-epic\` session.
 
 ---
 
@@ -245,7 +294,7 @@ function scaffoldBuildflow(appName, projectInfo) {
 
 > **Purpose:** This file is the source of truth for what you're building.
 > Every agent reads it at session start to stay aligned with your goals.
-> Fill it in during your first \`/buildflow-start\` session.
+> Fill it in during your first \`/buildflow-start-epic\` session.
 
 ---
 
@@ -253,7 +302,7 @@ function scaffoldBuildflow(appName, projectInfo) {
 
 > One paragraph: what is this product, tool, or service?
 
-*(fill in during /buildflow-start)*
+*(fill in during /buildflow-start-epic)*
 
 ---
 
@@ -321,7 +370,7 @@ function scaffoldBuildflow(appName, projectInfo) {
 | **Framework** | ${projectInfo.framework} |
 | **Phase**     | 0                      |
 | **Status**    | Initialized            |
-| **BuildFlow** | 5.0                    |
+| **BuildFlow** | 7.0                    |
 | **Updated**   | ${today}               |
 
 ---
@@ -526,6 +575,24 @@ strict_critical_modules:
 
 ---
 
+## Workflow
+
+\`\`\`yaml
+workflow:
+  require_think:   false     # Require /buildflow-think before /buildflow-spec
+  require_check:   true      # Require /buildflow-check before /buildflow-ship (recommended)
+  research_depth:  standard  # quick | standard | thorough — default depth for /buildflow-think
+  skip_prompts:    false     # true = autonomous mode — skip confirmation prompts (yolo)
+  auto_wave_retry: true      # Auto-retry a failed wave once before surfacing error
+\`\`\`
+
+# research_depth controls how many Researcher agents spawn and how many sources each finds:
+#   quick    = 1 researcher, 1–2 sources per topic (fastest, cheapest)
+#   standard = 2–3 researchers in parallel, 2–3 sources each (default)
+#   thorough = 3 researchers, 3–5 sources each, with a Synthesizer (most complete)
+
+---
+
 ## Token Tracking
 
 \`\`\`yaml
@@ -567,7 +634,7 @@ type:              ${projectInfo.projectType}
 framework:         ${projectInfo.framework}
 phase:             0
 last_session:      ${today}
-buildflow:         5.0
+buildflow:         7.0
 onboarded:         ${projectInfo.projectType === 'greenfield' ? 'n/a  # greenfield project — no onboarding needed' : 'false  # run /buildflow-onboard to analyze your codebase'}
 git_permission:    ${projectInfo.gitPermission || 'approved'}
 git_available:     ${projectInfo.gitPermission === 'approved' ? 'true' : 'false'}
@@ -600,7 +667,7 @@ language:          ${projectInfo.language}
 
 > What you're working on right now. Updated by \`/buildflow-plan\` and \`/buildflow-ship\`.
 
-Phase 0 — Initial setup complete. Run \`/buildflow-start\` to begin.
+Phase 0 — Initial setup complete. Run \`/buildflow-start-epic\` to begin.
 `)
 
   // ── learnings/glossary.md ───────────────────────────────────────────────────
@@ -705,7 +772,7 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start\` to begin.
   writeFileSync(join(base, 'specs', 'README.md'),
     `# Specs
 
-> Generated by \`/buildflow-spec\`. Run it after \`/buildflow-start\`.
+> Generated by \`/buildflow-spec\`. Run it after \`/buildflow-start-epic\`.
 
 | File | Purpose |
 |------|---------|
@@ -856,7 +923,7 @@ export async function run(opts = {}) {
         {
           name: 'greenfield',
           message: 'Greenfield — Starting from scratch',
-          hint: 'Enables /buildflow-start, full new project workflow',
+          hint: 'Enables /buildflow-start-epic, full new project workflow',
         },
       ],
       initial: projectType === 'existing' ? 0 : 1,
@@ -974,7 +1041,7 @@ export async function run(opts = {}) {
     console.log(chalk.cyan('    /buildflow-modify') + chalk.dim('   ← change existing code safely'))
   } else {
     console.log(chalk.white('  Start here:'))
-    console.log(chalk.cyan('    /buildflow-start') + chalk.dim('    ← begin your project'))
+    console.log(chalk.cyan('    /buildflow-start-epic') + chalk.dim('    ← begin your project'))
     console.log(chalk.cyan('    /buildflow-think') + chalk.dim('    ← research and discuss'))
   }
 

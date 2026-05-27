@@ -27,8 +27,8 @@ const TOOLS = {
       return hasCli || hasClaudeDir
     },
 
-    isInstalledLocal()  { return existsSync(join(process.cwd(), '.claude', 'commands', 'buildflow-start.md')) },
-    isInstalledGlobal() { return existsSync(join(homedir(), '.claude', 'commands', 'buildflow-start.md')) },
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.claude', 'commands', 'buildflow-start-epic.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.claude', 'commands', 'buildflow-start-epic.md')) },
 
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.claude', 'commands')
@@ -67,14 +67,14 @@ const TOOLS = {
     },
 
     isInstalledLocal() {
-      const cmdFile = existsSync(join(process.cwd(), '.gemini', 'commands', 'buildflow-start.toml'))
+      const cmdFile = existsSync(join(process.cwd(), '.gemini', 'commands', 'buildflow-start-epic.toml'))
         || existsSync(join(process.cwd(), '.gemini', 'commands', 'start.md'))
       const ctxFile = existsSync(join(process.cwd(), 'GEMINI.md')) &&
         readFileSafe(join(process.cwd(), 'GEMINI.md')).includes('BuildFlow')
       return cmdFile || ctxFile
     },
     isInstalledGlobal() {
-      const cmdFile = existsSync(join(homedir(), '.gemini', 'commands', 'buildflow-start.toml'))
+      const cmdFile = existsSync(join(homedir(), '.gemini', 'commands', 'buildflow-start-epic.toml'))
         || existsSync(join(homedir(), '.gemini', 'commands', 'start.md'))
       const ctxFile = existsSync(join(homedir(), '.gemini', 'GEMINI.md')) &&
         readFileSafe(join(homedir(), '.gemini', 'GEMINI.md')).includes('BuildFlow')
@@ -101,7 +101,7 @@ const TOOLS = {
       return dir
     },
 
-    triggerNote: 'In Gemini CLI, type "/buildflow-start" or ask Gemini to run a buildflow command',
+    triggerNote: 'In Gemini CLI, type "/buildflow-start-epic" or ask Gemini to run a buildflow command',
   },
 
   codex: {
@@ -117,8 +117,8 @@ const TOOLS = {
       return hasCli || hasCodexDir
     },
 
-    isInstalledLocal()  { return existsSync(join(process.cwd(), '.codex', 'instructions', 'buildflow-start.md')) },
-    isInstalledGlobal() { return existsSync(join(homedir(), '.codex', 'instructions', 'buildflow-start.md')) },
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.codex', 'instructions', 'buildflow-start-epic.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.codex', 'instructions', 'buildflow-start-epic.md')) },
 
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.codex', 'instructions')
@@ -144,7 +144,7 @@ const TOOLS = {
       return `${dir} + ${skillsDir}`
     },
 
-    triggerNote: 'In Codex CLI, use $buildflow-start or say "use buildflow-start". Slash menu commands are not exposed by Codex.',
+    triggerNote: 'In Codex CLI, use $buildflow-start-epic or say "use buildflow-start-epic". Slash menu commands are not exposed by Codex.',
   },
 
   cursor: {
@@ -211,7 +211,7 @@ const TOOLS = {
       return process.cwd()
     },
 
-    triggerNote: 'Cline reads .clinerules automatically. Type "use /buildflow-start" in Cline chat.',
+    triggerNote: 'Cline reads .clinerules automatically. Type "use /buildflow-start-epic" in Cline chat.',
   },
 
   continue: {
@@ -713,10 +713,12 @@ function loadCommandTemplates() {
   const templatesDir = join(__dirname, '../../templates/commands')
   const commands = {}
   const commandNames = [
-    'start', 'think', 'spec', 'plan', 'build', 'test', 'check', 'ship',
+    'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship',
     'onboard', 'modify', 'refactor', 'hotfix', 'audit',
     'debug', 'deploy', 'docker', 'workspace',
     'status', 'explain', 'back', 'revert', 'help',
+    'complete-epic', 'settings',
+    'ui-spec', 'ui-review',
   ]
   for (const name of commandNames) {
     const filePath = join(templatesDir, `${name}.md`)
@@ -915,11 +917,11 @@ export async function run(opts = {}) {
     console.log(chalk.white('  1. Open your AI tool in this project'))
     if (succeeded.every(({ tool }) => tool.id === 'codex')) {
       console.log(chalk.white('  2. Restart Codex CLI so new skills are loaded'))
-      console.log(chalk.white('  3. Start with: ') + chalk.cyan('$buildflow-start'))
+      console.log(chalk.white('  3. Start with: ') + chalk.cyan('$buildflow-start-epic'))
       console.log(chalk.white('     Or for existing projects: ') + chalk.cyan('$buildflow-onboard'))
     } else {
       console.log(chalk.white('  2. Type "/" to see BuildFlow commands'))
-      console.log(chalk.white('  3. Start with: ') + chalk.cyan('/buildflow-start'))
+      console.log(chalk.white('  3. Start with: ') + chalk.cyan('/buildflow-start-epic'))
       console.log(chalk.white('     Or for existing projects: ') + chalk.cyan('/buildflow-onboard'))
     }
     console.log('')

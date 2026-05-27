@@ -145,6 +145,70 @@ Check external dependency checklist if present. If unchecked items: "Verify thes
 
 ---
 
+## Step 1c: Scope-Reduction Detection
+
+Before building, verify the plan covers every AC in `acceptance.md`. This catches silent requirement drops introduced during planning.
+
+**Extract AC IDs from acceptance.md:**
+```bash
+grep -oE "AC-NF-[0-9]+" .buildflow/specs/acceptance.md | sort -u
+grep -oE "AC-[0-9]+" .buildflow/specs/acceptance.md | grep -v "AC-NF" | sort -u
+```
+
+**Extract AC IDs referenced in PLAN.md tasks:**
+```bash
+grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/PLAN.md | sort -u
+grep -oE "AC-[0-9]+" .buildflow/phases/[N]/PLAN.md | grep -v "AC-NF" | sort -u
+```
+
+**Find ACs in acceptance.md with no reference in any PLAN.md task** — these are "dropped" requirements.
+
+```
+Scope-Reduction Check
+──────────────────────
+ACs in acceptance.md:  [N]
+ACs referenced in plan: [M]
+Dropped (no plan task): [list or NONE]
+```
+
+**Response by severity:**
+
+| Dropped | Response |
+|---------|----------|
+| 0 | Silent — proceed. |
+| 1–2 (≤ 20% of total) | WARN — show options below |
+| 3+ or > 20% of total | BLOCK — plan does not cover this phase's requirements |
+
+**Warning options (1–2 dropped):**
+```
+⚠ Scope-Reduction Warning
+───────────────────────────
+[N] ACs in acceptance.md have no plan task:
+  AC-004 — "Password reset via email"
+  AC-007 — "Rate limiting on auth endpoints"
+
+Were these intentionally excluded or accidentally dropped?
+
+  [D] Deferred — mark as DEFERRED in VERIFICATION.md, log to DEBT.md, proceed
+  [A] Accidental — abort; re-run /buildflow-plan to include all ACs
+  [S] Scope split — these belong in a future phase; add a SCOPE note to PLAN.md and proceed
+```
+
+**Block (3+ or > 20% dropped):**
+```
+🔴 BUILD BLOCKED — Scope Reduction Detected
+
+[N] of [total] ACs ([%]) have no plan task. This phase cannot fulfill all requirements.
+Dropped: AC-003, AC-004, AC-007...
+
+Run /buildflow-plan to regenerate the plan with full AC coverage.
+Override (logs to DEBT.md): /buildflow-build --accept-scope-reduction
+```
+
+If all ACs are covered: proceed silently.
+
+---
+
 ## Step 2: Detect Test Framework (runs once before any wave)
 
 Before writing a single test line, identify what testing infrastructure exists.
