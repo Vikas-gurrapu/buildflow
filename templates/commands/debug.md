@@ -21,6 +21,19 @@ Before reading or writing any source file, apply the installed **Folder Access G
 - Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 
+## Phase Resolution (resolve [N] before any file write)
+
+Read `.buildflow/STATE.md`:
+- If `current_phase` is set → use that value as `[N]`
+- If `current_phase` is absent or file does not exist → set `[N] = 0`
+
+Phase `0` is the catch-all for debug sessions run outside any active phase (e.g., investigating a bug before a phase has started, or between phases). All record files for isolated debug sessions go to `.buildflow/phases/0/debug/`.
+
+Note this at the top of the final DEBUG record:
+```yaml
+phase: 0   # isolated — no active phase at time of debug session
+```
+
 ---
 
 ## Step 1: Collect the Error

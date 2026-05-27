@@ -35,6 +35,19 @@ Before reading or writing any source file, apply the installed **Folder Access G
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 - Identify the fix's target folder(s) upfront — ask once, not per file
 
+## Phase Resolution (resolve [N] before any file write)
+
+Read `.buildflow/STATE.md`:
+- If `current_phase` is set → use that value as `[N]`
+- If `current_phase` is absent or file does not exist → set `[N] = 0`
+
+Phase `0` is the catch-all for hotfixes run outside any active phase (e.g., production incident on a fresh install, or between phases). All record files for isolated hotfixes go to `.buildflow/phases/0/hotfix/`.
+
+Note this at the top of the final HOTFIX record:
+```yaml
+phase: 0   # isolated — no active phase at time of hotfix
+```
+
 ---
 
 ## Step 1: Understand the Fix

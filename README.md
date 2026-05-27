@@ -160,7 +160,7 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 | `/buildflow-status` | Strategist | Phase progress, AC bar, build quality, debt, session token total, next action | ~5K |
 | `/buildflow-explain <term/file>` | Strategist | Plain-language explanation of code, concepts, or errors | ~2K |
 | `/buildflow-back [n]` | Strategist | Undo to restore point (git stash or file snapshot), update state | ~3K |
-| `/buildflow-revert [--spec name]` | Strategist | Revert current, last, named, or all spec workflows; asks before code rollback | ~4K |
+| `/buildflow-revert [--phase N]` | Strategist | Revert current, last, or named phase's spec and plan artifacts; asks before code rollback | ~4K |
 | `/buildflow-discuss [topic]` | Strategist + Researcher | Pre-plan decision workshop — surface open decisions, optionally research options, lock with confidence score | ~20–35K |
 | `/buildflow-complete-epic` | Strategist | Archive shipped phases into named milestone, write global learnings, create release tag, reset for next cycle | ~12K |
 | `/buildflow-settings` | Strategist | Interactive settings menu — 13 settings including workflow toggles, yolo mode, and spec coverage | ~3K |
@@ -737,7 +737,7 @@ buildflow-dev/
 ├── templates/
 │   ├── CLAUDE.md                 Written to project root for Claude Code.
 │   │                             Contains: session start checklist (6 steps including
-│   │                             token counter reset), v6.0 workflow, STATE.md resume
+│   │                             token counter reset), v7.0 workflow, STATE.md resume
 │   │                             contract, context clear recommendation, token cost
 │   │                             tracking explanation, core rules, agents table.
 │   │
@@ -763,7 +763,7 @@ buildflow-dev/
 │       ├── status.md             Phase, AC bar, token spend with session total, debt, suggestions
 │       ├── explain.md            Plain-language explanation
 │       ├── back.md               Undo with dual-mode restore point
-│       ├── revert.md             Revert current, last, named, or all spec workflows
+│       ├── revert.md             Revert current, last, or named phase spec and plan artifacts
 │       ├── complete-epic.md      Milestone archival, global learnings write, release tag, state reset
 │       ├── settings.md           13-item interactive settings menu (git, workflow, yolo, coverage, security)
 │       ├── ui-spec.md            UI design contract — color system, typography, spacing, components, a11y
@@ -793,6 +793,11 @@ Global files are created at init. Phase-specific files are created on demand by 
 ├── GLOSSARY.md         ← created at init — project terminology, grows with /buildflow-explain
 │
 ├── phases/             ← created at init (subdirs added per phase)
+│   ├── 0/              ← isolated catch-all (hotfix/debug run outside any active phase)
+│   │   ├── debug/          ← /buildflow-debug records when no phase is active
+│   │   │   └── DEBUG-001.md
+│   │   └── hotfix/         ← /buildflow-hotfix records when no phase is active
+│   │       └── HOTFIX-001.md
 │   └── N/              ← single source of truth for phase N — all workflow artifacts live here
 │       ├── STATE.md        Compact resume contract — loaded at every session start
 │       ├── RESEARCH.md     ← /buildflow-think output with source citations

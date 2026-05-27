@@ -301,6 +301,9 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 ├── GLOSSARY.md         ← Project and BuildFlow term definitions
 ├── UPDATE.md           ← Created by update --check when update available
 ├── phases/             ← Single source of truth per phase
+│   ├── 0/              ← isolated catch-all (no active phase)
+│   │   ├── debug/          ← debug sessions run outside any phase
+│   │   └── hotfix/         ← hotfixes run outside any phase
 │   └── [N]/            ← Everything for phase N lives here
 │       ├── STATE.md        ← Cross-session resume contract
 │       ├── RESEARCH.md     ← /buildflow-think output
