@@ -665,8 +665,8 @@ If `container_runtime: docker` in `MEMORY.md`: use Docker deployment path in dep
 ## Token cost report (print at end of docker)
 
 Measure actual cost before printing:
-1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
-2. Estimate output ÷ 4 = output tokens
+1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
+2. Estimate output tokens (mixed command): `Math.ceil((outputChars / 3.7) × 1.05)` = output tokens
 3. Update `STATE.md → session_tokens_used`
 
 Default output (minimal):

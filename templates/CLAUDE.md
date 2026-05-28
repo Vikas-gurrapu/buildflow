@@ -241,8 +241,32 @@ After every major phase-driving command, check the current context window/sessio
 Every command measures and reports its actual token usage at the end:
 
 **How it works:**
-1. At the START of a command, measure the total size of all files in its Context Packet: sum of file character counts ÷ 4 = **input tokens**
-2. At the END of a command, estimate output tokens from the length of text generated (character count ÷ 4)
+1. At the START of a command, estimate input tokens per file using the density-adjusted formula:
+
+   `estimatedTokens = Math.ceil((chars / adjustedDivisor) × 1.05)`
+
+   Where `adjustedDivisor = baseDivisor − densityPenalty`
+
+   **Base divisor by file type:**
+   | File type | Extensions | baseDivisor |
+   |---|---|---|
+   | Prose / markdown | `.md .txt .env` and unknown | 4.0 |
+   | Standard code | `.js .ts .py .rb .php .swift .kt .java .cs .css .html .sh` | 3.5 |
+   | Terse languages | `.go .rs .c .cpp` | 3.2 |
+   | Data / config | `.json .yaml .yml .toml .xml .sql` | 3.2 |
+   | Minified | `*.min.js *.min.css` | 2.7 |
+
+   **Density penalty (subtract from baseDivisor):**
+   - `0.3` — file is notably symbol-dense (minified, deeply nested config, macro-heavy C/C++)
+   - `0.1` — standard code density (most source files)
+   - `0.0` — prose, whitespace-heavy, or sparsely structured files
+
+   Sum across all Context Packet files = **input tokens**
+
+2. At the END of a command, estimate output tokens using a command-specific output divisor (defined in each command file):
+
+   `outputTokens = Math.ceil((outputChars / outputDivisor) × 1.05)`
+
 3. **Command token cost** = input + output
 4. **Add to running total** in `STATE.md → session_tokens_used`
 5. Print the cost report at command end
