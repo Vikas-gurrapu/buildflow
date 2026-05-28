@@ -104,9 +104,8 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 |---------|-------|---------|-----------|
 | `/buildflow-start-epic` | Strategist | Capture vision, detect drift vs last session, load phase history | ~8K |
 | `/buildflow-think [topic]` | Researcher × 3 + Synthesizer | Parallel research. Modes: `--arch`, `--build-vs-buy`, `--debt`, `--complexity` | ~30K |
-| `/buildflow-discuss [topic]` | Strategist + Researcher | Pre-plan decision workshop — lock key architectural decisions with confidence scores before speccing | ~20–35K |
-| `/buildflow-spec` | Strategist | Generate Requirements + Technical Design + ACs with versioning, approval audit trail, and amendment gate | ~20K |
-| `/buildflow-plan` | Architect | AC-traced waves, thin-slice ordering, exclusive file ownership, post-change focused test plan, multi-cycle engineering review | ~22K |
+| `/buildflow-spec` | Architect | Generate Requirements + Technical Design + ACs + wave plan in one pass — versioning, approval audit trail, amendment gate, multi-cycle engineering review | ~40K |
+| `/buildflow-discuss [topic]` | Strategist + Researcher | Post-spec clarification — review doubts about generated spec and plan, lock decisions, auto-updates artifacts on confirmation | ~20–35K |
 | `/buildflow-build [wave]` | Builder x N + Reviewer | Wave execution with git worktree isolation, deviation handling, schema drift check, touched-file testing, STATE.md resume updates | ~50K/wave |
 | `/buildflow-test [wave]` | Reviewer | Standalone test + fix loop — re-verify a wave or test a manual change | ~25K |
 | `/buildflow-check` | Reviewer × 4 | Spec compliance + correctness + quality + security + schema drift + spec coverage traceability | ~26K |
@@ -161,7 +160,7 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 | `/buildflow-explain <term/file>` | Strategist | Plain-language explanation of code, concepts, or errors | ~2K |
 | `/buildflow-back [n]` | Strategist | Undo to restore point (git stash or file snapshot), update state | ~3K |
 | `/buildflow-revert [--phase N]` | Strategist | Revert current, last, or named phase's spec and plan artifacts; asks before code rollback | ~4K |
-| `/buildflow-discuss [topic]` | Strategist + Researcher | Pre-plan decision workshop — surface open decisions, optionally research options, lock with confidence score | ~20–35K |
+| `/buildflow-discuss [topic]` | Strategist + Researcher | Post-spec clarification — review doubts about generated spec and plan, auto-updates artifacts on confirmation | ~20–35K |
 | `/buildflow-complete-epic` | Strategist | Archive shipped phases into named milestone, write global learnings, create release tag, reset for next cycle | ~12K |
 | `/buildflow-settings` | Strategist | Interactive settings menu — 13 settings including workflow toggles, yolo mode, and spec coverage | ~3K |
 | `/buildflow-help` | Strategist | Diagnostic mode, 12 recovery paths, git recovery, global learnings viewer, post-milestone feature advisor | ~15–35K |
@@ -230,49 +229,50 @@ Loads vision, detects codebase drift vs last session (file count, schema changes
 
 3 Researchers run in parallel. Synthesizer combines results. Output saved to `.buildflow/phases/[N]/RESEARCH.md`.
 
-### 3b. Discuss — lock key decisions before speccing (optional)
-
-```
-/buildflow-discuss database-choice
-```
-
-Structured decision workshop. Surfaces open architectural decisions, optionally spawns Researchers per option, produces a locked decision with confidence score. Saved to `.buildflow/phases/[N]/DECISIONS.md` and carried forward as spec constraints.
-
-### 4. Spec — formal artifacts required before planning
+### 4. Spec + Plan — formal artifacts and wave plan in one pass
 
 ```
 /buildflow-spec
 ```
 
-Generates three locked files with frontmatter versioning:
+Generates five locked files in one pass:
 
 ```
 .buildflow/phases/[N]/
 |-- REQUIREMENTS.md       Product Requirements
 |-- DESIGN.md             Technical Design
 |-- ACCEPTANCE.md         Acceptance Criteria with spec_version
-`-- APPROVALS.md          Permanent approval audit trail
+|-- APPROVALS.md          Permanent approval audit trail
+|-- PLAN.md               Wave plan traced to every AC
+`-- VERIFICATION.md       AC verification ledger
 ```
 
-Approval is written to `phases/[N]/APPROVALS.md` (permanent audit trail, never pruned).
-If the spec changes mid-phase, an amendment gate requires explicit confirmation and marks PLAN.md stale.
-
-### 5. Plan — waves with AC tracing and safety checks
-
-```
-/buildflow-plan
-```
-
-The Architect produces `phases/N/PLAN.md` with:
+After the spec is approved, the Architect auto-chains into planning:
 - Every task traced to an AC
 - **Thin-slice ordering** enforced: DB/schema → API/services → UI → integration
 - **Exclusive file ownership** — each file owned by exactly one wave, conflicts detected and resolved
-- **Post-change focused tests** - tests are written or updated after code changes, scoped to touched files and direct dependency neighborhoods
-- **Verification ledger** - creates `phases/N/VERIFICATION.md` from every AC so build/check/ship can update test evidence and status
-- **Multi-cycle engineering review** — plan loops until all 7 dimensions are APPROVED
+- **Post-change focused tests** — tests are written or updated after code changes, scoped to touched files
+- **Multi-cycle engineering review** — loops until all 7 dimensions are APPROVED
 - `spec_version` recorded in PLAN.md header for ship-time version check
 
-### 6. Build — wave-by-wave execution with safety rails
+If the spec changes mid-phase, an amendment gate requires explicit confirmation and marks PLAN.md stale. Run `/buildflow-spec --update` to regenerate affected waves.
+
+### 4b. Discuss — clarify doubts after spec is generated (optional)
+
+```
+/buildflow-discuss database-choice
+```
+
+Post-spec clarification workshop. Reviews the generated requirements, design, and wave plan for doubts, gaps, or concerns. Resolves them as locked decisions, then automatically calls `/buildflow-spec --update` to patch affected artifacts on confirmation. Saved decisions go to `.buildflow/phases/[N]/DECISIONS.md`.
+
+```
+# Discuss → confirm → auto-updates spec → proceed to build
+/buildflow-discuss "wave ordering"
+# > Are you happy with these decisions? [Y] Yes
+# > Spec updated to v2 — 2 decisions applied · 3 ACs changed
+```
+
+### 5. Build — wave-by-wave execution with safety rails
 
 ```
 /buildflow-build
@@ -437,7 +437,7 @@ Every approval is appended to `phases/[N]/APPROVALS.md` — a permanent file tha
 If you change the spec while a build is in progress:
 1. BuildFlow requires typing `"amend"` to confirm
 2. Shows which ACs changed and which plan tasks are affected
-3. Marks `PLAN.md` as stale — `/buildflow-build` is blocked until you re-run `/buildflow-plan`
+3. Marks `PLAN.md` as stale — `/buildflow-build` is blocked until you re-run `/buildflow-spec --update`
 
 ### Spec diff viewer
 ```
@@ -806,7 +806,7 @@ Global files are created at init. Phase-specific files are created on demand by 
 │       ├── DESIGN.md       ← /buildflow-spec technical design + API contracts
 │       ├── ACCEPTANCE.md   ← /buildflow-spec acceptance criteria (AC-001…)
 │       ├── APPROVALS.md    ← /buildflow-spec approval audit trail — never pruned
-│       ├── PLAN.md         ← /buildflow-plan wave plan with spec_version + file ownership
+│       ├── PLAN.md         ← /buildflow-spec wave plan with spec_version + file ownership (generated in one pass)
 │       ├── VERIFICATION.md ← /buildflow-build AC ledger with test evidence
 │       ├── COVERAGE.md     ← /buildflow-check spec coverage traceability + decisions
 │       ├── AUDIT.md        ← /buildflow-audit OWASP security scan report
@@ -948,11 +948,10 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 
 | Scenario | Tokens | Notes |
 |----------|--------|-------|
-| Greenfield full workflow | 130–160K | All phases, one session |
+| Greenfield full workflow | 120–150K | All phases, one session |
 | Onboarding existing project | +35–40K | One-time cost, pays back every session |
-| `/buildflow-discuss` | ~20–35K | Optional pre-spec decision workshop (no research: 20K, with parallel researchers: 35K) |
-| `/buildflow-spec` | ~20K | Per phase — REQUIREMENTS + DESIGN + ACs |
-| `/buildflow-plan` | ~22K | Per phase |
+| `/buildflow-spec` | ~40K | Per phase — REQUIREMENTS + DESIGN + ACs + PLAN + VERIFICATION in one pass |
+| `/buildflow-discuss` | ~20–35K | Optional post-spec clarification (no research: 20K, with parallel researchers: 35K) |
 | `/buildflow-build` per wave | ~50K | Context packets keep Builders lean |
 | `/buildflow-check` | ~26K | 4 reviewers + drift + coverage + scope-reduction check |
 | `/buildflow-ship` | ~40K | 4 gates + post-ship market research |

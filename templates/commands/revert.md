@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-revert
 description: Revert the current or a named phase's spec and plan artifacts safely
 allowed-tools: Read, Write, Bash, Glob
@@ -144,7 +144,7 @@ Update `.buildflow/MEMORY.md`:
 
 Update `.buildflow/STATE.md`:
 - Add a history note that Phase [N] was reverted.
-- If another phase is still active, point next action to `/buildflow-plan` or `/buildflow-build` based on that phase's status.
+- If another phase is still active, point next action to `/buildflow-spec` or `/buildflow-build` based on that phase's status.
 
 ## Step 8: Result
 
@@ -161,3 +161,4 @@ If context is large after the revert, recommend:
 `/clear`, then `/buildflow-status`.
 
 ## Token Budget: ~4K
+

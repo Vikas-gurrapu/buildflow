@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-build
 description: Spec-traced wave execution with pattern-matched Builders, auto-test, auto-fix, and PR-ready commits
 allowed-tools: Read, Write, Bash, Grep, Glob
@@ -134,7 +134,7 @@ If `parked_changes` is empty: skip this check silently.
    outdated ACs. Building against a stale plan risks implementing the wrong thing.
 
    Options:
-     A) Run /buildflow-plan to regenerate the plan against the new spec (recommended)
+     A) Run /buildflow-spec to regenerate the plan against the new spec (recommended)
      B) Run /buildflow-spec --review to see what changed between versions
      C) Continue anyway: /buildflow-build --accept-stale-spec
         (logs to phases/[N]/DEBT.md: "Built against stale spec v[N] — current is v[M]")
@@ -190,7 +190,7 @@ Dropped (no plan task): [list or NONE]
 Were these intentionally excluded or accidentally dropped?
 
   [D] Deferred — mark as DEFERRED in VERIFICATION.md, log to DEBT.md, proceed
-  [A] Accidental — abort; re-run /buildflow-plan to include all ACs
+  [A] Accidental — abort; re-run /buildflow-spec to include all ACs
   [S] Scope split — these belong in a future phase; add a SCOPE note to PLAN.md and proceed
 ```
 
@@ -201,7 +201,7 @@ Were these intentionally excluded or accidentally dropped?
 [N] of [total] ACs ([%]) have no plan task. This phase cannot fulfill all requirements.
 Dropped: AC-003, AC-004, AC-007...
 
-Run /buildflow-plan to regenerate the plan with full AC coverage.
+Run /buildflow-spec to regenerate the plan with full AC coverage.
 Override (logs to DEBT.md): /buildflow-build --accept-scope-reduction
 ```
 
@@ -1180,3 +1180,4 @@ If all waves complete but tests are borderline: `→ Next: /buildflow-check` (ch
 After each individual wave (not final): print only the session token line — no next step until all waves are done.
 
 ## Token Budget: ~50K per wave (context packets keep individual Builder costs low)
+

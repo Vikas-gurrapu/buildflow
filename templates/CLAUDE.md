@@ -58,9 +58,8 @@ Before doing anything else at the start of every session:
 ```
 /buildflow-start-epic    → capture vision
 /buildflow-think    → research (optional)
-/buildflow-discuss  → lock key decisions before speccing (optional)
-/buildflow-spec     → generate Requirements + Technical Design + Acceptance Criteria
-/buildflow-plan     → map tasks to ACs, group into waves
+/buildflow-spec     → generate Requirements + Technical Design + Acceptance Criteria + wave plan
+/buildflow-discuss  → clarify doubts on generated spec and plan — auto-updates artifacts on confirmation (optional)
 /buildflow-build    → execute waves with auto-test + auto-fix
 /buildflow-check    → verify all ACs satisfied
 /buildflow-ship     → spec gate + security gate + context pruning
@@ -72,9 +71,8 @@ Before doing anything else at the start of every session:
 | Command | When to use |
 |---------|-------------|
 | `/buildflow-start-epic` | Begin or continue the project |
-| `/buildflow-discuss` | Capture key architectural decisions before speccing or planning |
-| `/buildflow-spec` | Define Requirements, Technical Design, Acceptance Criteria before planning |
-| `/buildflow-plan` | Create spec-traced wave plan |
+| `/buildflow-spec` | Generate Requirements, Technical Design, Acceptance Criteria + wave plan in one pass |
+| `/buildflow-discuss` | Clarify doubts on the generated spec and plan — auto-updates artifacts on confirmation |
 | `/buildflow-build` | Execute plan — auto-tests and auto-fixes each wave |
 | `/buildflow-test` | Re-verify a wave or test a manual change |
 | `/buildflow-check` | Verify all ACs satisfied + code quality |
@@ -100,7 +98,7 @@ Before doing anything else at the start of every session:
 - Each agent receives a **minimal context packet** — only what it needs, nothing else
 - `MEMORY.md` must stay under 3K tokens — prune silently at session start if over
 - Ask confidence (1-5) before locking major decisions
-- Run `/buildflow-spec` before `/buildflow-plan` — no spec, no plan
+- Run `/buildflow-spec` before `/buildflow-build` — no spec, no build
 - `/buildflow-ship` blocks if any Acceptance Criterion is unsatisfied
 - Create restore points before destructive operations (file snapshot unless `git.permission: approved`)
 - Run `/buildflow-audit` before every `/buildflow-ship`
@@ -163,7 +161,7 @@ Strict mode enforces structural spec-to-code mirroring for critical infrastructu
 - Does not run on non-critical modules (utility, config, infra files)
 - Does not block on warnings — only on structural divergences
 
-**To enable per-phase:** `/buildflow-plan --strict`
+**To enable per-phase:** `/buildflow-spec --strict`
 **To enable globally:** set `strict_mode: true` in `.buildflow/PREFERENCES.md`
 **Critical module patterns:** configurable via `strict_critical_modules` in PREFERENCES.md
 
@@ -193,7 +191,7 @@ The only context events that surface:
 
 For every active phase, maintain `.buildflow/phases/[N]/STATE.md` as the compact cross-session resume file.
 
-Major phase-driving commands (`/buildflow-think`, `/buildflow-spec`, `/buildflow-plan`, `/buildflow-build`, `/buildflow-check`, `/buildflow-ship`) must:
+Major phase-driving commands (`/buildflow-think`, `/buildflow-spec`, `/buildflow-discuss`, `/buildflow-build`, `/buildflow-check`, `/buildflow-ship`) must:
 1. Load `STATE.md` at the start if it exists.
 2. Use it to resume the current status/wave instead of asking the user to restate context.
 3. Update it before printing the final next-step block.
@@ -311,7 +309,7 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 │       ├── REQUIREMENTS.md ← /buildflow-spec: product requirements
 │       ├── DESIGN.md       ← /buildflow-spec: technical design
 │       ├── ACCEPTANCE.md   ← /buildflow-spec: acceptance criteria (AC-001…)
-│       ├── PLAN.md         ← /buildflow-plan: wave plan + task list
+│       ├── PLAN.md         ← /buildflow-spec: wave plan + task list (generated in one pass with spec)
 │       ├── COVERAGE.md     ← /buildflow-check: AC coverage map
 │       ├── VERIFICATION.md ← /buildflow-check: AC ledger
 │       ├── AUDIT.md        ← /buildflow-audit: security scan report

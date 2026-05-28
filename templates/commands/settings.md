@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-settings
 description: Interactive settings configurator — view and update BuildFlow preferences without editing markdown
 allowed-tools: Read, Write
@@ -176,7 +176,7 @@ Strict mode enforces structural spec-to-code mirroring for auth, payments, crypt
 When enabled, /buildflow-check --strict is mandatory before ship for every phase.
 
   [Y] On  — strict violations BLOCK ship; no override flag
-  [N] Off — standard mode (default); use /buildflow-plan --strict for per-phase opt-in
+  [N] Off — standard mode (default); use /buildflow-spec --strict for per-phase opt-in
 
 ⚠ Enabling globally is recommended only for projects where spec-code divergence is a security defect
   (e.g., fintech, healthcare, compliance-bound applications).
@@ -340,3 +340,4 @@ Session: ~[N]K tokens
 If no changes were made, print: "No changes made."
 
 ## Token Budget: ~3K
+

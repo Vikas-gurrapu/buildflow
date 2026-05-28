@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-ui-spec
 description: Generate a UI design contract — color system, typography, spacing, components, and responsive rules — before building frontend phases
 allowed-tools: Read, Write, WebSearch
@@ -211,7 +211,7 @@ framework: [CSS framework]
 Update `STATE.md`:
 - Status: `ui_spec_locked`
 - Files That Matter: `.buildflow/phases/[N]/UI-SPEC.md`
-- Next Command: `/buildflow-plan` (or `/buildflow-build` if plan exists)
+- Next Command: `/buildflow-spec` (or `/buildflow-build` if plan exists)
 
 ---
 
@@ -219,7 +219,7 @@ Update `STATE.md`:
 
 ```
 ──────────────────────────────────────────────────
-→ Next:  /buildflow-plan
+→ Next:  /buildflow-spec
    Why:  UI design contract locked — Builder agents will follow it automatically
    Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
@@ -227,3 +227,4 @@ Session: ~[N]K tokens
 ```
 
 ## Token Budget: ~12K
+

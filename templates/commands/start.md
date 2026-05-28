@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-start
 description: Start a project with BuildFlow's Strategist agent
 allowed-tools: Read, Write, WebSearch
@@ -144,7 +144,7 @@ Session: ~[N]K tokens
 | No spec exists | `/buildflow-spec` | Spec is required before planning — defines what to build |
 | Spec draft in progress | `/buildflow-spec` | Continue and lock the spec |
 | Confidence ≤ 3 on topic | `/buildflow-think [topic]` | Research before committing to a spec |
-| Spec locked, no plan | `/buildflow-plan` | Translate spec into executable waves |
+| Spec locked, no plan | `/buildflow-spec` | Translate spec into executable waves |
 | Plan ready, build not started | `/buildflow-build` | Execute wave 1 |
 | Build in progress | `/buildflow-build wave-[N]` | Continue where you left off |
 | All waves complete, not checked | `/buildflow-check` | Verify every AC is satisfied |
@@ -162,3 +162,4 @@ If `MEMORY.md` exceeds 3K tokens on session start:
 - Do NOT report this operation. It is invisible.
 
 ## Token Budget: ~8K
+
