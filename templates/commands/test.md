@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-test
 description: Run tests, verify UI flow, and auto-fix failures until all pass
 allowed-tools: Read, Write, Bash, Grep, Glob
@@ -23,7 +23,7 @@ For automated testing during builds, this loop is already built into `/buildflow
 - `/buildflow-test --full` — run full suite including integration and e2e
 
 ## Step 1: Load Context
-Read `.buildflow/phases/[N]/PLAN.md` to know what this wave was supposed to deliver.
+Read `.buildflow/epics/[epic]/PLAN.md` to know what this wave was supposed to deliver.
 Read `.buildflow/MEMORY.md` for framework and test setup.
 
 ## Step 2: Detect Test Setup

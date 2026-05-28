@@ -7,7 +7,7 @@ agent: strategist
 
 # /buildflow-ui-spec
 
-Generates `.buildflow/phases/[N]/UI-SPEC.md` — a locked design contract that Builder agents follow when writing UI code. Run before any frontend phase to prevent design inconsistency across waves.
+Generates `.buildflow/epics/[epic]/UI-SPEC.md` — a locked design contract that Builder agents follow when writing UI code. Run before any frontend phase to prevent design inconsistency across waves.
 
 ## Usage
 - `/buildflow-ui-spec` — interactive: prompts for design system, palette, and component inventory
@@ -18,7 +18,7 @@ Generates `.buildflow/phases/[N]/UI-SPEC.md` — a locked design contract that B
 ## Context Packet
 - `.buildflow/VISION.md`
 - `.buildflow/MEMORY.md`
-- `.buildflow/phases/[N]/REQUIREMENTS.md` (if exists)
+- `.buildflow/epics/[epic]/REQUIREMENTS.md` (if exists)
 - `.buildflow/codebase/STACK.md` (if exists — detect CSS framework)
 - `package.json` (detect: Tailwind, MUI, Chakra, Radix, shadcn, etc.)
 
@@ -173,7 +173,7 @@ Focus trapping:   [required in modals]
 
 ## Step 8: Write UI-SPEC.md
 
-Use the **Write tool** to create `.buildflow/phases/[N]/UI-SPEC.md`:
+Use the **Write tool** to create `.buildflow/epics/[epic]/UI-SPEC.md`:
 
 ```markdown
 ---
@@ -210,7 +210,7 @@ framework: [CSS framework]
 
 Update `STATE.md`:
 - Status: `ui_spec_locked`
-- Files That Matter: `.buildflow/phases/[N]/UI-SPEC.md`
+- Files That Matter: `.buildflow/epics/[epic]/UI-SPEC.md`
 - Next Command: `/buildflow-spec` (or `/buildflow-build` if plan exists)
 
 ---
@@ -221,7 +221,7 @@ Update `STATE.md`:
 ──────────────────────────────────────────────────
 → Next:  /buildflow-spec
    Why:  UI design contract locked — Builder agents will follow it automatically
-   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
+   Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

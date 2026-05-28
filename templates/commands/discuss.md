@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-discuss
 description: Post-spec clarification workshop — review doubts about the generated spec and plan, auto-updates artifacts on confirmation
 allowed-tools: Read, Write, WebSearch
@@ -18,23 +18,23 @@ Structured post-spec review. Run after `/buildflow-spec` when you have doubts ab
 ## Context Packet
 - `.buildflow/VISION.md`
 - `.buildflow/MEMORY.md`
-- `.buildflow/phases/[N]/REQUIREMENTS.md` (generated spec — what to review)
-- `.buildflow/phases/[N]/DESIGN.md` (generated spec — what to review)
-- `.buildflow/phases/[N]/ACCEPTANCE.md` (generated spec — what to review)
-- `.buildflow/phases/[N]/PLAN.md` (generated plan — what to review)
-- `.buildflow/phases/[N]/DECISIONS.md` (if exists — prior locked decisions)
-- `.buildflow/phases/[N]/STATE.md` (if current phase exists)
+- `.buildflow/epics/[epic]/REQUIREMENTS.md` (generated spec — what to review)
+- `.buildflow/epics/[epic]/DESIGN.md` (generated spec — what to review)
+- `.buildflow/epics/[epic]/ACCEPTANCE.md` (generated spec — what to review)
+- `.buildflow/epics/[epic]/PLAN.md` (generated plan — what to review)
+- `.buildflow/epics/[epic]/DECISIONS.md` (if exists — prior locked decisions)
+- `.buildflow/epics/[epic]/STATE.md` (if current phase exists)
 
 ---
 
 ## Phase State Resume
 
-Read `.buildflow/STATE.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
+Read `.buildflow/STATE.md`. If a current phase exists, read `.buildflow/epics/[epic]/STATE.md`.
 
 If `STATE.md` shows decisions already captured for this phase, surface them and ask:
 - "Add more decisions?" or "Review existing ones?"
 
-Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
+Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 - Status: `decisions_captured` (if spec not yet updated) or `plan_ready` (after spec --update runs)
 - Decisions: list of decisions locked this session
 - Next Command: `/buildflow-build`
@@ -117,7 +117,7 @@ If this turns out wrong:
   [R] Revisit — discuss further (re-run step 2 with more context)
 ```
 
-**If Lock:** use the **Write tool** to append to `.buildflow/phases/[N]/DECISIONS.md`:
+**If Lock:** use the **Write tool** to append to `.buildflow/epics/[epic]/DECISIONS.md`:
 
 ```markdown
 ## [decision title]
@@ -220,7 +220,7 @@ Spec updated to v[N+1] — [N] decisions applied · [N] ACs changed
 ──────────────────────────────────────────────────
 → Next:  /buildflow-build
    Why:  Spec and plan are locked — start executing wave 1
-   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
+   Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

@@ -1,4 +1,4 @@
-# {{APP_NAME}} — Claude Code Configuration
+﻿# {{APP_NAME}} — Claude Code Configuration
 
 This project uses **BuildFlow v7.0** for spec-driven, multi-agent development orchestration.
 
@@ -16,13 +16,13 @@ Before doing anything else at the start of every session:
    - If the file does not exist, proceed silently.
 
 2. **Prune memory** — read `.buildflow/MEMORY.md`. If over 3K tokens, prune it silently:
-   - Archive phase task lists and build timestamps to `phases/[last phase]/RETRO.md`
-   - Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
+   - Archive epic task lists and build timestamps to `.buildflow/epics/[last epic]/RETRO.md`
+   - Keep: app_name, framework, language, current_epic, spec_status, style_fingerprint, last 2 decisions
    - Do NOT report this to the user unless `verbose_context: true` in `PREFERENCES.md`. Context management is invisible by default.
 
-3. **Load state** — read `.buildflow/STATE.md` for current phase and status.
-   - If `current_phase` or `phase` is set, also read `.buildflow/phases/[N]/STATE.md` if it exists.
-   - Treat phase `STATE.md` as the compact resume contract for fresh sessions: current status, active wave, decisions, important files, risks, test strategy, and next command.
+3. **Load state** — read `.buildflow/STATE.md` for current epic and status.
+   - If `current_epic` is set (and not `none`), also read `.buildflow/epics/[current_epic]/STATE.md` if it exists.
+   - Treat the epic `STATE.md` as the compact resume contract for fresh sessions: current status, active wave, decisions, important files, risks, test strategy, and next command.
    - If `STATE.md` conflicts with source-of-truth files (`ACCEPTANCE.md`, `PLAN.md`, `VERIFICATION.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
 
 4. **Detect git permission and availability** — read `.buildflow/PREFERENCES.md` first:
@@ -33,7 +33,7 @@ Before doing anything else at the start of every session:
    ```
    - `GIT_OK` + `git.permission: approved` → set `git_available: true` in `MEMORY.md`. Git operations work normally.
    - `NO_GIT` → set `git_available: false` in `MEMORY.md`. Show **once per session**:
-     > "⚠ Git not detected. BuildFlow is running in **no-git mode**: restore points use file snapshots, wave commits are tracked in PLAN.md, and phase tags are recorded in STATE.md instead. All core features still work."
+     > "⚠ Git not detected. BuildFlow is running in **no-git mode**: restore points use file snapshots, wave commits are tracked in PLAN.md, and epic tags are recorded in STATE.md instead. All core features still work."
    - Never let `MEMORY.md` override `PREFERENCES.md`. If `git.permission` is not `approved`, no-git mode wins.
 
 5. **Drift check** — if `onboard_status: yes` in `MEMORY.md`, run the fast drift check from `/buildflow-start-epic` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
@@ -151,7 +151,7 @@ Strict mode enforces structural spec-to-code mirroring for critical infrastructu
 - Any phase where "spec says X, code does Y" is a security or correctness defect
 
 **What strict mode checks (in `/buildflow-check --strict`):**
-1. **API contracts** — response/request field names must match `phases/[N]/DESIGN.md` exactly (not just "a body exists")
+1. **API contracts** — response/request field names must match `epics/[epic]/DESIGN.md` exactly (not just "a body exists")
 2. **Component map** — every file created this phase must appear in the `DESIGN.md` Component Map
 3. **Critical symbol coverage** — every exported function in critical modules must have an AC reference
 4. **AC branch completeness** — every error/edge-case AC must have a corresponding code branch
@@ -187,23 +187,23 @@ The only context events that surface:
 - `⚠ MEMORY.md is near limit` — only when pruning cannot be done silently (manual decision needed)
 - Update available notification
 
-## Phase STATE.md
+## Epic STATE.md
 
-For every active phase, maintain `.buildflow/phases/[N]/STATE.md` as the compact cross-session resume file.
+For every active epic, maintain `.buildflow/epics/[epic]/STATE.md` as the compact cross-session resume file.
 
-Major phase-driving commands (`/buildflow-think`, `/buildflow-spec`, `/buildflow-discuss`, `/buildflow-build`, `/buildflow-check`, `/buildflow-ship`) must:
+Major epic-driving commands (`/buildflow-think`, `/buildflow-spec`, `/buildflow-discuss`, `/buildflow-build`, `/buildflow-check`, `/buildflow-ship`) must:
 1. Load `STATE.md` at the start if it exists.
 2. Use it to resume the current status/wave instead of asking the user to restate context.
 3. Update it before printing the final next-step block.
 
 Use this shape:
 ```markdown
-# Phase [N] State
+# Epic [epic] State
 Last updated: [ISO datetime]
 Last command: /buildflow-[command]
 
 ## Current State
-Phase: [N]
+Epic: [N-slug]
 Wave: [current/M or none]
 Status: [researching/spec_locked/plan_ready/build_in_progress/built/check_passed/shipped]
 
@@ -232,7 +232,7 @@ After every major phase-driving command, check the current context window/sessio
 - If the session is large, noisy, or the command just finished a boundary (`think`, spec lock, plan ready, build complete, check complete, ship complete): recommend clearing the AI session before the next command.
 - Use the active agent's native clear command. For Claude Code, Codex, and Gemini CLI this is usually `/clear`. If the active tool uses a different context reset command, name that command instead.
 - Suggested line:
-  `Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.`
+  `Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.`
 - If context is still clean and the next command is small, say:
   `Context: OK to continue without clearing.`
 
@@ -292,17 +292,18 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 
 ```
 .buildflow/
-├── VISION.md           ← What we're building (global, all phases)
-├── STATE.md            ← Current phase and status (global)
+├── VISION.md           ← What we're building (global, all epics)
+├── STATE.md            ← Current epic and status (global)
 ├── PREFERENCES.md      ← Experience level, style prefs, git permissions
 ├── MEMORY.md           ← Persistent context (≤3K tokens, auto-pruned)
 ├── GLOSSARY.md         ← Project and BuildFlow term definitions
 ├── UPDATE.md           ← Created by update --check when update available
-├── phases/             ← Single source of truth per phase
-│   ├── 0/              ← isolated catch-all (no active phase)
-│   │   ├── debug/          ← debug sessions run outside any phase
-│   │   └── hotfix/         ← hotfixes run outside any phase
-│   └── [N]/            ← Everything for phase N lives here
+├── debug/              ← /buildflow-debug sessions run outside any active epic
+│   └── DEBUG-[N].md
+├── hotfix/             ← /buildflow-hotfix records outside any active epic
+│   └── HOTFIX-[N].md
+├── epics/              ← Single source of truth per epic
+│   └── [N-slug]/       ← e.g. 1-auth, 2-payments, 3-dashboard
 │       ├── STATE.md        ← Cross-session resume contract
 │       ├── RESEARCH.md     ← /buildflow-think output
 │       ├── DECISIONS.md    ← /buildflow-discuss decisions log
@@ -314,11 +315,11 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 │       ├── VERIFICATION.md ← /buildflow-check: AC ledger
 │       ├── AUDIT.md        ← /buildflow-audit: security scan report
 │       ├── SHIPPED.md      ← /buildflow-ship: ship record
-│       ├── RETRO.md        ← /buildflow-complete-epic: phase retrospective
-│       ├── DEBT.md         ← Security issues deferred from this phase
-│       ├── debug/          ← /buildflow-debug session records
+│       ├── RETRO.md        ← /buildflow-complete-epic: epic retrospective
+│       ├── DEBT.md         ← Security issues deferred from this epic
+│       ├── debug/          ← /buildflow-debug sessions during this epic
 │       │   └── DEBUG-[N].md
-│       └── hotfix/         ← /buildflow-hotfix records
+│       └── hotfix/         ← /buildflow-hotfix records during this epic
 │           └── HOTFIX-[N].md
 └── codebase/           ← Generated by /buildflow-onboard (existing projects)
     ├── MAP.md

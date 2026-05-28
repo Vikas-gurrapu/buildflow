@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-debug
 description: Systematic debugging when a test fails or something breaks
 allowed-tools: Read, Write, Bash, Grep, Glob
@@ -21,17 +21,15 @@ Before reading or writing any source file, apply the installed **Folder Access G
 - Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 
-## Phase Resolution (resolve [N] before any file write)
+## Epic Resolution (resolve target folder before any file write)
 
 Read `.buildflow/STATE.md`:
-- If `current_phase` is set → use that value as `[N]`
-- If `current_phase` is absent or file does not exist → set `[N] = 0`
+- If `current_epic` is set → debug record goes to `.buildflow/epics/[current_epic]/debug/`
+- If `current_epic` is absent, empty, or `none` → debug record goes to `.buildflow/debug/`
 
-Phase `0` is the catch-all for debug sessions run outside any active phase (e.g., investigating a bug before a phase has started, or between phases). All record files for isolated debug sessions go to `.buildflow/phases/0/debug/`.
-
-Note this at the top of the final DEBUG record:
+When recording outside any active epic, note at the top of the DEBUG record:
 ```yaml
-phase: 0   # isolated — no active phase at time of debug session
+epic: none   # isolated — no active epic at time of debug session
 ```
 
 ---
@@ -42,7 +40,7 @@ Otherwise check for recent failure context:
 - Last test run output
 - Browser console errors
 - Terminal error logs
-- `.buildflow/phases/[N]/PLAN.md` for what was expected
+- `.buildflow/epics/[epic]/PLAN.md` for what was expected
 
 ## Step 2: Reproduce the Failure
 - Run the failing test or trigger the failing flow
@@ -178,16 +176,20 @@ Targeted tests passed. Run full app-level test suite?
 
 ## Step 8: Prevent Recurrence
 - Add a test that would have caught this bug
-- Note the fix in `.buildflow/phases/[N]/DECISIONS.md` if it reveals a systemic issue
+- Note the fix in `.buildflow/epics/[epic]/DECISIONS.md` if it reveals a systemic issue
 
 ## Step 9: Save Debug Record
 
-Use the **Write tool** to create `.buildflow/phases/[N]/debug/DEBUG-[sequence].md` (increment sequence from existing files in that folder, starting at 001). Do not output as text — write to disk.
+Use the **Write tool** to create the debug record at the path resolved by the Epic Resolution step above:
+- Active epic: `.buildflow/epics/[current_epic]/debug/DEBUG-[sequence].md`
+- No active epic: `.buildflow/debug/DEBUG-[sequence].md`
+
+Increment sequence from existing files in that folder, starting at 001. Do not output as text — write to disk.
 
 ```markdown
 # Debug Session — [short description]
 Date: [ISO datetime]
-Phase: [N]
+Epic: [current_epic or "none"]
 Status: RESOLVED / UNRESOLVED
 
 ## Problem

@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-docker
 description: Docker scaffolding, container management, and image lifecycle for any project
 allowed-tools: Read, Write, Bash, Grep, Glob
@@ -623,8 +623,8 @@ Base image: [image:tag]
 Suggestion: [suggest slimmer/newer base if large CVE count — e.g., "switch from debian to alpine"]
 ```
 
-**Critical CVEs found → append to `.buildflow/phases/[N]/DEBT.md`.**
-Write scan report to `.buildflow/phases/[N]/docker-scan-[date].md`.
+**Critical CVEs found → append to `.buildflow/epics/[epic]/DEBT.md`.**
+Write scan report to `.buildflow/epics/[epic]/docker-scan-[date].md`.
 
 ---
 

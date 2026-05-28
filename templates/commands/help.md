@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-help
 description: Diagnostic help, recovery paths, and feature suggestions after milestone completion
 allowed-tools: Read, Bash, WebSearch
@@ -22,7 +22,7 @@ Diagnostic mode, recovery guide, and post-milestone advisor. Use when stuck, whe
 ---
 
 ## Step 1: Load Current State
-Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, and `.buildflow/phases/[N]/DEBT.md`.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, and `.buildflow/epics/[epic]/DEBT.md`.
 Check if `.buildflow/` is properly structured.
 
 Print a one-paragraph "here's where you are" summary:
@@ -46,7 +46,7 @@ Last action: [last command + date from MEMORY.md]
 Re-detect project and recreate STATE.md. Read package.json / go.mod / Cargo.toml to infer framework.
 
 ### If stuck mid-build (tests failing repeatedly):
-Read `phases/[N]/PLAN.md` and the last fix log entries. Diagnose:
+Read `epics/[epic]/PLAN.md` and the last fix log entries. Diagnose:
 - Which wave failed?
 - What was the last attempted fix?
 - Has the same error appeared more than twice? → likely a root cause issue, not a symptom
@@ -301,7 +301,7 @@ Run /buildflow-spec to define it.
 ```
 
 ### 5d — Save Suggestions
-Write suggestions to `.buildflow/phases/[N]/SUGGESTIONS.md` with date.
+Write suggestions to `.buildflow/epics/[epic]/SUGGESTIONS.md` with date.
 These persist across sessions and update each time `/buildflow-help next` runs.
 
 ---

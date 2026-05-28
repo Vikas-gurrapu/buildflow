@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-ui-review
 description: Retroactive UI audit — scores implementation against the UI design contract across 6 quality dimensions
 allowed-tools: Read, Write, Bash, Glob
@@ -7,7 +7,7 @@ agent: strategist
 
 # /buildflow-ui-review
 
-Audits the current UI implementation against `.buildflow/phases/[N]/UI-SPEC.md`. Produces a scored report across 6 dimensions with PASS / WARN / FAIL verdicts and a prioritized fix list.
+Audits the current UI implementation against `.buildflow/epics/[epic]/UI-SPEC.md`. Produces a scored report across 6 dimensions with PASS / WARN / FAIL verdicts and a prioritized fix list.
 
 Run after building a frontend phase, or any time UI consistency is in question.
 
@@ -18,7 +18,7 @@ Run after building a frontend phase, or any time UI consistency is in question.
 - `/buildflow-ui-review --fix` — generate a prioritized fix list after auditing
 
 ## Context Packet
-- `.buildflow/phases/[N]/UI-SPEC.md` (required — must exist)
+- `.buildflow/epics/[epic]/UI-SPEC.md` (required — must exist)
 - `.buildflow/MEMORY.md` (framework, language)
 - UI source files — Glob `src/**/*.{tsx,jsx,vue,svelte,html,css,scss}` (limit to 30 most recently modified)
 
@@ -201,13 +201,13 @@ LOW (cleanup, non-blocking):
 Total: [N] issues  ([N] high, [N] medium, [N] low)
 ```
 
-Use the **Write tool** to save the report to `.buildflow/phases/[N]/ui-review-phase-[N]-[date].md`.
+Use the **Write tool** to save the report to `.buildflow/epics/[epic]/ui-review-phase-[N]-[date].md`.
 
 ---
 
 ## Step 6: Update STATE.md
 
-Update `.buildflow/phases/[N]/STATE.md`:
+Update `.buildflow/epics/[epic]/STATE.md`:
 - Status: `ui_review_complete` (or `ui_review_failed` if overall FAIL)
 - Risks: list any HIGH severity violations
 - Next Command: `/buildflow-ship` (if PASS/WARN) or `/buildflow-build` (if FAIL — fix first)
@@ -221,7 +221,7 @@ If PASS or WARN:
 ──────────────────────────────────────────────────
 → Next:  /buildflow-ship
    Why:  UI review complete — [N] minor issues logged, none blocking
-   Context: Report saved to .buildflow/phases/[N]/. OK to continue without clearing.
+   Context: Report saved to .buildflow/epics/[epic]/. OK to continue without clearing.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

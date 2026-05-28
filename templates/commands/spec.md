@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-spec
 description: Generate Requirements, Technical Design, Acceptance Criteria, and wave plan in one pass — with optional post-discuss update mode
 allowed-tools: Read, Write, WebSearch
@@ -21,7 +21,7 @@ Run after `/buildflow-start-epic`. After this completes, run `/buildflow-discuss
 
 ## Context Packet
 - `.buildflow/VISION.md`
-- `.buildflow/phases/[N]/STATE.md` (if current phase exists — resume status, decisions, risks, next command)
+- `.buildflow/epics/[epic]/STATE.md` (if current epic exists — resume status, decisions, risks, next command)
 - `.buildflow/codebase/STACK.md` (if exists — runtime, frameworks, critical dependencies)
 - `.buildflow/codebase/STRUCTURE.md` (if exists — physical layout and entry points)
 - `.buildflow/codebase/INTEGRATIONS.md` (if exists — external services, env contracts, webhooks)
@@ -32,18 +32,18 @@ Run after `/buildflow-start-epic`. After this completes, run `/buildflow-discuss
 - `.buildflow/codebase/MAP.md` (if exists)
 - `.buildflow/codebase/GRAPH.md` (if exists — for dependency chain reasoning)
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
-- `.buildflow/MEMORY.md` (app_name, framework, phase only)
-- `.buildflow/phases/[N]/REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, `PLAN.md` (if regenerating or updating)
-- `.buildflow/phases/[N]/DECISIONS.md` (if exists — carry locked decisions as spec constraints)
+- `.buildflow/MEMORY.md` (app_name, framework, current_epic only)
+- `.buildflow/epics/[epic]/REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, `PLAN.md` (if regenerating or updating)
+- `.buildflow/epics/[epic]/DECISIONS.md` (if exists — carry locked decisions as spec constraints)
 
 ---
 
-## Phase State Resume
-Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
+## Epic State Resume
+Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`. If a current epic exists (`current_epic` is set), read `.buildflow/epics/[epic]/STATE.md`.
 
 Use `STATE.md` to avoid making the user restate prior research, decisions, risks, or open questions. If it says the spec is already locked AND a PLAN.md exists for the same spec version, continue to the guided next step instead of regenerating.
 
-Before exiting, create or update `.buildflow/phases/[N]/STATE.md` with:
+Before exiting, create or update `.buildflow/epics/[epic]/STATE.md` with:
 - Current State: `Status: plan_ready` when both spec and plan are complete
 - Decisions: major product/technical decisions from REQUIREMENTS/DESIGN
 - Files That Matter: `REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, `PLAN.md`, `VERIFICATION.md`
@@ -78,13 +78,13 @@ If `DECISIONS.md` exists: treat all locked entries as firm constraints — do no
 
 ---
 
-## Step 1b: Load Phase History
-If `phases/*/SHIPPED.md` files exist, load the last 2. Extract:
+## Step 1b: Load Epic History
+If `.buildflow/epics/*/SHIPPED.md` files exist, load the last 2. Extract:
 - Already-shipped features → exclude from this spec's scope
-- Open debt from prior phases → surface as constraints
+- Open debt from prior epics → surface as constraints
 - Prior architecture decisions → DESIGN.md must not contradict them
 
-Print: "Prior phases: [N]. Already shipped: [brief list]. Open debt: [N items]."
+Print: "Prior epics: [N]. Already shipped: [brief list]. Open debt: [N items]."
 If no history: skip silently.
 
 ---
@@ -147,16 +147,24 @@ Before generating files, summarize the captured answers in 3-6 bullets and say:
 
 ---
 
-## Step 2e: Confirm Phase Folder
+## Step 2e: Create Epic Folder
 
-All spec artifacts for this phase live in `.buildflow/phases/[N]/`. Create the folder if it doesn't exist.
+All spec artifacts for this epic live in `.buildflow/epics/[epic]/`. Create the folder if it doesn't exist.
 
-Determine the current phase number from `STATE.md → phase` or `MEMORY.md → phase`. Use that number as `[N]` for all file paths below.
+**Derive `[epic]`** — the folder name is `[N]-[slug]` where:
+- `N` = next epic number: scan `.buildflow/epics/` for existing numbered folders (e.g. `1-auth`, `2-payments`) and increment the highest number. If no epics exist yet, start at `1`.
+- `slug` = kebab-case of the epic topic derived from the vision or the user's first clarification answer. Examples: `auth`, `user-profiles`, `payment-flow`, `api-refactor`.
+
+Derive the slug automatically — do not ask the user a separate question. Use the topic already established in Steps 1–2.
+
+Examples of valid epic folder names: `1-auth`, `2-payments`, `3-dashboard`, `4-email-notifications`.
+
+Set `[epic]` to this value for all file paths in the steps below. Update `STATE.md → current_epic` and `MEMORY.md → current_epic` with this value before writing any spec files.
 
 ---
 
 ## Step 3: Generate REQUIREMENTS.md
-Use the **Write tool** to create `.buildflow/phases/[N]/REQUIREMENTS.md`. Do not output the content as text — write it to disk.
+Use the **Write tool** to create `.buildflow/epics/[epic]/REQUIREMENTS.md`. Do not output the content as text — write it to disk.
 
 ```markdown
 # Product Requirements Document
@@ -198,7 +206,7 @@ Use the **Write tool** to create `.buildflow/phases/[N]/REQUIREMENTS.md`. Do not
 ---
 
 ## Step 4: Generate DESIGN.md
-Use the **Write tool** to create `.buildflow/phases/[N]/DESIGN.md`. Do not output the content as text — write it to disk.
+Use the **Write tool** to create `.buildflow/epics/[epic]/DESIGN.md`. Do not output the content as text — write it to disk.
 
 If `PATTERNS.md` exists: components and API shapes must follow existing conventions.
 
@@ -252,7 +260,7 @@ All errors follow:
 ---
 
 ## Step 5: Generate Acceptance Criteria
-Use the **Write tool** to create `.buildflow/phases/[N]/ACCEPTANCE.md`. Do not output the content as text — write it to disk.
+Use the **Write tool** to create `.buildflow/epics/[epic]/ACCEPTANCE.md`. Do not output the content as text — write it to disk.
 
 **Rules for every AC:**
 - Binary — pass or fail only, no partial credit
@@ -362,7 +370,7 @@ Rules:
    approved_by: [user identifier — name or "user" if unknown]
    approved_at: [ISO datetime]
    ```
-2. Use the **Write tool** to append the approval record to `.buildflow/phases/[N]/APPROVALS.md` (create if not exists):
+2. Use the **Write tool** to append the approval record to `.buildflow/epics/[epic]/APPROVALS.md` (create if not exists):
    ```markdown
    ## Phase [N] — v[spec_version] — [datetime]
    - **Approved by:** [user]
@@ -414,7 +422,7 @@ If the user requests a spec change AFTER `spec_status: locked` (mid-phase amendm
    - Increment `spec_version`
    - Update the affected ACs
    - Append to changelog
-   - Append to `phases/[N]/APPROVALS.md`
+   - Append to `epics/[epic]/APPROVALS.md`
    - Update `MEMORY.md`: `spec_version: [N+1]`
 
 4. If a PLAN.md exists: flag as stale — "⚠ PLAN STALE — spec amended to v[N+1]. Run `/buildflow-spec --update` to regenerate affected waves."
@@ -663,7 +671,7 @@ When `--strict` is active:
 ---
 
 ## Step 15: Write Plan + VERIFICATION
-Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Do not output the plan as text — write it to disk.
+Use the **Write tool** to create `.buildflow/epics/[epic]/PLAN.md`. Do not output the plan as text — write it to disk.
 
 ```markdown
 # Phase [N] Plan
@@ -699,7 +707,7 @@ Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Do not output 
 | AC-001 | Task C, Task E |
 ```
 
-Also create `.buildflow/phases/[N]/VERIFICATION.md` from every AC in `ACCEPTANCE.md`:
+Also create `.buildflow/epics/[epic]/VERIFICATION.md` from every AC in `ACCEPTANCE.md`:
 
 ```markdown
 # Phase [N] Verification
@@ -729,7 +737,7 @@ Also create `.buildflow/phases/[N]/VERIFICATION.md` from every AC in `ACCEPTANCE
 
 Update `MEMORY.md`:
 ```yaml
-current_phase: [N]
+current_epic: [N]
 plan_status: ready
 wave_count: [N]
 task_count: [N]
@@ -874,7 +882,7 @@ Because spec+plan is a major phase boundary, recommend clearing the AI session b
 → Next:  /buildflow-discuss
    Why:  Review the generated spec and plan — clarify any doubts before building
    Or:   /buildflow-build  — skip discuss and start executing wave 1
-   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
+   Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

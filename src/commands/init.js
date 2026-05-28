@@ -234,7 +234,7 @@ function detectProjectInfo() {
 function scaffoldBuildflow(appName, projectInfo) {
   const base = join(process.cwd(), '.buildflow')
 
-  const dirs = ['phases', 'codebase']
+  const dirs = ['epics', 'debug', 'hotfix', 'codebase']
   for (const d of dirs) mkdirSync(join(base, d), { recursive: true })
 
   const today = new Date().toISOString().split('T')[0]
@@ -350,7 +350,7 @@ function scaffoldBuildflow(appName, projectInfo) {
     `# Project State
 
 > **Purpose:** Tracks where you are in the BuildFlow workflow.
-> Updated automatically by \`/buildflow-plan\`, \`/buildflow-ship\`, and \`/buildflow-back\`.
+> Updated automatically by \`/buildflow-spec\`, \`/buildflow-ship\`, and \`/buildflow-back\`.
 > Also read by \`buildflow status\` in the terminal.
 
 ---
@@ -362,18 +362,18 @@ function scaffoldBuildflow(appName, projectInfo) {
 | **Project**   | ${appName}             |
 | **Type**      | ${projectInfo.projectType} |
 | **Framework** | ${projectInfo.framework} |
-| **Phase**     | 0                      |
+| **Epic**      | none                   |
 | **Status**    | Initialized            |
 | **BuildFlow** | 7.0                    |
 | **Updated**   | ${today}               |
 
 ---
 
-## Phase History
+## Epic History
 
-| Phase | Description | Status     | Date |
+| Epic  | Description | Status     | Date |
 |-------|-------------|------------|------|
-| 0     | Setup       | ✅ Complete | ${today} |
+| —     | Setup       | ✅ Complete | ${today} |
 
 ---
 
@@ -626,13 +626,13 @@ verbose_context: false
 app:               ${appName}
 type:              ${projectInfo.projectType}
 framework:         ${projectInfo.framework}
-phase:             0
+current_epic:      none
 last_session:      ${today}
 buildflow:         7.0
 onboarded:         ${projectInfo.projectType === 'greenfield' ? 'n/a  # greenfield project — no onboarding needed' : 'false  # run /buildflow-onboard to analyze your codebase'}
 git_permission:    ${projectInfo.gitPermission || 'approved'}
 git_available:     ${projectInfo.gitPermission === 'approved' ? 'true' : 'false'}
-parked_changes:    []   # files with un-pushed changes — checked before each new phase
+parked_changes:    []   # files with un-pushed changes — checked before each new epic
 container_runtime: none  # set by /buildflow-docker when Docker is intentionally initialized
 language:          ${projectInfo.language}
 \`\`\`
@@ -661,7 +661,7 @@ language:          ${projectInfo.language}
 
 > What you're working on right now. Updated by \`/buildflow-plan\` and \`/buildflow-ship\`.
 
-Phase 0 — Initial setup complete. Run \`/buildflow-start-epic\` to begin.
+No active epic. Run \`/buildflow-start-epic\` to begin.
 `)
 
   // ── GLOSSARY.md ──────────────────────────────────────────────────────────────
@@ -685,7 +685,7 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start-epic\` to begin.
 | **wave** | A group of tasks that can run in parallel because they have no dependencies on each other. |
 | **restore point** | A file snapshot, or a git checkpoint only when \`git.permission: approved\`, created before a destructive operation so \`/buildflow-back\` can undo it. |
 | **blast radius** | The set of files affected by a code change — mapped before modifying anything in Surgeon mode. |
-| **phase folder** | \`.buildflow/phases/N/\` — single source of truth for one phase: research, decisions, spec, plan, build, check, ship artifacts all live here. |
+| **epic folder** | \`.buildflow/epics/N-slug/\` — single source of truth for one epic (e.g. \`1-auth\`, \`2-payments\`): research, decisions, spec, plan, build, check, ship artifacts all live here. |
 
 ---
 
@@ -717,8 +717,8 @@ Phase 0 — Initial setup complete. Run \`/buildflow-start-epic\` to begin.
 
 function patchGitignore() {
   const gitignorePath = join(process.cwd(), '.gitignore')
-  const marker = '.buildflow/phases/*/SNAPSHOTS/'
-  const entry = '\n# BuildFlow phase snapshots (restore points — not needed in version control)\n.buildflow/phases/*/SNAPSHOTS/\n'
+  const marker = '.buildflow/snapshots/'
+  const entry = '\n# BuildFlow snapshots (restore points — not needed in version control)\n.buildflow/snapshots/\n'
 
   if (existsSync(gitignorePath)) {
     const existing = readFileSync(gitignorePath, 'utf8')

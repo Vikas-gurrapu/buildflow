@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-complete-epic
 description: Archive a completed milestone, tag the release, and prepare state for the next version cycle
 allowed-tools: Read, Write, Bash, Glob
@@ -21,7 +21,7 @@ Run after every phase in the milestone is `/buildflow-ship`'ed.
 - `.buildflow/STATE.md`
 - `.buildflow/MEMORY.md`
 - `.buildflow/VISION.md` (summary section only)
-- All `.buildflow/phases/*/SHIPPED.md` files (each ≤500 tokens — safe to load all)
+- All `.buildflow/epics/*/SHIPPED.md` files (each ≤500 tokens — safe to load all)
 
 Do NOT load: full phase PLAN.md files, spec files, retros, codebase maps.
 
@@ -34,34 +34,34 @@ Before any git command, read `.buildflow/PREFERENCES.md`.
 
 ---
 
-## Step 1: Verify All Phases Are Shipped
+## Step 1: Verify All Epics Are Shipped
 
-Collect all phases from `STATE.md → Phase History` table. For each phase in the current milestone cycle:
+Collect all epics from `STATE.md → Epic History` table. For each epic in the current milestone cycle:
 
 ```bash
-# List all phase directories
-ls .buildflow/phases/
+# List all epic directories
+ls .buildflow/epics/
 # Check each for SHIPPED.md
-ls .buildflow/phases/*/SHIPPED.md 2>/dev/null
+ls .buildflow/epics/*/SHIPPED.md 2>/dev/null
 ```
 
-For any phase that has no `SHIPPED.md`:
+For any epic that has no `SHIPPED.md`:
 ```
-⚠ Phase [N] — "[name]" has not been shipped yet.
+⚠ Epic [N-slug] — "[name]" has not been shipped yet.
 
 Options:
-  [S] Ship it now — run /buildflow-ship for Phase [N] first, then return here
+  [S] Ship it now — run /buildflow-ship for Epic [N-slug] first, then return here
   [I] Include anyway — mark as incomplete in the milestone summary
   [X] Exclude — treat as deferred to next milestone
 ```
 
-If any phase is excluded or incomplete, note it in the milestone summary.
+If any epic is excluded or incomplete, note it in the milestone summary.
 
 ---
 
 ## Step 2: Collect Milestone Content
 
-Load every `SHIPPED.md` from phases in this milestone (already in context packet).
+Load every `SHIPPED.md` from epics in this milestone (already in context packet).
 
 From each `SHIPPED.md`, extract:
 - What was built (features, capabilities)
@@ -110,12 +110,12 @@ Use the **Write tool** to create `.buildflow/milestones/[slug]/MILESTONE.md`:
 
 ---
 
-## Phases
+## Epics
 
-| Phase | Description | ACs | Coverage | Shipped |
-|-------|-------------|-----|----------|---------|
-| 1     | [name]      | N/N | N%       | [date]  |
-| 2     | [name]      | N/N | N%       | [date]  |
+| Epic     | Description | ACs | Coverage | Shipped |
+|----------|-------------|-----|----------|---------|
+| 1-auth   | [name]      | N/N | N%       | [date]  |
+| 2-payment| [name]      | N/N | N%       | [date]  |
 
 ---
 
@@ -139,23 +139,27 @@ Use the **Write tool** to create `.buildflow/milestones/[slug]/MILESTONE.md`:
 
 ---
 
-## Step 5: Archive Phases
+## Step 5: Archive Epics
 
-Move completed phase directories into the milestone archive:
+Record completed epic references in the milestone folder:
 
 ```bash
-mkdir -p .buildflow/milestones/[slug]/phases/
+mkdir -p .buildflow/milestones/[slug]/
 ```
 
-Use the **Write tool** to create `.buildflow/milestones/[slug]/phases/README.md`:
+Use the **Write tool** to create `.buildflow/milestones/[slug]/EPICS.md`:
 ```markdown
-# Phase Archive — Milestone: [Name]
+# Epic Archive — Milestone: [Name]
 
-Phase artifacts from this milestone are preserved here for reference.
-Active development uses `.buildflow/phases/` for the current milestone cycle.
+Epic artifacts from this milestone are preserved in their original locations for reference.
+Active development uses `.buildflow/epics/` for the current milestone cycle.
+
+## Epics in this Milestone
+- [N-slug]: [description]
+- [N-slug]: [description]
 ```
 
-Do NOT delete or move the actual phase folders — they stay at `.buildflow/phases/[N]/` as the authoritative record. The milestone folder is a summary layer, not a physical move.
+Do NOT delete or move the actual epic folders — they stay at `.buildflow/epics/[N-slug]/` as the authoritative record. The milestone folder is a summary layer, not a physical move.
 
 ---
 
@@ -185,20 +189,20 @@ Version recorded in STATE.md (no git tag — use 'git tag [version]' later if ne
 ## Step 7: Reset State for Next Milestone
 
 Use the **Write tool** to update `.buildflow/STATE.md`:
-- Set `Phase: [next number]` (highest completed phase + 1)
+- Set `Epic: none` (cleared — ready for next epic)
 - Set `Status: Initialized`
-- Append milestone summary row to Phase History table:
+- Append milestone summary row to Epic History table:
   ```
-  | [Phases N–M] | [Milestone Name] | ✅ Milestone Complete | [today] |
+  | [Epics N–M] | [Milestone Name] | ✅ Milestone Complete | [today] |
   ```
 - Reset `session_tokens_used: 0`
 
 Use the **Write tool** to update `.buildflow/MEMORY.md`:
-- Update `phase:` to next phase number
+- Set `current_epic: none`
 - Update `last_session:` to today
 - Clear `parked_changes: []` if empty
 - Add or update `last_milestone:` with the version/name just completed
-- Deep-prune: remove all wave-level build notes, old phase task summaries, and build timestamps — keep only style_fingerprint, key_decisions (last 3), and current_focus
+- Deep-prune: remove all wave-level build notes, old epic task summaries, and build timestamps — keep only style_fingerprint, key_decisions (last 3), and current_focus
 
 ---
 
