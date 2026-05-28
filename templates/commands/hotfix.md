@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-hotfix
 description: Fast-path fix for production incidents and small patches — no planning, no waves
 allowed-tools: Read, Write, Bash, Grep, Glob
@@ -16,7 +16,7 @@ Use this for:
 - Dependency version bumps
 - Config changes
 
-Do NOT use for: new features, refactors, or anything that touches more than ~5 files. Use `/buildflow-plan` + `/buildflow-build` for those.
+Do NOT use for: new features, refactors, or anything that touches more than ~5 files. Use `/buildflow-spec` + `/buildflow-build` for those.
 
 ## Usage
 - `/buildflow-hotfix "fix login crash on empty password"`
@@ -61,7 +61,7 @@ If the description is ambiguous, ask ONE clarifying question only.
 ## Step 2: Scope Check
 Count files that need to change.
 - 1–5 files: proceed
-- 6+ files: warn — "This looks larger than a hotfix. Consider /buildflow-plan instead."
+- 6+ files: warn — "This looks larger than a hotfix. Consider /buildflow-spec instead."
   - Ask: "Proceed as hotfix anyway? (yes/no)"
 
 ## Step 3: Create Restore Point
@@ -368,3 +368,4 @@ If the hotfix was in a shipped phase: `→ Next: /buildflow-ship` (re-tag the fi
 ## Token Budget: ~10K
 
 ## Token Budget: ~10K
+

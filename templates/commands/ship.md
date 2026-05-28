@@ -45,7 +45,7 @@ If they differ:
 Plan was built against spec v[N], current spec is v[M].
 The code may implement outdated requirements.
 
-Run /buildflow-plan to regenerate the plan, then /buildflow-build for affected waves.
+Run /buildflow-spec --update to regenerate affected waves, then /buildflow-build.
 Override: /buildflow-ship --skip-spec (logs to DEBT.md)
 ```
 

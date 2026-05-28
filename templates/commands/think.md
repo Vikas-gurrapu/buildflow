@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-think
 description: Deep research, architecture review, build-vs-buy reasoning, and engineering cognition
 allowed-tools: Read, Write, WebSearch
@@ -39,7 +39,7 @@ Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
 - Current State: `Status: research_complete` (or `architecture_review_complete` for `--arch`)
 - Decisions: recommendation and confidence
 - Files That Matter: research file path and any architecture/codebase files referenced
-- Next Command: `/buildflow-spec` (or `/buildflow-plan` for `--arch` when architecture is decided)
+- Next Command: `/buildflow-spec` (or `/buildflow-spec` for `--arch` when architecture is decided)
 - Risks / Open Questions: research gaps and risks
 - Test Strategy: testing implications discovered, or `Not applicable yet - pre-spec research`
 
@@ -248,6 +248,7 @@ Session: ~[N]K tokens
 ```
 
 If verdict is OVER-SCOPED: `→ Next: /buildflow-start-epic` (revise the vision scope before speccing).
-If this was `--arch`: `→ Next: /buildflow-plan` (architecture decided — ready to plan implementation).
+If this was `--arch`: `→ Next: /buildflow-spec` (architecture decided — ready to plan implementation).
 
 ## Token Budget: ~30K (standard) / ~35K (--arch or --build-vs-buy) / ~20K (--debt or --complexity)
+

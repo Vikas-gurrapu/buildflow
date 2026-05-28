@@ -65,8 +65,8 @@ Classify the error:
 | Situation | Recovery action |
 |-----------|----------------|
 | Tests failing after wave | `/buildflow-debug` — root-cause analysis before retrying |
-| Spec changed mid-phase | `/buildflow-spec --review` to see diff, then `/buildflow-plan` to regenerate |
-| Plan feels wrong | `/buildflow-plan` again — re-run with `--risk-first` flag |
+| Spec changed mid-phase | `/buildflow-spec --review` to see diff, then `/buildflow-discuss` to lock decisions, then `/buildflow-spec --update` to regenerate |
+| Plan feels wrong | `/buildflow-discuss` to lock corrective decisions, then `/buildflow-spec --update` — re-applies decisions with `--risk-first` flag |
 | Wave has too many failures | Split the failing task into smaller tasks manually, then continue |
 | Wrong files modified | `/buildflow-back` to restore, then `/buildflow-modify` with narrower scope |
 | Wrong spec/workflow started | `/buildflow-revert` to remove current spec artifacts, or `/buildflow-revert --spec <name>` for a named workflow |
@@ -89,7 +89,7 @@ The last wave snapshot in `.buildflow/snapshots/phase-[N]-wave-[M]-complete/` is
 To roll back to before the current wave: copy files from that snapshot back to their original paths.
 To see what snapshots exist: `ls .buildflow/snapshots/`
 
-In both modes: reset `plan_status: none` in `MEMORY.md`. The spec remains — restart from `/buildflow-plan`.
+In both modes: reset `plan_status: none` in `MEMORY.md`. The spec remains — restart from `/buildflow-spec`.
 
 ### Full reset (destructive — asks for confirmation):
 Removes `.buildflow/` entirely. Requires typing "RESET" to confirm.
@@ -156,8 +156,8 @@ git commit -m "feat: phase [N] wave [W] + phase [M] stacked changes (delayed com
 |---------|------|
 | `/buildflow-start-epic` | Begin project or new session |
 | `/buildflow-think [topic]` | Research before speccing or planning |
-| `/buildflow-spec` | Define Requirements + Technical Design + ACs before planning |
-| `/buildflow-plan` | Create wave plan from spec |
+| `/buildflow-spec` | Generate Requirements + Technical Design + ACs + wave plan in one pass |
+| `/buildflow-discuss` | Clarify doubts on generated spec and plan — auto-updates artifacts on confirmation |
 | `/buildflow-build` | Execute plan — auto-tests, auto-fix |
 | `/buildflow-check` | Verify all ACs satisfied |
 | `/buildflow-ship` | Finalize with all gates |

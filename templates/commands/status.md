@@ -123,8 +123,8 @@ Read `STATE.md` for `session_tokens_used` and `session_start`. Read `MEMORY.md` 
 ```
 Token Spend  Phase [N]
 ──────────────────────
-/buildflow-spec:    ~[N]K   (context: [N]K, output: [N]K)
-/buildflow-plan:    ~[N]K   (context: [N]K, output: [N]K)
+/buildflow-spec:    ~[N]K   (context: [N]K, output: [N]K — includes plan generation)
+/buildflow-discuss: ~[N]K   (context: [N]K, output: [N]K — if run)
 /buildflow-build:   ~[N]K   ([N] waves — context: [N]K, output: [N]K)
 /buildflow-check:   ~[N]K   (context: [N]K, output: [N]K)
 /buildflow-onboard: ~[N]K   (one-time — context: [N]K, output: [N]K)

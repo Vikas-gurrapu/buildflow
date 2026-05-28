@@ -1,62 +1,65 @@
 ---
 name: buildflow-spec
-description: Generate user-story-backed Requirements, Technical Design, and Acceptance Criteria with self-critique pass
+description: Generate Requirements, Technical Design, Acceptance Criteria, and wave plan in one pass — with optional post-discuss update mode
 allowed-tools: Read, Write, WebSearch
-agent: strategist
+agent: architect
 ---
 
 # /buildflow-spec
 
-Spec-Driven Development layer. Produces formally structured, self-critiqued spec artifacts before any code is planned or written. Every plan task, every build output, and every ship gate references these docs.
+Spec-Driven Development layer. Produces formally structured, self-critiqued spec artifacts and an executable wave plan in a single pass. Every build output and every ship gate references these docs.
 
-Run after `/buildflow-start-epic`, before `/buildflow-plan`.
+Run after `/buildflow-start-epic`. After this completes, run `/buildflow-discuss` (optional) to clarify doubts, then `/buildflow-build`.
 
 ## Usage
-- `/buildflow-spec <spec-or-task-name>` - create a named spec workflow folder
-- `/buildflow-spec` — full spec from vision
-- `/buildflow-spec requirements` — regenerate REQUIREMENTS.md only
-- `/buildflow-spec technical-design` — regenerate DESIGN.md only
-- `/buildflow-spec acceptance` — regenerate ACs only
-- `/buildflow-spec --fast` — minimal spec for small features (single screen / endpoint)
-- `/buildflow-spec --review` — critique existing specs without regenerating
+- `/buildflow-spec` — full spec + wave plan from vision
+- `/buildflow-spec --fast` — minimal spec + plan for small features (single screen / endpoint)
+- `/buildflow-spec --review` — critique existing spec without regenerating
+- `/buildflow-spec --update` — apply locked decisions from DECISIONS.md to existing spec and plan (called automatically by `/buildflow-discuss`)
+- `/buildflow-spec --strict` — mark this phase as strict mode: every task must trace to a DESIGN.md component or API contract; `/buildflow-check --strict` mandatory before ship
+- `/buildflow-spec --scaffold-first` — Wave 0 creates all file stubs before implementation begins
 
 ## Context Packet
 - `.buildflow/VISION.md`
-- `.buildflow/phases/[N]/STATE.md` (if current phase exists - resume status, decisions, risks, next command)
+- `.buildflow/phases/[N]/STATE.md` (if current phase exists — resume status, decisions, risks, next command)
 - `.buildflow/codebase/STACK.md` (if exists — runtime, frameworks, critical dependencies)
 - `.buildflow/codebase/STRUCTURE.md` (if exists — physical layout and entry points)
 - `.buildflow/codebase/INTEGRATIONS.md` (if exists — external services, env contracts, webhooks)
 - `.buildflow/codebase/TESTING.md` (if exists — test framework and validation patterns)
 - `.buildflow/codebase/CONCERNS.md` (if exists — risks, debt, blind spots)
 - `.buildflow/codebase/PATTERNS.md` (if exists — align spec with existing architecture)
-- `.buildflow/codebase/FEATURES.md` (if exists — existing capability inventory, including local and locale support)
+- `.buildflow/codebase/FEATURES.md` (if exists — existing capability inventory)
+- `.buildflow/codebase/MAP.md` (if exists)
+- `.buildflow/codebase/GRAPH.md` (if exists — for dependency chain reasoning)
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
 - `.buildflow/MEMORY.md` (app_name, framework, phase only)
-- `.buildflow/phases/[N]/REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md` (if regenerating existing spec)
+- `.buildflow/phases/[N]/REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, `PLAN.md` (if regenerating or updating)
+- `.buildflow/phases/[N]/DECISIONS.md` (if exists — carry locked decisions as spec constraints)
 
 ---
 
 ## Phase State Resume
 Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
 
-Use `STATE.md` to avoid making the user restate prior research, decisions, risks, or open questions. If it says the spec is already locked and the user did not ask for an amendment/review, continue to the guided next step instead of regenerating.
+Use `STATE.md` to avoid making the user restate prior research, decisions, risks, or open questions. If it says the spec is already locked AND a PLAN.md exists for the same spec version, continue to the guided next step instead of regenerating.
 
 Before exiting, create or update `.buildflow/phases/[N]/STATE.md` with:
-- Current State: `Status: spec_locked` when locked, or `Status: spec_draft` when still in review
+- Current State: `Status: plan_ready` when both spec and plan are complete
 - Decisions: major product/technical decisions from REQUIREMENTS/DESIGN
-- Files That Matter: `REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, and important mapped codebase docs
-- Next Command: `/buildflow-plan` when locked, otherwise `/buildflow-spec`
-- Risks / Open Questions: Known Risks plus unresolved spec questions
+- Files That Matter: `REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, `PLAN.md`, `VERIFICATION.md`
+- Next Command: `/buildflow-discuss` (optional) or `/buildflow-build`
+- Risks / Open Questions: known risks plus unresolved spec questions
 - Test Strategy: acceptance criteria verification approach and constraints from `TESTING.md`
 
 ---
+
+# PART 1 — SPEC
 
 ## Step 1: Validate Vision
 Read `.buildflow/VISION.md`.
 If empty: "Run `/buildflow-start-epic` first."
 
-If `PATTERNS.md` exists: note the existing architectural style (component structure, naming, API patterns).
-DESIGN.md must align with these — don't invent new patterns unless explicitly asked.
+If `PATTERNS.md` exists: note the existing architectural style. DESIGN.md must align — don't invent new patterns unless explicitly asked.
 
 If focused codebase maps exist:
 - Use `STACK.md` to constrain runtime/framework/dependency choices.
@@ -68,17 +71,17 @@ If focused codebase maps exist:
 If `FEATURES.md` or `intel.json.features[]` exists:
 - List existing implemented/partial/docs-only capabilities before writing scope.
 - Treat implemented features as existing system constraints, not new scope.
-- Preserve `local_support` unless the user explicitly asks to remove or replace it.
-- Preserve `locale_support` unless the user explicitly asks to remove or replace i18n/localization behavior.
-- If the requested phase touches local support, add explicit ACs for local run/dev workflow behavior.
-- If the requested phase touches locale support, add explicit ACs for default locale, supported locale catalogs, fallback behavior, JSON translation imports, localized docs, and label/copy catalogs.
+- Preserve `local_support` and `locale_support` unless explicitly asked to remove.
+- If the phase touches locale support, add explicit ACs for default locale, fallback behavior, catalog sync, and localized docs.
+
+If `DECISIONS.md` exists: treat all locked entries as firm constraints — do not contradict or re-open them.
 
 ---
 
 ## Step 1b: Load Phase History
 If `phases/*/SHIPPED.md` files exist, load the last 2. Extract:
-- Already-shipped features → exclude from this spec's scope (don't re-spec shipped ACs)
-- Open debt from prior phases → surface as constraints in new spec
+- Already-shipped features → exclude from this spec's scope
+- Open debt from prior phases → surface as constraints
 - Prior architecture decisions → DESIGN.md must not contradict them
 
 Print: "Prior phases: [N]. Already shipped: [brief list]. Open debt: [N items]."
@@ -92,17 +95,17 @@ Ask only what vision.md, STATE.md, prior research, and codebase maps leave unans
 Start with:
 > "I need a few clarifications before writing the spec. I'll ask one at a time and recommend sensible defaults."
 
-### 2a - Build the Clarification Queue
+### 2a — Build the Clarification Queue
 Create an internal queue of up to 5 clarification topics, ordered by spec risk:
-1. User success outcome - measurable result, not a feature list
+1. User success outcome — measurable result, not a feature list
 2. Explicitly out of scope this phase
-3. Hard constraints - tech stack, deadline, team size, compliance, accessibility
+3. Hard constraints — tech stack, deadline, team size, compliance, accessibility
 4. Third-party integrations or external dependencies
 5. If `--fast`: the single feature boundary in one sentence
 
-Skip any topic already answered clearly by existing context.
+Skip any topic already answered clearly by existing context or DECISIONS.md.
 
-### 2b - Ask One Question at a Time
+### 2b — Ask One Question at a Time
 For each remaining topic, ask exactly one question and wait for the user's answer before asking the next.
 
 Use this format:
@@ -110,9 +113,9 @@ Use this format:
 I need one clarification: [question]
 
 Recommended options:
-1. [Recommended option] - [why this is the safest/default choice]
-2. [Alternative option] - [tradeoff]
-3. [Alternative option] - [tradeoff]
+1. [Recommended option] — [why this is the safest/default choice]
+2. [Alternative option] — [tradeoff]
+3. [Alternative option] — [tradeoff]
 
 Or reply with your own custom answer.
 ```
@@ -120,27 +123,24 @@ Or reply with your own custom answer.
 Rules:
 - Provide 2-3 mutually exclusive recommended options.
 - Mark the best default as option 1.
-- Options must be specific to this project and current phase, not generic.
-- Always allow custom input. Treat custom input as authoritative unless it conflicts with locked constraints or prior shipped behavior.
+- Always allow custom input. Treat custom input as authoritative unless it conflicts with locked constraints.
 - If the user replies with `1`, `2`, or `3`, expand that option into the full answer before storing it.
-- If the user gives a custom answer, store the custom answer verbatim plus any inferred implication.
 
-### 2c - Reassess After Each Answer
+### 2c — Reassess After Each Answer
 After every answer:
 1. Update the internal clarification summary.
 2. Decide whether the answer creates a new ambiguity.
-3. If yes, ask one follow-up question using the same recommended-options format.
+3. If yes, ask one follow-up using the same format.
 4. If no, continue to the next queued topic.
 
-Do not exceed 7 total questions unless the user explicitly asks to keep refining. If clarity is still insufficient after 7 questions, state the remaining assumptions and ask for approval to proceed.
+Do not exceed 7 total questions. After 7, state remaining assumptions and ask for approval to proceed.
 
-### 2d - Clarity Gate
+### 2d — Clarity Gate
 Proceed to Step 3 only when:
 - Success outcome is clear enough to test
 - Scope boundaries are clear enough to prevent accidental extra work
-- Known constraints are either captured or explicitly assumed absent
+- Known constraints are captured or explicitly assumed absent
 - Required integrations are named or explicitly "none"
-- Any local/locale support implications are preserved or explicitly scoped
 
 Before generating files, summarize the captured answers in 3-6 bullets and say:
 > "I have enough clarity to draft the spec. I'll proceed with these assumptions."
@@ -153,12 +153,10 @@ All spec artifacts for this phase live in `.buildflow/phases/[N]/`. Create the f
 
 Determine the current phase number from `STATE.md → phase` or `MEMORY.md → phase`. Use that number as `[N]` for all file paths below.
 
-If the user provided text after `/buildflow-spec` (e.g., `/buildflow-spec auth-login`), record it as the spec description in `STATE.md → spec_description` for reference only — it does not create a separate folder.
-
 ---
 
 ## Step 3: Generate REQUIREMENTS.md
-Use the **Write tool** to create `.buildflow/phases/[N]/REQUIREMENTS.md`. Do not output the content as text — write it to disk. Create `.buildflow/phases/[N]/` first if it doesn't exist.
+Use the **Write tool** to create `.buildflow/phases/[N]/REQUIREMENTS.md`. Do not output the content as text — write it to disk.
 
 ```markdown
 # Product Requirements Document
@@ -176,7 +174,6 @@ Use the **Write tool** to create `.buildflow/phases/[N]/REQUIREMENTS.md`. Do not
 | ID | Story | Acceptance Signal |
 |----|-------|------------------|
 | US-01 | As a [user], I want [goal] so that [outcome] | [one-line measurable signal] |
-| US-02 | ... | ... |
 
 ## Features — In Scope
 | ID | Feature | Linked Stories | Priority | Success Metric |
@@ -236,16 +233,15 @@ All errors follow:
 ## Technology Decisions
 | Decision | Choice | Rationale | Alternatives Rejected | Reversibility |
 |----------|--------|-----------|----------------------|--------------|
-| [area] | [choice] | [why — cite constraint or principle] | [what else, why not] | easy / hard |
+| [area] | [choice] | [why] | [what else, why not] | easy / hard |
 
 ## Non-Functional Requirements
 | Type | Requirement | Measurement Method |
 |------|------------|-------------------|
 | Performance | [endpoint] responds in < [Nms] at [N] rps | Load test / APM |
-| Security | [specific requirement — not "secure"] | Audit / pen test |
+| Security | [specific requirement] | Audit / pen test |
 | Accessibility | WCAG [2.1 AA / 2.1 AAA] | Automated + manual |
 | Availability | [N]% uptime | Monitoring |
-| Data retention | [N] days | Automated policy |
 
 ## Known Risks
 | Risk | Likelihood | Impact | Mitigation | Owner |
@@ -290,11 +286,9 @@ changelog:
 
 **Failure / edge cases (required — minimum 1 per feature):**
 - AC-003: Given [invalid/boundary/error input], when [...], then [specific error behavior]
-- AC-004: Given [concurrent/race/timeout scenario], when [...], then [...]
 
 ## [Feature F-02: name]  →  US-03
-- AC-005: Given [...], when [...], then [...]
-- AC-006 (edge): Given [...], when [...], then [...]
+- AC-004: Given [...], when [...], then [...]
 
 ## Non-Functional
 - AC-NF-001: [endpoint] under [N] concurrent users responds within [Nms] (p95)
@@ -323,7 +317,6 @@ For each flagged word: replace with a specific, measurable alternative or mark `
 
 ### Testability Check
 For each AC, verify it can be answered as a pass/fail automated test or explicit manual step.
-Flag any AC that requires human judgment to evaluate.
 
 ### Consistency Check
 - API contracts in DESIGN.md match any referenced endpoints in ACs
@@ -351,47 +344,48 @@ Show summary of all three specs + Critic Report. Ask:
 Specs ready for review. Critic score: [STRONG / NEEDS REVISION]
 
 Choose one:
-1. Approve — lock the spec and continue to the next step
+1. Approve — lock the spec and generate the wave plan
 2. Revise — tell me what to change, then I will update and re-run the Critic pass
 ```
 
 Rules:
 - If the user selects `1`, lock specs immediately and proceed with the Approve flow below.
-- If the user selects `2`, ask:
-  > "What should I revise?"
-  Then collect the user's free-form input and proceed with the Revise flow below.
-- If the user replies with custom revision text instead of `1` or `2`, treat it as `2` and use that text as the revision instruction.
-- If the user gives an ambiguous response, ask them to choose `1` or `2`.
+- If the user selects `2`, ask: "What should I revise?" Then apply changes, increment `spec_version`, append changelog entry, re-run Critic pass, repeat Step 7.
+- If the user replies with custom revision text instead of `1` or `2`, treat it as `2`.
 
-- **Revise:** apply changes to the named section, increment `spec_version` in `ACCEPTANCE.md` frontmatter, append a changelog entry, re-run Critic pass, repeat Step 7.
+**Revise:** apply changes to the named section, increment `spec_version` in `ACCEPTANCE.md` frontmatter, append changelog entry, re-run Critic pass, repeat Step 7.
 
-- **Approve:** lock specs.
-  1. Update `ACCEPTANCE.md` frontmatter:
-     ```yaml
-     status: LOCKED
-     approved_by: [user identifier — name or "user" if unknown]
-     approved_at: [ISO datetime]
-     ```
-  2. Use the **Write tool** to append the approval record to `.buildflow/phases/[N]/APPROVALS.md` (create if not exists):
-     ```markdown
-     ## Phase [N] — v[spec_version] — [datetime]
-     - **Approved by:** [user]
-     - **AC count:** [N]
-     - **Critic score:** STRONG / REVISED
-     - **Revision cycles:** [N]
-     - **Summary:** [one line — what this spec covers]
-     ```
-  3. Update `MEMORY.md`:
-     ```yaml
-     spec_status: locked
-     spec_version: [N]
-     spec_phase: [N]
-     ac_count: [N]
-     us_count: [N]
-     spec_critic: strong/revised
-     ```
+**Approve:** lock specs.
+1. Update `ACCEPTANCE.md` frontmatter:
+   ```yaml
+   status: LOCKED
+   approved_by: [user identifier — name or "user" if unknown]
+   approved_at: [ISO datetime]
+   ```
+2. Use the **Write tool** to append the approval record to `.buildflow/phases/[N]/APPROVALS.md` (create if not exists):
+   ```markdown
+   ## Phase [N] — v[spec_version] — [datetime]
+   - **Approved by:** [user]
+   - **AC count:** [N]
+   - **Critic score:** STRONG / REVISED
+   - **Revision cycles:** [N]
+   - **Summary:** [one line — what this spec covers]
+   ```
+3. Update `MEMORY.md`:
+   ```yaml
+   spec_status: locked
+   spec_version: [N]
+   spec_phase: [N]
+   ac_count: [N]
+   ```
 
 Do not proceed until user approves. The approval record in `APPROVALS.md` is permanent — never delete or overwrite prior entries.
+
+After approval, automatically continue to **PART 2 — PLAN** without prompting. Print:
+
+```
+Spec locked ✓ — generating wave plan...
+```
 
 ---
 
@@ -399,7 +393,7 @@ Do not proceed until user approves. The approval record in `APPROVALS.md` is per
 
 If the user requests a spec change AFTER `spec_status: locked` (mid-phase amendment):
 
-1. Show what is changing and why:
+1. Show impact analysis:
    ```
    Spec Amendment Request
    ──────────────────────
@@ -411,93 +405,424 @@ If the user requests a spec change AFTER `spec_status: locked` (mid-phase amendm
    - Plan tasks that reference these ACs: [list from PLAN.md if it exists]
    - Waves that will need re-planning: [list]
 
-   Risk: [LOW / MEDIUM / HIGH — based on how many plan tasks are invalidated]
+   Risk: [LOW / MEDIUM / HIGH]
    ```
 
-2. Ask for explicit confirmation:
-   > "This amendment affects [N] ACs and [N] plan tasks. Confirm to proceed. Type 'amend' to continue."
+2. Ask: "This amendment affects [N] ACs and [N] plan tasks. Type 'amend' to confirm."
 
 3. On confirmation:
-   - Increment `spec_version` in frontmatter
+   - Increment `spec_version`
    - Update the affected ACs
-   - Append to changelog:
-     ```yaml
-     - version: [N+1]
-       date: [today]
-       author: [user]
-       summary: "Amendment: [brief description of change]"
-       amended_acs: [AC-003, AC-007]
-       reason: "[user's stated reason]"
-     ```
-   - Update `approved_at` to now (re-approval of amended version)
-   - Append to `phases/[N]/APPROVALS.md`:
-     ```markdown
-     ## Phase [N] — v[N+1] — [datetime] — AMENDMENT
-     - **Amended by:** [user]
-     - **Changed ACs:** [AC-003, AC-007]
-     - **Reason:** [user's stated reason]
-     - **Plan impact:** [N tasks invalidated]
-     ```
+   - Append to changelog
+   - Append to `phases/[N]/APPROVALS.md`
    - Update `MEMORY.md`: `spec_version: [N+1]`
 
-4. If a PLAN.md exists for this phase: flag it as stale.
-   ```
-   ⚠ PLAN STALE — spec amended to v[N+1]
-   Tasks referencing [AC-003, AC-007] may no longer be valid.
-   Run /buildflow-plan to regenerate affected waves before building.
-   ```
+4. If a PLAN.md exists: flag as stale — "⚠ PLAN STALE — spec amended to v[N+1]. Run `/buildflow-spec --update` to regenerate affected waves."
 
 ---
 
-## --review Mode (`/buildflow-spec --review`)
+# PART 2 — PLAN (auto-runs after spec approval)
 
-Critiques existing specs without regenerating. Also shows version diff if the spec has been amended.
+## Step 8: Validate Spec Lock
+Confirm `spec_status: locked` in `MEMORY.md` and `status: LOCKED` in `ACCEPTANCE.md` frontmatter. Since we just locked the spec in Part 1, this will always pass.
 
-### Review steps:
+Record the locked `spec_version` in `PLAN.md` header — this is the version this plan was built against.
+
+Read all ACs. Confirm: "Planning to satisfy [N] ACs across [N] features (spec v[N])."
+
+If `FEATURES.md` or `intel.json.features[]` exists:
+- Mark already-implemented capabilities as "existing support" and avoid recreating them.
+- Preserve `local_support` and `locale_support` unless explicitly out of scope.
+
+---
+
+## Step 9: Component & Task Derivation
+For each feature in REQUIREMENTS.md, derive the implementation tasks needed to satisfy its ACs:
+
+For each task ask:
+1. What code needs to exist that doesn't exist yet?
+2. What existing code needs to change?
+3. What tests must be written to verify the linked ACs?
+
+Map each task to its AC refs:
+```
+Task: Create JWT auth middleware
+AC refs: AC-001, AC-002, AC-003
+Feature refs: Auth
+Files: src/middleware/auth.ts (new), src/routes/index.ts (modify)
+Type: NEW / MODIFY / TEST
+```
+
+---
+
+## Step 10: Dependency Reasoning
+For each task, identify dependencies and explain WHY they exist:
+
+```
+Task: Create login API route
+Depends on: "Create auth middleware" — HARD dependency
+Reason: Route cannot be registered until middleware exists
+
+Task: Write login integration tests
+Depends on: "Create login API route" — HARD dependency
+Reason: Tests call the live route; no route = test suite errors on import
+
+Task: Create UI login form
+Depends on: "Create login API route" — SOFT dependency
+Reason: Form can be scaffolded independently; only needs real API for E2E tests
+Can proceed in parallel if mocked: YES
+```
+
+Dependency types:
+- **HARD** — code fails to compile/run without the prerequisite
+- **SOFT** — can proceed with a mock/stub; full integration requires prerequisite
+- **EXTERNAL** — depends on env var, database, third-party API (flag for setup checklist)
+
+Detect circular dependencies: if A → B → A exists, flag immediately and resolve before proceeding.
+
+External dependency checklist (generated if any EXTERNAL deps found):
+```
+Before building, verify these exist:
+- [ ] DATABASE_URL env var set
+- [ ] [service] API key configured
+```
+
+---
+
+## Step 11: Effort Estimation
+Estimate each task:
+| Size | Meaning |
+|------|---------|
+| XS | < 30 min — config, type, single function |
+| S | 30–90 min — single component or endpoint |
+| M | 2–4 hrs — feature with tests |
+| L | 4–8 hrs — complex feature, multiple components |
+| XL | > 1 day — requires research or architectural decision |
+
+Flag XL tasks: "This task is XL — consider splitting or running `/buildflow-think` first."
+
+---
+
+## Step 12: Wave Planning
+
+Group tasks into parallel waves based on HARD dependencies only (SOFT deps don't block).
+
+### 12a — Thin-Slice Ordering (enforced for full-stack features)
+
+For any feature that spans UI + API + DB layers, enforce this ordering across waves:
+```
+Wave N   — DB / schema layer first (migrations, models, repositories)
+Wave N+1 — API / service layer (endpoints, business logic, service methods)
+Wave N+2 — UI layer (components, pages, forms)
+Wave N+3 — Integration / E2E tests (require all layers complete)
+```
+
+If tasks violate this order: flag and reorder. Exception: purely presentational UI tasks with no API calls.
+
+### 12b — Exclusive File Ownership
+
+Every file modified in this phase must have exactly one owner wave. No two waves may modify the same file.
+
+Ownership assignment rules:
+1. List all files each task will touch (create or modify).
+2. If two tasks in different waves touch the same file → merge them into one task or move all tasks touching it into one wave.
+3. Exception: test files may be extended across waves — additive only.
+
+**Ownership map (generated for each plan):**
+```
+File Ownership Map
+──────────────────
+src/auth/service.ts       Wave 2  (owned by: "Create auth service")
+src/routes/auth.ts        Wave 3  (owned by: "Create auth routes")
+src/db/schema.ts          Wave 1  (owned by: "Create user schema")
+```
+
+If a conflict is detected: **STOP and resolve before writing the plan.**
+
+### 12c — Wave Table
+
+```
+Wave 0 — Scaffolding (if --scaffold-first)
+  Create empty file stubs for all new files
+
+Wave 1 — DB / Schema
+  • Task A  [AC-001]  S   NEW    src/db/schema.ts (owned)
+
+Wave 2 — API / Services (hard-depends on Wave 1)
+  • Task C  [AC-001, AC-002]  M   NEW    src/auth/service.ts (owned)
+
+Wave 3 — Routes / Integration (depends on Wave 2)
+  • Task E  [AC-001–AC-003]  M   MODIFY  src/routes/auth.ts (owned)
+
+Wave 4 — UI (depends on Wave 3)
+  • Task G  [AC-005, AC-006]  M   NEW    src/components/LoginForm.tsx (owned)
+```
+
+If `--risk-first`: within each wave, sort tasks by uncertainty/novelty (most uncertain first).
+
+---
+
+## Step 13: AC Coverage Verification
+Every AC must be covered by at least one task. Report:
+
+```
+AC Coverage
+───────────
+AC-001 ✓  Task C, Task E
+AC-002 ✓  Task C
+AC-003 ✓  Task D, Task E
+Uncovered: NONE
+```
+
+If any AC is uncovered: stop. "AC-[X] has no task. Add a task or explicitly mark it out of scope."
+
+---
+
+## Step 13b: Post-Change Test Sequencing
+
+For every non-trivial AC, plan focused tests after the implementation work.
+
+**Rule:** For each task of type `NEW` or `MODIFY` that satisfies an AC:
+1. Implement the code change.
+2. Add or update focused tests for the changed behavior and linked ACs.
+3. Run only tests for touched files and direct dependents during build.
+4. Ask the user before running broader app-level tests.
+
+Keep implementation and focused test work together in the same task:
+```
+Wave 2 — Auth Service
+  • Implement login service + focused tests (AC-001, AC-002)   M   NEW
+```
+
+**Exception:** Pure scaffolding, config, migration, pure style files, and locale/label catalogs only need tests when a relevant focused test already exists.
+
+---
+
+## Step 14: Engineering Review
+Before writing the plan file, review the plan as an Engineering Lead:
+
+**Over-engineering check:**
+- Is any task adding abstraction layers not required by the ACs?
+- Are there tasks that implement features "for future use" not in specs?
+- Flag and remove.
+
+**Under-engineering check:**
+- Are there ACs that will be technically impossible with the planned approach?
+- Are tests planned for every non-trivial AC?
+
+**Architecture smell check:**
+- Does the plan introduce patterns that conflict with `PATTERNS.md`?
+- Does the plan introduce paths/layers that conflict with `STRUCTURE.md`?
+- Does the plan add dependencies or runtime assumptions that conflict with `STACK.md`?
+- Does the plan change external services/env/webhooks without tasks to update `INTEGRATIONS.md`?
+- Does any task modify a HOTSPOT file? If yes, flag with: "⚠ This task touches [file] (risk: [N]) — verify test coverage before proceeding."
+- Does any task unintentionally remove an existing feature from `FEATURES.md`, especially local support?
+
+**Engineering Review Report:**
+```
+Engineering Review
+──────────────────
+Over-engineering:  [list or NONE]
+Under-engineering: [list or NONE]
+Architecture:      [conflicts or NONE]
+Hotspot warnings:  [files or NONE]
+Thin-slice order:  [violations or OK]
+File conflicts:    [ownership conflicts or OK]
+Focused tests:     [tasks missing post-change tests or OK]
+Verdict: APPROVED / NEEDS REVISION
+```
+
+If NEEDS REVISION: apply fixes, re-run review. Repeat until APPROVED. Do not write the plan file until APPROVED.
+
+Log each review cycle in the plan file header:
+```yaml
+engineering_review_cycles: 2
+engineering_review_verdict: APPROVED
+```
+
+---
+
+## Step 14b: Strict Mode Annotations (if `--strict` flag)
+
+When `--strict` is active:
+
+1. **Tag each task** with its technical design mapping:
+   - Every `NEW`/`MODIFY` task must reference the DESIGN.md Component Map row it implements (`[Design: ComponentName]`)
+   - Every task implementing an API endpoint must reference its DESIGN.md API Contract row (`[Design: POST /api/path]`)
+
+2. **Mark the plan header:**
+   ```yaml
+   strict_mode: true
+   strict_check_required: true
+   ```
+
+3. **Critical module flag** — tasks touching critical module files get a `[CRITICAL]` tag.
+
+4. If any task cannot be mapped to DESIGN.md → flag and block until resolved.
+
+---
+
+## Step 15: Write Plan + VERIFICATION
+Use the **Write tool** to create `.buildflow/phases/[N]/PLAN.md`. Do not output the plan as text — write it to disk.
+
+```markdown
+# Phase [N] Plan
+**Goal:** [one sentence — what the user can DO after this phase that they can't do now]
+**ACs:** [N]  **Tasks:** [N]  **Waves:** [N]  **Est. total:** [sum of estimates]
+**Spec version:** v[N]
+**Engineering Review:** APPROVED (cycles: [N])
+**Thin-slice order:** ENFORCED
+**File conflicts:** NONE
+**Strict mode:** [enabled — /buildflow-check --strict required before ship / disabled]
+
+## External Dependencies Checklist
+- [ ] [item] — [how to verify]
+
+## File Ownership Map
+| File | Owner Wave | Owner Task |
+|------|-----------|------------|
+| src/... | Wave 1 | [task name] |
+
+## Waves
+
+### Wave 1 — [theme: DB/Schema]
+| Task | ACs | Est | Type | Files | Tests | Design Ref |
+|------|-----|-----|------|-------|-------|---------|
+| [name] | AC-001 | S | NEW | src/... | focused after change | [ComponentName / —] |
+
+### Wave 2 — [theme: API/Services]
+...
+
+## AC → Task Traceability
+| AC | Task(s) |
+|----|---------|
+| AC-001 | Task C, Task E |
+```
+
+Also create `.buildflow/phases/[N]/VERIFICATION.md` from every AC in `ACCEPTANCE.md`:
+
+```markdown
+# Phase [N] Verification
+**Spec version:** v[N]
+**Status:** NOT STARTED
+**Last updated:** [ISO datetime]
+
+## Summary
+| Status | Count |
+|--------|-------|
+| NOT STARTED | [N] |
+| PASS | 0 |
+| FAIL | 0 |
+
+## Acceptance Criteria Verification
+| AC | Requirement | Planned Task(s) | Test/Evidence | Status | Last Checked | Notes |
+|----|-------------|-----------------|---------------|--------|--------------|-------|
+| AC-001 | [exact AC summary] | Task C, Task E | pending | NOT STARTED | - | - |
+
+## Test Runs
+| Time | Scope | Command | Result | ACs Covered | Notes |
+|------|-------|---------|--------|-------------|-------|
+
+## Deferred / Risk Items
+- None
+```
+
+Update `MEMORY.md`:
+```yaml
+current_phase: [N]
+plan_status: ready
+wave_count: [N]
+task_count: [N]
+est_total: [size]
+```
+
+---
+
+# --update Mode (`/buildflow-spec --update`)
+
+Called automatically by `/buildflow-discuss` when the user confirms decisions. Can also be run manually after locking new decisions in DECISIONS.md.
+
+## When to use
+- After `/buildflow-discuss` locks new decisions that affect spec artifacts
+- When DECISIONS.md has entries newer than `ACCEPTANCE.md → approved_at`
+
+## Steps
+
+**1. Load DECISIONS.md** — read all decisions with `status: locked` that post-date `ACCEPTANCE.md → approved_at`.
+
+**2. Impact analysis** — for each new decision:
+- Which section of REQUIREMENTS.md does it affect? (features, constraints, out-of-scope)
+- Which section of DESIGN.md does it affect? (architecture, component map, data model, API contracts, tech decisions)
+- Which ACs does it affect? (any AC whose Given/When/Then references the changed design)
+- Which PLAN tasks does it affect? (tasks that implement affected ACs)
+
+**3. Apply patches** — edit only the affected sections using the Write tool. Preserve all unaffected content exactly.
+
+**4. Re-run Critic pass** on changed sections only.
+
+**5. Show diff:**
+```
+Spec Update — Phase [N] v[N] → v[N+1]
+──────────────────────────────────────
+Decisions applied: [N]
+Sections changed:
+  REQUIREMENTS.md: [which sections]
+  DESIGN.md: [which sections]
+  ACCEPTANCE.md: [AC-XXX updated; AC-YYY added]
+Plan changes:
+  Wave [N]: [tasks added/removed/updated]
+Critic: STRONG / FLAG
+```
+
+**6. Increment spec_version** in `ACCEPTANCE.md` frontmatter, append changelog entry:
+```yaml
+- version: [N+1]
+  date: [today]
+  author: buildflow-discuss
+  summary: "Post-discuss update: [brief description of decisions applied]"
+  amended_acs: [list]
+  reason: "[decisions that triggered the update]"
+```
+
+**7. Update APPROVALS.md** — append amendment record.
+
+**8. Update MEMORY.md**: `spec_version: [N+1]`
+
+**Output:**
+```
+Spec updated to v[N+1] — [N] decisions applied · [N] ACs changed
+Session: ~[N]K tokens
+```
+
+---
+
+# --review Mode (`/buildflow-spec --review`)
+
+Critiques existing specs without regenerating.
 
 **1. Load and parse current spec:**
 Read `ACCEPTANCE.md` frontmatter: `spec_version`, `status`, `changelog`.
 
 **2. Spec diff (if spec_version > 1):**
-Read the `changelog` array from `ACCEPTANCE.md` frontmatter. For each version after v1, reconstruct what changed:
-
+Read the `changelog` array. For each version after v1, show what changed:
 ```
 Spec Version History  Phase [N]
 ────────────────────────────────
-v1 → v2  (amended 2024-01-15 by user)
+v1 → v2  (amended [date] by user)
   Changed ACs: AC-003, AC-007
-  Reason: "Password reset flow redesigned — now uses magic link instead of email code"
-
-  AC-003 before: "Given a registered email, when reset requested, then 6-digit code sent"
-  AC-003 after:  "Given a registered email, when reset requested, then magic link sent valid 15min"
-
-  AC-007 before: "Given a valid code, when submitted within 10min, then password updated"
-  AC-007 after:  "Given a valid magic link, when clicked within 15min, then password updated"
-
-v2 → v3  (amended 2024-01-18 by user)
-  Changed ACs: AC-NF-001
-  Reason: "Performance target revised after load test results"
-
-  AC-NF-001 before: "login endpoint responds in < 100ms at 100 rps"
-  AC-NF-001 after:  "login endpoint responds in < 200ms at 500 rps"
+  Reason: "[user's stated reason]"
 ```
 
-If `spec_version` is 1 (no amendments): "Spec is at v1 — no amendments made."
-
-**3. Re-run Critic pass on current spec** (same as Step 6 in full spec flow):
-- Vague language scan
-- Coverage check
-- Testability check
-- Consistency check
+**3. Re-run full Critic pass** (vague language, coverage, testability, consistency).
 
 **4. Plan staleness check:**
-If a `PLAN.md` exists for this phase, compare its recorded `spec_version` against current `ACCEPTANCE.md` version. If stale, say so and list which tasks reference changed ACs.
+If a `PLAN.md` exists, compare its `spec_version` against current `ACCEPTANCE.md` version. If stale, list which tasks reference changed ACs.
 
 **5. Report:**
 ```
 Spec Review  Phase [N]  v[N]
 ─────────────────────────────
-Amendments: [N versions — show brief list]
+Amendments: [N versions]
 Critic score: STRONG / NEEDS REVISION
 Plan staleness: UP TO DATE / STALE (v[plan] vs v[current])
 
@@ -506,26 +831,27 @@ Plan staleness: UP TO DATE / STALE (v[plan] vs v[current])
 
 ---
 
-## --fast Mode
+# --fast Mode
 For single-feature additions:
 - Skip User Stories table (inline in feature row)
 - Skip Technology Decisions (use existing stack)
 - Generate 3 ACs minimum: 1 happy + 1 error + 1 NFR
 - Skip Critic coverage check (only vague language scan)
-- Token budget: ~8K
+- Plan: 1–2 waves, no thin-slice ordering required
+- Token budget: ~12K
 
 ---
 
-## Token cost report (print at end of spec lock)
+## Token cost report (print at end)
 
 Measure actual cost:
 1. Sum character counts of all Context Packet files loaded ÷ 4 = input tokens
-2. Estimate output from REQUIREMENTS.md + DESIGN.md + ACCEPTANCE.md generated ÷ 4 = output tokens
+2. Estimate output from all generated files ÷ 4 = output tokens
 3. Update `STATE.md → session_tokens_used` by adding this command's cost
 
 Default output (minimal):
 ```
-Spec locked — Phase [N] v[N]  ·  [N] ACs  ·  [N] revision cycles
+Spec + plan ready — Phase [N] v[N]  ·  [N] ACs  ·  [N] waves  ·  [N] tasks
 Session: ~[N]K tokens
 ```
 
@@ -533,31 +859,27 @@ Verbose output (only if `verbose_context: true` in PREFERENCES.md):
 ```
 Token Cost — /buildflow-spec
 ─────────────────────────────
-Spec locked — Phase [N] v[N]
-Features: [N]  User stories: [N]  ACs: [N]  Revision cycles: [N]
-Context loaded:    ~[N]K tokens   (VISION.md + SHIPPED.md files + PREFERENCES.md)
-Output generated:  ~[N]K tokens   (REQUIREMENTS.md + DESIGN.md + ACCEPTANCE.md)
+Context loaded:    ~[N]K tokens
+Output generated:  ~[N]K tokens   (REQUIREMENTS + DESIGN + ACCEPTANCE + PLAN + VERIFICATION)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
-Update `MEMORY.md`: `last_spec_tokens: ~[N]K`
 
 ## Guided Next Step
 
-Before printing this block, check session context usage. Because a locked spec is a phase boundary, recommend clearing the current AI session after saving `STATE.md` unless context is very small and the user is continuing immediately.
-
-After printing the token line, always close with:
+Because spec+plan is a major phase boundary, recommend clearing the AI session before the next command.
 
 ```
 ──────────────────────────────────────────────────
-→ Next:  /buildflow-plan
-   Why:  Your spec is locked — translate it into an executable wave plan
+→ Next:  /buildflow-discuss
+   Why:  Review the generated spec and plan — clarify any doubts before building
+   Or:   /buildflow-build  — skip discuss and start executing wave 1
    Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```
 
 If spec is NOT locked yet (still in review): `→ Next: /buildflow-spec` (continue review and lock).
-If spec was amended and plan is now stale: `→ Next: /buildflow-plan` (regenerate plan against new spec version).
+If spec was amended and plan is now stale: `→ Next: /buildflow-spec --update` (regenerate plan against new decisions).
 
-## Token Budget: ~20K (full) / ~8K (--fast)
+## Token Budget: ~40K (full) / ~12K (--fast)
