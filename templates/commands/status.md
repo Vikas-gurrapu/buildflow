@@ -134,7 +134,7 @@ Phase total:        ~[N]K
 Current session:    ~[N]K   (since [session_start])
 ```
 
-Token costs are measured from actual loaded file sizes (chars ÷ 4) + generated output length. Not guesses — measured.
+Token costs are measured from actual loaded file sizes (code ÷ 3.5, prose ÷ 4) + generated output length (÷ 3.7). Not guesses — measured.
 
 ---
 
