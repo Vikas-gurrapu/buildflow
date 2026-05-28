@@ -38,8 +38,24 @@ Before reading or writing any source file, apply the installed **Folder Access G
 ## Epic Resolution (resolve target folder before any file write)
 
 Read `.buildflow/STATE.md`:
-- If `current_epic` is set → hotfix record goes to `.buildflow/epics/[current_epic]/hotfix/`
-- If `current_epic` is absent, empty, or `none` → hotfix record goes to `.buildflow/hotfix/`
+- If `current_epic` is absent, empty, or `none` → auto-assign to `.buildflow/hotfix/` (no prompt needed)
+- If `current_epic` is set → ask once:
+
+  ```
+  ──────────────────────────────────────────────────
+  Active epic: [current_epic] — "[epic name]"
+
+  Is this hotfix part of the active epic?
+    [E] Yes — file under epics/[current_epic]/hotfix/
+    [I] No  — independent fix, file under hotfix/
+  ──────────────────────────────────────────────────
+  ```
+
+  - **[E]:** store at `.buildflow/epics/[current_epic]/hotfix/HOTFIX-[seq].md`
+  - **[I]:** store at `.buildflow/hotfix/HOTFIX-[seq].md` — note at the top of the record:
+    ```yaml
+    epic: none   # independent fix — not part of active epic [current_epic]
+    ```
 
 When recording outside any active epic, note at the top of the HOTFIX record:
 ```yaml

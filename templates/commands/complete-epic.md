@@ -196,6 +196,7 @@ Use the **Write tool** to update `.buildflow/STATE.md`:
   | [Epics N–M] | [Milestone Name] | ✅ Milestone Complete | [today] |
   ```
 - Reset `session_tokens_used: 0`
+- Clear `paused_epics: []` — milestone complete means all epics in this cycle are done
 
 Use the **Write tool** to update `.buildflow/MEMORY.md`:
 - Set `current_epic: none`

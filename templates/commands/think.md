@@ -24,8 +24,8 @@ Goes beyond research — includes engineering cognition modes for architecture r
 - `.buildflow/VISION.md`
 - `.buildflow/epics/[epic]/STATE.md` (if current phase exists - resume status, decisions, next command)
 - `.buildflow/MEMORY.md` (app_name, framework, key decisions only)
-- `.buildflow/codebase/MAP.md` (for --arch, --debt, --complexity modes)
-- `.buildflow/epics/[epic]/DESIGN.md` (for --arch mode, if exists)
+- `.buildflow/codebase/CODEBASE.md` (for --arch, --debt, --complexity modes)
+- `.buildflow/epics/[epic]/SPEC.md` (for --arch mode, if exists)
 - `~/.buildflow/learnings/global.md` — filter to entries matching current framework/language; include at most 3 relevant entries as prior context for researchers
 
 ---
@@ -75,7 +75,7 @@ If confidence < 3: "Low confidence. Here's what would increase it: [specific gap
 If confidence ≥ 4: suggest next step (spec / plan / build)
 
 ### Step 6: Save
-Write `.buildflow/epics/[epic]/RESEARCH.md`
+Write research findings to `.buildflow/epics/[epic]/CONTEXT.md` (research section).
 Update `MEMORY.md` key decisions if a choice was made.
 
 ---
@@ -85,8 +85,8 @@ Update `MEMORY.md` key decisions if a choice was made.
 Triggered when: designing a new system, evaluating a proposed approach, or onboarding to a codebase.
 
 ### Step 1: Load Architecture Context
-Read `MAP.md`, `DESIGN.md` (if exists), `PATTERNS.md`.
-If greenfield: work from vision + proposed DESIGN.md.
+Read `CODEBASE.md`, `SPEC.md` (if exists), `PATTERNS.md`.
+If greenfield: work from vision + proposed SPEC.md (technical design section).
 
 ### Step 2: Structural Analysis
 Evaluate:
@@ -154,7 +154,7 @@ Parallel Researchers investigate:
 | Team expertise needed | yes | some | low |
 
 ### Step 4: Recommendation
-Given project constraints (team size, timeline, compliance from REQUIREMENTS.md):
+Given project constraints (team size, timeline, compliance from SPEC.md requirements section):
 - **Recommend:** [build / OSS / SaaS]
 - **Reason:** [top 2 factors that drove the decision]
 - **Risk:** [biggest downside of this choice]
@@ -165,7 +165,7 @@ Given project constraints (team size, timeline, compliance from REQUIREMENTS.md)
 ## Technical Debt Mode (`--debt`)
 
 ### Step 1: Load Hotspots
-Read `HOTSPOTS.md`. These are the known high-risk files.
+Read `RISKS.md`. These are the known high-risk files.
 
 ### Step 2: Debt Classification
 For each hotspot and any other known issues:

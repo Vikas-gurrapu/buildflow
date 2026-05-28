@@ -717,7 +717,7 @@ function loadCommandTemplates() {
     'onboard', 'modify', 'refactor', 'hotfix', 'audit',
     'debug', 'deploy', 'docker', 'workspace',
     'status', 'explain', 'back', 'revert', 'help',
-    'complete-epic', 'settings',
+    'complete-epic', 'switch-epic', 'settings',
     'ui-spec', 'ui-review',
   ]
   for (const name of commandNames) {

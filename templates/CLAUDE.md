@@ -23,7 +23,8 @@ Before doing anything else at the start of every session:
 3. **Load state** — read `.buildflow/STATE.md` for current epic and status.
    - If `current_epic` is set (and not `none`), also read `.buildflow/epics/[current_epic]/STATE.md` if it exists.
    - Treat the epic `STATE.md` as the compact resume contract for fresh sessions: current status, active wave, decisions, important files, risks, test strategy, and next command.
-   - If `STATE.md` conflicts with source-of-truth files (`ACCEPTANCE.md`, `PLAN.md`, `VERIFICATION.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
+   - If `STATE.md` conflicts with source-of-truth files (`ACCEPTANCE.md`, `PLAN.md`, `CHECK.md`, check reports, or `SHIPPED.md`), trust the source-of-truth file and update `STATE.md` before continuing.
+   - If `paused_epics` list is non-empty, note available paused epics silently — do not surface unless user asks.
 
 4. **Detect git permission and availability** — read `.buildflow/PREFERENCES.md` first:
    - If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: set `git_available: false` in `MEMORY.md` and **do not run git commands** this session, even if `.git/` exists.
@@ -90,6 +91,7 @@ Before doing anything else at the start of every session:
 | `/buildflow-ui-review` | Audit UI implementation against design contract across 6 dimensions |
 | `/buildflow-status` | See current phase and progress |
 | `/buildflow-complete-epic` | Archive milestone, tag release, reset for next cycle |
+| `/buildflow-switch-epic` | Pause current epic and switch to another, or resume a paused epic |
 | `/buildflow-settings` | Interactively view and update preferences |
 | `/buildflow-help` | Diagnostic mode + recovery |
 
@@ -151,8 +153,8 @@ Strict mode enforces structural spec-to-code mirroring for critical infrastructu
 - Any phase where "spec says X, code does Y" is a security or correctness defect
 
 **What strict mode checks (in `/buildflow-check --strict`):**
-1. **API contracts** — response/request field names must match `epics/[epic]/DESIGN.md` exactly (not just "a body exists")
-2. **Component map** — every file created this phase must appear in the `DESIGN.md` Component Map
+1. **API contracts** — response/request field names must match `epics/[epic]/SPEC.md` exactly (not just "a body exists")
+2. **Component map** — every file created this phase must appear in the `SPEC.md` Component Map
 3. **Critical symbol coverage** — every exported function in critical modules must have an AC reference
 4. **AC branch completeness** — every error/edge-case AC must have a corresponding code branch
 
@@ -206,6 +208,8 @@ Last command: /buildflow-[command]
 Epic: [N-slug]
 Wave: [current/M or none]
 Status: [researching/spec_locked/plan_ready/build_in_progress/built/check_passed/shipped]
+paused: [true / false — omit if false]
+paused_at: [ISO date — omit if not paused]
 
 ## Decisions
 - [decision] — [reason]
@@ -224,6 +228,19 @@ Status: [researching/spec_locked/plan_ready/build_in_progress/built/check_passed
 ```
 
 Keep this file compact. It should help a fresh session continue without loading every prior artifact.
+
+The global `.buildflow/STATE.md` also supports multi-epic tracking:
+```yaml
+current_epic: 1-auth     # actively working on
+paused_epics:            # paused — can be resumed
+  - epic: 2-payments
+    paused_at: 2026-05-28
+    last_status: build_in_progress
+    last_wave: 2
+    last_command: /buildflow-build
+```
+
+Use `/buildflow-switch-epic` to pause the active epic and switch to another.
 
 ## Context Clear Recommendation
 
@@ -329,33 +346,23 @@ Each agent gets a **fresh context window** with a **minimal context packet** —
 ├── epics/              ← Single source of truth per epic
 │   └── [N-slug]/       ← e.g. 1-auth, 2-payments, 3-dashboard
 │       ├── STATE.md        ← Cross-session resume contract
-│       ├── RESEARCH.md     ← /buildflow-think output
-│       ├── DECISIONS.md    ← /buildflow-discuss decisions log
-│       ├── REQUIREMENTS.md ← /buildflow-spec: product requirements
-│       ├── DESIGN.md       ← /buildflow-spec: technical design
+│       ├── CONTEXT.md      ← /buildflow-think output + /buildflow-discuss decisions log
+│       ├── SPEC.md         ← /buildflow-spec: requirements + technical design
 │       ├── ACCEPTANCE.md   ← /buildflow-spec: acceptance criteria (AC-001…)
-│       ├── PLAN.md         ← /buildflow-spec: wave plan + task list (generated in one pass with spec)
-│       ├── COVERAGE.md     ← /buildflow-check: AC coverage map
-│       ├── VERIFICATION.md ← /buildflow-check: AC ledger
+│       ├── PLAN.md         ← /buildflow-spec: wave plan index
+│       ├── waves/          ← wave task files (wave-1.md, wave-2.md, …)
+│       ├── CHECK.md        ← /buildflow-check: AC coverage map + verification ledger
 │       ├── AUDIT.md        ← /buildflow-audit: security scan report
 │       ├── SHIPPED.md      ← /buildflow-ship: ship record
+│       ├── DEBT.md         ← Technical debt accumulated during this epic
 │       ├── RETRO.md        ← /buildflow-complete-epic: epic retrospective
-│       ├── DEBT.md         ← Security issues deferred from this epic
-│       ├── debug/          ← /buildflow-debug sessions during this epic
-│       │   └── DEBUG-[N].md
-│       └── hotfix/         ← /buildflow-hotfix records during this epic
-│           └── HOTFIX-[N].md
+│       ├── debug/
+│       └── hotfix/
 └── codebase/           ← Generated by /buildflow-onboard (existing projects)
-    ├── MAP.md
-    ├── STACK.md
-    ├── STRUCTURE.md
-    ├── INTEGRATIONS.md
-    ├── TESTING.md
-    ├── CONCERNS.md
-    ├── GRAPH.md
-    ├── PATTERNS.md
-    ├── FEATURES.md
-    ├── DEPENDENCIES.md
-    ├── HOTSPOTS.md
-    └── intel.json
+    ├── CODEBASE.md     ← module map, entry points, folder roles, tech stack, physical layout
+    ├── PATTERNS.md     ← code patterns, architectural style, feature inventory, locale support
+    ├── DEPENDENCIES.md ← package dependencies, external integrations, import graph, fan-in/out
+    ├── RISKS.md        ← high-risk files, code quality concerns, debt, fragile flows
+    ├── TESTING.md      ← test framework, coverage, test patterns
+    └── intel.json      ← machine-readable metadata
 ```

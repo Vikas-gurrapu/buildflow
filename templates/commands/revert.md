@@ -21,13 +21,12 @@ This command reverts BuildFlow planning/spec metadata first. It only reverts sou
 ## Scope
 
 Phase artifacts that can be reverted:
-- `.buildflow/epics/[epic]/REQUIREMENTS.md`
-- `.buildflow/epics/[epic]/DESIGN.md`
+- `.buildflow/epics/[epic]/SPEC.md`
 - `.buildflow/epics/[epic]/ACCEPTANCE.md`
 - `.buildflow/epics/[epic]/PLAN.md`
-- `.buildflow/epics/[epic]/VERIFICATION.md`
+- `.buildflow/epics/[epic]/waves/` (all wave files)
+- `.buildflow/epics/[epic]/CHECK.md`
 - `.buildflow/epics/[epic]/STATE.md`
-- `.buildflow/epics/[epic]/COVERAGE.md`
 
 Do not delete `.buildflow/epics/[epic]/APPROVALS.md`. Append a revert record there instead — it is the permanent audit trail.
 Do not delete `SHIPPED.md` or `RETRO.md` unless `--all` and the user explicitly confirms completed history deletion.
@@ -106,13 +105,12 @@ Type: delete all buildflow phases
 
 For each selected target:
 1. Delete these phase markdown files from `.buildflow/epics/[epic]/`:
-   - `REQUIREMENTS.md`
-   - `DESIGN.md`
+   - `SPEC.md`
    - `ACCEPTANCE.md`
    - `PLAN.md`
-   - `VERIFICATION.md`
+   - `waves/` (all wave files)
+   - `CHECK.md`
    - `STATE.md`
-   - `COVERAGE.md`
 2. Do not delete: `APPROVALS.md`, `SHIPPED.md`, `RETRO.md` (unless `--all` with explicit confirmation).
 3. Append to `.buildflow/epics/[epic]/APPROVALS.md`:
    ```

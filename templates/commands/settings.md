@@ -50,8 +50,10 @@ BuildFlow Settings
  [12] Undo / restore points   [on / off]                        current: [value]
  [13] Workflow toggles        [require_think / require_check / skip_prompts / research_depth] current: [summary]
 ──────────────────────────────────────────────────────────
-Type a number to change a setting, or "done" to finish.
+Type one or more numbers to change settings (comma-separated, e.g. "1,3,7"), or "done" to finish.
 ```
+
+If the user enters multiple numbers (e.g. `1,3,13`): process each setting in order, one after another — no need to return to the menu between them.
 
 If invoked with a specific target (`experience`, `git`, `tokens`, etc.), skip the menu and go directly to that setting's prompt.
 
@@ -275,24 +277,37 @@ Update `safety.enable_undo:` and `safety.restore_points:` in `PREFERENCES.md`.
 
 ### [13] Workflow Toggles
 
-```
-Workflow toggles control which phases are required and how autonomous BuildFlow runs.
+Show all toggles at once and let the user select **multiple** to change in one pass:
 
-  [1] require_think   [on / off] — require /buildflow-think before /buildflow-spec
-                                   current: [value]
-  [2] require_check   [on / off] — require /buildflow-check before /buildflow-ship
-                                   current: [value] (recommended: on)
-  [3] skip_prompts    [on / off] — autonomous mode: skip confirmation prompts (yolo)
-                                   current: [value]
-  [4] research_depth  [quick / standard / thorough] — default depth for /buildflow-think
-                                   current: [value]
-  [5] auto_wave_retry [on / off] — auto-retry a failed wave once before surfacing error
-                                   current: [value]
+```
+Workflow Toggles
+──────────────────────────────────────────────────
+Which toggles do you want to change? (comma-separated numbers, e.g. "1,3"):
+
+  [1] require_think   [on / off]               current: [value]
+        Require /buildflow-think before /buildflow-spec
+  [2] require_check   [on / off]               current: [value]  (recommended: on)
+        Require /buildflow-check before /buildflow-ship
+  [3] skip_prompts    [on / off]               current: [value]
+        Autonomous mode — skip confirmation prompts (yolo)
+  [4] research_depth  [quick/standard/thorough] current: [value]
+        Default depth for /buildflow-think
+  [5] auto_wave_retry [on / off]               current: [value]
+        Auto-retry a failed wave once before surfacing error
 
 ⚠ skip_prompts: on removes confirmation gates. Use only in trusted, low-risk projects.
 
-Enter a number to toggle, or "back" to return to main menu:
+Your selection (or "back"):
 ```
+
+For each selected toggle, ask its new value inline:
+- `[1] require_think` → `New value [on/off]:`
+- `[2] require_check` → `New value [on/off]:`
+- `[3] skip_prompts`  → `New value [on/off]:`
+- `[4] research_depth` → `New value [quick/standard/thorough]:`
+- `[5] auto_wave_retry` → `New value [on/off]:`
+
+Apply all selected changes together, then confirm what changed.
 
 Update the corresponding `workflow.*` keys in `PREFERENCES.md`.
 

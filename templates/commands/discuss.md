@@ -18,11 +18,10 @@ Structured post-spec review. Run after `/buildflow-spec` when you have doubts ab
 ## Context Packet
 - `.buildflow/VISION.md`
 - `.buildflow/MEMORY.md`
-- `.buildflow/epics/[epic]/REQUIREMENTS.md` (generated spec — what to review)
-- `.buildflow/epics/[epic]/DESIGN.md` (generated spec — what to review)
+- `.buildflow/epics/[epic]/SPEC.md` (generated spec — what to review)
 - `.buildflow/epics/[epic]/ACCEPTANCE.md` (generated spec — what to review)
-- `.buildflow/epics/[epic]/PLAN.md` (generated plan — what to review)
-- `.buildflow/epics/[epic]/DECISIONS.md` (if exists — prior locked decisions)
+- `.buildflow/epics/[epic]/PLAN.md` (index — what to review)
+- `.buildflow/epics/[epic]/CONTEXT.md` (if exists — prior locked decisions)
 - `.buildflow/epics/[epic]/STATE.md` (if current phase exists)
 
 ---
@@ -43,12 +42,12 @@ Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 
 ## Step 1: Surface Doubts and Open Questions
 
-Read REQUIREMENTS.md, DESIGN.md, ACCEPTANCE.md, and PLAN.md. Identify areas where the generated artifacts may have:
+Read SPEC.md, ACCEPTANCE.md, and PLAN.md (index + wave files as needed). Identify areas where the generated artifacts may have:
 1. **Doubts** — anything that feels wrong, underspecified, or uncertain
 2. **Missing requirements** — scope gaps the user spotted when reviewing the output
 3. **Design questions** — why was X chosen over Y, what does a component actually do
 4. **Plan concerns** — wave ordering, task breakdown, effort estimates, missing tasks
-5. **Conflicts** — decisions in DESIGN.md that contradict constraints or prior DECISIONS.md entries
+5. **Conflicts** — decisions in SPEC.md that contradict constraints or prior CONTEXT.md entries
 
 If no topic specified: surface up to 5 open questions, ordered by impact on build correctness.
 If a topic specified: focus entirely on that area.
@@ -58,7 +57,7 @@ Print a question board:
 ```
 Open Questions — [Phase N / App Name]
 ──────────────────────────────────────
-[1] Auth strategy in DESIGN.md         → UNCLEAR  (could affect wave 2 tasks)
+[1] Auth strategy in SPEC.md           → UNCLEAR  (could affect wave 2 tasks)
 [2] Rate limiting scope in AC-007      → AMBIGUOUS (pass/fail boundary not specified)
 [3] Wave ordering: UI before API       → CONCERN   (violates thin-slice order)
 [4] Missing error handling in AC-003   → GAP       (no test coverage planned)
@@ -112,12 +111,12 @@ If this turns out wrong:
 ### 2d — Lock or Defer
 
 ```
-  [L] Lock   — save to DECISIONS.md as a firm constraint; spec will be updated
+  [L] Lock   — save to CONTEXT.md as a firm constraint; spec will be updated
   [D] Defer  — mark as open; flag as an explicit question in the next build wave
   [R] Revisit — discuss further (re-run step 2 with more context)
 ```
 
-**If Lock:** use the **Write tool** to append to `.buildflow/epics/[epic]/DECISIONS.md`:
+**If Lock:** use the **Write tool** to append to `.buildflow/epics/[epic]/CONTEXT.md`:
 
 ```markdown
 ## [decision title]
@@ -137,7 +136,7 @@ Also add a one-line entry to `MEMORY.md → Key Decisions`:
 
 Report: `✓ Locked: [decision] → [choice] (confidence [N]/5)`
 
-**If Defer:** append to `DECISIONS.md`:
+**If Defer:** append to `CONTEXT.md`:
 ```markdown
 ## [decision title]
 
@@ -153,7 +152,7 @@ Report: `✓ Locked: [decision] → [choice] (confidence [N]/5)`
 
 If invoked as `/buildflow-discuss --review`:
 
-Read `DECISIONS.md` and print a summary table:
+Read `CONTEXT.md` and print a summary table:
 
 ```
 Decision Log — [App Name]
@@ -208,8 +207,8 @@ Are you happy with these decisions?
 **If [Y]:**
 
 Automatically run `/buildflow-spec --update`:
-- Read all decisions locked this session from `DECISIONS.md`
-- Patch affected sections of REQUIREMENTS.md, DESIGN.md, ACCEPTANCE.md
+- Read all decisions locked this session from `CONTEXT.md`
+- Patch affected sections of SPEC.md, ACCEPTANCE.md
 - Regenerate affected PLAN waves
 - Print diff of all changes
 - Increment `spec_version`

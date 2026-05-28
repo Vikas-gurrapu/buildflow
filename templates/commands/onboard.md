@@ -7,7 +7,7 @@ agent: cartographer
 
 # /buildflow-onboard
 
-Deep one-time analysis of an existing codebase. Produces 10 knowledge files that every other BuildFlow command references. All other agents load these files rather than re-scanning the codebase.
+Deep one-time analysis of an existing codebase. Produces 5 knowledge files that every other BuildFlow command references. All other agents load these files rather than re-scanning the codebase.
 
 ## When to run
 - First time using BuildFlow on an existing project
@@ -29,15 +29,10 @@ This command MUST produce the following files before it is complete. The analysi
 
 Required output files:
 ```
-.buildflow/codebase/MAP.md          ← module map, entry points, folder roles
-.buildflow/codebase/STACK.md        ← languages, frameworks, dependencies
-.buildflow/codebase/STRUCTURE.md    ← physical layout, path conventions
-.buildflow/codebase/PATTERNS.md     ← code conventions, naming, test style
-.buildflow/codebase/FEATURES.md     ← user-facing capabilities, local/locale support
-.buildflow/codebase/GRAPH.md        ← import graph, fan-in/out, symbol callers
-.buildflow/codebase/HOTSPOTS.md     ← high-risk files (risk ≥ 3.5)
-.buildflow/codebase/DEPENDENCIES.md ← all dependencies with purpose + criticality
-.buildflow/codebase/CONCERNS.md     ← risks, debt, fragile flows, blind spots
+.buildflow/codebase/CODEBASE.md     ← module map, entry points, folder roles, tech stack, physical layout
+.buildflow/codebase/PATTERNS.md     ← code patterns, architectural style, feature inventory, locale support
+.buildflow/codebase/DEPENDENCIES.md ← package dependencies, external integrations, import graph, fan-in/out
+.buildflow/codebase/RISKS.md        ← high-risk files, code quality concerns, debt, fragile flows
 .buildflow/codebase/TESTING.md      ← test framework, layout, coverage gaps
 .buildflow/codebase/intel.json      ← machine-readable index for other commands
 ```
@@ -53,13 +48,35 @@ mkdir -p .buildflow/codebase .buildflow/memory
 ```
 
 Check for prior state:
-- If `.buildflow/codebase/MAP.md` already exists and `--update` is NOT passed: ask "Full re-onboard or incremental update?" — in non-interactive context, default to incremental.
-- If `--update`: identify changed files since last `drift_baseline.recorded_at` in `intel.json`, then re-run only affected steps:
-  - Any change to `locales/`, `i18n/`, `translations/`, `lang/`, `*.po`, `*.mo`, `*.arb`, `*.resx`, `*.properties`, `Localizable.strings`, `strings.xml` → re-run Step 9c and update `locale_support` in intel.json and FEATURES.md
-  - Any change to route/screen/page/handler files → re-run Step 9a and update FEATURES.md
-  - Any change to source files → re-run Steps 4–6 (import graph, load-bearing, risk scores)
-  - Any change to dependency files → re-run Step 8 and update STACK.md, DEPENDENCIES.md, INTEGRATIONS.md
-  - Any structural change (new dirs, new entry points) → re-run Step 3 and update STRUCTURE.md
+- If `.buildflow/codebase/CODEBASE.md` already exists and `--update` is NOT passed: ask "Full re-onboard or incremental update?" — in non-interactive context, default to incremental.
+- If `--update`: identify changed files since last `drift_baseline.recorded_at` in `intel.json`, classify them into drift areas, then present a **multiselect** of affected areas. If `--paths` is also given, skip the multiselect and use those paths directly.
+
+  **Drift area classification:**
+
+  | Changed file type | Drift area | Steps to re-run |
+  |---|---|---|
+  | `locales/`, `i18n/`, `*.po/arb/resx/strings.xml` | `locale` | Step 9c → PATTERNS.md + intel.json |
+  | Route / screen / page / handler files | `routes` | Step 9a → PATTERNS.md |
+  | Source files (general) | `modules` | Steps 4–6 → import graph, load-bearing, risk |
+  | Dependency files (`package.json`, `go.mod`, etc.) | `dependencies` | Step 8 → CODEBASE.md, DEPENDENCIES.md |
+  | Structural change (new dirs, new entry points) | `structure` | Step 3 → CODEBASE.md |
+
+  **Multiselect prompt (shown when drift is detected):**
+  ```
+  Drift detected since last onboard ([date])
+  ──────────────────────────────────────────────────
+  Select areas to refresh (comma-separated, or "all"):
+
+    [1]  structure    — [N] new directories or entry points
+    [2]  modules      — [N] source files changed
+    [3]  dependencies — package manifest changed
+    [4]  routes       — [N] route/screen/page files changed
+    [5]  locale       — locale catalog or i18n files changed
+
+  Your selection (e.g. 1,3 or "all"):
+  ```
+
+  Re-run only the steps corresponding to the selected drift areas. If no drift is detected in any area, print "No drift detected since [date] — onboard data is current." and exit.
 - If `--query [term]`: search `.buildflow/codebase/*.md` and `intel.json` for the term, print matches, and exit without rewriting any files.
 - If `--paths [paths]`: validate paths are repo-relative, don't contain `..` or shell metacharacters, then restrict all scans to those paths.
 
@@ -76,39 +93,7 @@ ls package.json requirements.txt Cargo.toml go.mod pom.xml build.gradle build.gr
 
 Identify: primary language, framework, package manager, runtime version.
 
-**Write `.buildflow/codebase/STACK.md` NOW** using the Write tool:
-
-```markdown
----
-generated_by: buildflow-onboard
-last_mapped_at: [ISO date]
-scope: [full repo or comma-separated paths]
----
-
-# Stack
-
-## Languages & Runtimes
-| Language/Runtime | Version | Evidence |
-|------------------|---------|----------|
-| [language] | [version] | [evidence file] |
-
-## Frameworks & Build Tools
-| Tool | Purpose | Evidence |
-|------|---------|----------|
-| [framework] | [purpose] | [evidence file] |
-
-## Package Managers & Lockfiles
-- [npm/pnpm/yarn/pip/poetry/maven/gradle/go/cargo] — [evidence path]
-
-## Critical Dependencies
-| Dependency | Purpose | Runtime/Dev | Evidence |
-|------------|---------|-------------|----------|
-| [name] | [purpose] | [runtime/dev] | [file] |
-
-## Platform Requirements
-- Development: [requirements]
-- Production: [requirements]
-```
+Stack analysis feeds into CODEBASE.md (written in Step 12 after all analysis is complete).
 
 ---
 
@@ -132,31 +117,7 @@ find src/ app/ lib/ -type f 2>/dev/null | sed 's/.*\.//' | sort | uniq -c | sort
 
 Identify: entry points, top-level folder responsibilities, architectural pattern (MVC / layered / hexagonal / feature-based / flat).
 
-**Write `.buildflow/codebase/STRUCTURE.md` NOW** using the Write tool:
-
-```markdown
----
-generated_by: buildflow-onboard
-last_mapped_at: [ISO date]
-scope: [full repo or comma-separated paths]
----
-
-# Structure
-
-## Directory Map
-| Path | Responsibility | Owner Module | Notes |
-|------|----------------|--------------|-------|
-| [path] | [responsibility] | [module] | [notes] |
-
-## Entry Points
-- [path] — [why it starts or wires the system]
-
-## Generated / Static Assets
-- [path] — [locale labels, fixtures, generated clients, public assets]
-
-## Path Conventions
-- [source layout, test layout, route layout, package layout]
-```
+Structural analysis feeds into CODEBASE.md (written in Step 12 after all analysis is complete).
 
 ---
 
@@ -209,22 +170,7 @@ find src/ -name "*.ts" ! -name "*.test.ts" ! -name "*.spec.ts" 2>/dev/null | hea
 grep -rn "TODO\|FIXME\|HACK\|XXX" src/ app/ 2>/dev/null | head -30
 ```
 
-**Write `.buildflow/codebase/HOTSPOTS.md` NOW** using the Write tool:
-
-```markdown
----
-generated_by: buildflow-onboard
-last_mapped_at: [ISO date]
-scope: [full repo or comma-separated paths]
----
-
-# Hotspots — Handle With Care
-Files scored ≥ 3.5 risk. Review before any modification.
-
-| File | Risk | Fan-in | Size | Tests | Notes |
-|------|------|--------|------|-------|-------|
-| [file] | [N.N] | [N] | [N]L | [yes/no/partial] | [why risky] |
-```
+Hotspot data feeds into RISKS.md (written in Step 11 after security/concerns analysis).
 
 ---
 
@@ -371,21 +317,9 @@ scope: [full repo or comma-separated paths]
 | [name] | [purpose] | [notes] |
 
 ## Known Vulnerability Flags
-- [package@version] — [CVE or "ok"] 
-```
+- [package@version] — [CVE or "ok"]
 
-**Write `.buildflow/codebase/INTEGRATIONS.md` NOW** using the Write tool:
-
-```markdown
----
-generated_by: buildflow-onboard
-last_mapped_at: [ISO date]
-scope: [full repo or comma-separated paths]
----
-
-# Integrations
-
-## External Services
+## External Services & Integrations
 | Service | Purpose | SDK/Client | Auth/Env Contract | Evidence |
 |---------|---------|------------|-------------------|----------|
 | [service] | [purpose] | [sdk] | [ENV_VAR] | [file:line] |
@@ -401,6 +335,15 @@ scope: [full repo or comma-separated paths]
 
 ## Environment Contracts
 - [ENV_VAR] — [purpose, required/optional, evidence path]
+
+## Import Graph (File-Level)
+| File | Fan-in | Fan-out | Imports | Notes |
+|------|--------|---------|---------|-------|
+| [file] | [N] | [N] | [file, file] | CRITICAL / HIGH / normal |
+
+## Symbol Caller Index
+[SymbolName.method]    → [file:line, file:line]
+[SymbolName2]          → [file:line]
 ```
 
 ---
@@ -534,7 +477,7 @@ From the scan results above, determine:
 
 5. **Label catalogs** → JSON files containing `label`, `placeholder`, `title`, `aria-label` as primary keys → treat as locale evidence even if no i18n framework present
 
-6. **If NO locale evidence found at all** → mark `Status: NO` in FEATURES.md with confidence `high` (not `unknown`) — the absence is a confirmed finding, not a gap in the scan
+6. **If NO locale evidence found at all** → mark `Status: NO` in PATTERNS.md (Locale Support section) with confidence `high` (not `unknown`) — the absence is a confirmed finding, not a gap in the scan
 
 Rules for feature discovery:
 - A feature is real if at least one exists: route/handler, UI entry point, CLI command, background job, config flag, documented workflow, or test scenario.
@@ -542,23 +485,17 @@ Rules for feature discovery:
 - Local support (Docker Compose, seeds, offline mode) is a first-class feature — always detect it
 - **i18n/locale is a first-class feature — always scan for it using all 9c commands above, even for projects that appear monolingual**
 
-**Write `.buildflow/codebase/FEATURES.md` NOW** using the Write tool:
+Feature inventory data (features, locale support, local support) feeds into PATTERNS.md (written in Step 7). Append this section to PATTERNS.md after the core patterns content:
 
 ```markdown
----
-generated_by: buildflow-onboard
-last_mapped_at: [ISO date]
-scope: [full repo or comma-separated paths]
----
+## Feature Inventory
 
-# Feature Inventory
-
-## Summary
+### Summary
 | Feature | Status | Entry Points | Owned Modules | Evidence |
 |---------|--------|--------------|---------------|----------|
 | [feature] | implemented/partial/docs-only | [route or script] | [module] | [file:line] |
 
-## Local Support
+### Local Support
 Status: YES / PARTIAL / NO
 Confidence: high / medium / low
 Evidence:
@@ -566,7 +503,7 @@ Evidence:
 Gaps:
 - [missing item or NONE]
 
-## Locale Support
+### Locale Support
 Status: YES / PARTIAL / NO  ← never leave as UNKNOWN; confirm YES or NO using scan results from Step 9c
 Confidence: high / medium / low
 Default locale: [en / fr / ja / UNKNOWN]
@@ -594,9 +531,9 @@ Gaps:
 - [missing fallback locale / no test coverage for locale switching / etc. — or NONE]
 - [if Status is NO: "Confirmed — no locale catalogs, i18n libraries, or locale-specific file patterns found"]
 
-## Features
+### Features
 
-### [Feature Name]
+#### [Feature Name]
 Status: implemented / partial / docs-only / documented_missing
 Confidence: high / medium / low
 User value: [what this enables]
@@ -609,9 +546,11 @@ Tests: [test paths or NONE]
 Blind spots: [what static mapping cannot prove, or NONE]
 ```
 
+**Update `.buildflow/codebase/PATTERNS.md`** using the Write tool to append the Feature Inventory section above after the core patterns content.
+
 ---
 
-## Step 10: Import Graph — File Level & Symbol Level
+## Step 10: Import Graph — File Level & Symbol Level (feeds into DEPENDENCIES.md)
 
 ### 10a: File-level import graph
 
@@ -670,26 +609,7 @@ For each key exported symbol, find callers:
 grep -rn "[SymbolName]" src/ app/ --include="*.ts" --include="*.py" --include="*.go" 2>/dev/null | grep -v "[defining-file]" | head -20
 ```
 
-**Write `.buildflow/codebase/GRAPH.md` NOW** using the Write tool:
-
-```markdown
----
-generated_by: buildflow-onboard
-last_mapped_at: [ISO date]
-scope: [full repo or comma-separated paths]
----
-
-# Import Graph
-
-## File-Level Dependencies
-| File | Fan-in | Fan-out | Imports | Notes |
-|------|--------|---------|---------|-------|
-| [file] | [N] | [N] | [file, file] | CRITICAL / HIGH / normal |
-
-## Symbol Caller Index
-[SymbolName.method]    → [file:line, file:line]
-[SymbolName2]          → [file:line]
-```
+**Update `.buildflow/codebase/DEPENDENCIES.md`** using the Write tool to fill in the Import Graph and Symbol Caller Index sections (added in Step 8's template) with the data gathered in Steps 10a–10c.
 
 ---
 
@@ -706,7 +626,7 @@ grep -rn "eval(\|exec(\|shell_exec\|subprocess\|dangerouslySetInnerHTML\|innerHT
 find . \( -path "*/auth*" -o -path "*/middleware*" -o -path "*/guard*" \) | grep -v node_modules | head -10
 ```
 
-**Write `.buildflow/codebase/CONCERNS.md` NOW** using the Write tool:
+**Write `.buildflow/codebase/RISKS.md` NOW** using the Write tool:
 
 ```markdown
 ---
@@ -715,7 +635,14 @@ last_mapped_at: [ISO date]
 scope: [full repo or comma-separated paths]
 ---
 
-# Concerns
+# Risks
+
+## Hotspots — Handle With Care
+Files scored ≥ 3.5 risk. Review before any modification.
+
+| File | Risk | Fan-in | Size | Tests | Notes |
+|------|------|--------|------|-------|-------|
+| [file] | [N.N] | [N] | [N]L | [yes/no/partial] | [why risky] |
 
 ## High-Risk Areas
 | Area/File | Concern | Evidence | Suggested Guard |
@@ -737,11 +664,11 @@ scope: [full repo or comma-separated paths]
 
 ---
 
-## Step 12: Write MAP.md and intel.json
+## Step 12: Write CODEBASE.md and intel.json
 
-Now that all sub-files are written, write the master index files.
+Now that all sub-files are written, write the master knowledge file and machine-readable index.
 
-**Write `.buildflow/codebase/MAP.md` NOW** using the Write tool:
+**Write `.buildflow/codebase/CODEBASE.md` NOW** using the Write tool:
 
 ```markdown
 ---
@@ -750,33 +677,68 @@ last_mapped_at: [ISO date]
 scope: [full repo or comma-separated paths]
 ---
 
-# Codebase Map
+# Codebase
 **Project:** [name]  **Onboarded:** [date]  **Files analyzed:** [N]
 
-## Feature Inventory Summary
-[top-level user-facing capabilities — link to FEATURES.md for detail]
-- [Feature]: [status] ([confidence])
+## Stack
 
-## Entry Points
+### Languages & Runtimes
+| Language/Runtime | Version | Evidence |
+|------------------|---------|----------|
+| [language] | [version] | [evidence file] |
+
+### Frameworks & Build Tools
+| Tool | Purpose | Evidence |
+|------|---------|----------|
+| [framework] | [purpose] | [evidence file] |
+
+### Package Managers & Lockfiles
+- [npm/pnpm/yarn/pip/poetry/maven/gradle/go/cargo] — [evidence path]
+
+### Critical Dependencies
+| Dependency | Purpose | Runtime/Dev | Evidence |
+|------------|---------|-------------|----------|
+| [name] | [purpose] | [runtime/dev] | [file] |
+
+### Platform Requirements
+- Development: [requirements]
+- Production: [requirements]
+
+## Module Map
+
+### Entry Points
 - [file]: [purpose]
 
-## Module Boundaries
+### Module Boundaries
 | Module | Owns | Exports | Depends On | Depended On By |
 |--------|------|---------|------------|----------------|
 | [name] | [paths] | [symbols] | [modules] | [modules] |
 
-## Load-Bearing Modules
+### Load-Bearing Modules
 | File | Fan-in | Risk | Notes |
 |------|--------|------|-------|
 | [file] | [N] | [N.N] | CRITICAL / HIGH |
 
-## Boundary Violations
+### Boundary Violations
 [files importing across module lines without public API — or NONE]
 
-## Folder Structure
+## Structure
+
+### Directory Map
+| Path | Responsibility | Owner Module | Notes |
+|------|----------------|--------------|-------|
+| [path] | [responsibility] | [module] | [notes] |
+
+### Folder Structure
 ```
 [annotated directory tree — one line per folder with its role]
 ```
+
+### Generated / Static Assets
+- [path] — [locale labels, fixtures, generated clients, public assets]
+
+### Path Conventions
+- [source layout, test layout, route layout, package layout]
 ```
 
 **Write `.buildflow/codebase/intel.json` NOW** using the Write tool with the machine-readable index:
@@ -898,16 +860,11 @@ scope: [full repo or comma-separated paths]
     "static_assets": []
   },
   "map_documents": {
-    "MAP.md": { "purpose": "summary" },
-    "STACK.md": { "purpose": "tech stack" },
-    "STRUCTURE.md": { "purpose": "physical layout" },
-    "INTEGRATIONS.md": { "purpose": "external systems" },
-    "TESTING.md": { "purpose": "test profile" },
-    "CONCERNS.md": { "purpose": "risk and blind spots" },
-    "FEATURES.md": { "purpose": "feature inventory" },
-    "GRAPH.md": { "purpose": "import graph" },
-    "PATTERNS.md": { "purpose": "code conventions" },
-    "HOTSPOTS.md": { "purpose": "high-risk files" }
+    "CODEBASE.md": { "purpose": "module map, entry points, folder roles, tech stack, physical layout" },
+    "PATTERNS.md": { "purpose": "code patterns, architectural style, feature inventory, locale support" },
+    "DEPENDENCIES.md": { "purpose": "package dependencies, external integrations, import graph, fan-in/out" },
+    "RISKS.md": { "purpose": "high-risk files, code quality concerns, debt, fragile flows" },
+    "TESTING.md": { "purpose": "test framework, coverage, test patterns" }
   },
   "drift_baseline": {
     "recorded_at": "[ISO datetime]",
@@ -959,15 +916,10 @@ ls -la .buildflow/codebase/
 ```
 
 Check for each file in the OUTPUT CONTRACT:
-- MAP.md ✓ / ✗
-- STACK.md ✓ / ✗
-- STRUCTURE.md ✓ / ✗
+- CODEBASE.md ✓ / ✗
 - PATTERNS.md ✓ / ✗
-- FEATURES.md ✓ / ✗
-- GRAPH.md ✓ / ✗
-- HOTSPOTS.md ✓ / ✗
 - DEPENDENCIES.md ✓ / ✗
-- CONCERNS.md ✓ / ✗
+- RISKS.md ✓ / ✗
 - TESTING.md ✓ / ✗
 - intel.json ✓ / ✗
 
@@ -990,15 +942,10 @@ Local support:       YES / PARTIAL / NO
 Locale support:      YES / PARTIAL / NO
 
 Knowledge files written:
-  .buildflow/codebase/MAP.md
-  .buildflow/codebase/STACK.md
-  .buildflow/codebase/STRUCTURE.md
+  .buildflow/codebase/CODEBASE.md
   .buildflow/codebase/PATTERNS.md
-  .buildflow/codebase/FEATURES.md
-  .buildflow/codebase/GRAPH.md
-  .buildflow/codebase/HOTSPOTS.md
   .buildflow/codebase/DEPENDENCIES.md
-  .buildflow/codebase/CONCERNS.md
+  .buildflow/codebase/RISKS.md
   .buildflow/codebase/TESTING.md
   .buildflow/codebase/intel.json
 
@@ -1015,7 +962,7 @@ Measure actual cost before printing:
 
 Default output (minimal):
 ```
-Onboard complete — [N] files · [N] modules · [N] hotspots · 11 knowledge files written
+Onboard complete — [N] files · [N] modules · [N] hotspots · 6 knowledge files written
 Session: ~[N]K tokens
 ```
 
@@ -1025,7 +972,7 @@ Token Cost — /buildflow-onboard
 ────────────────────────────────
 Files analyzed: [N]  Modules: [N]  Hotspots: [N]
 Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens  (MAP.md + STACK.md + STRUCTURE.md + PATTERNS.md + FEATURES.md + GRAPH.md + HOTSPOTS.md + DEPENDENCIES.md + CONCERNS.md + TESTING.md + intel.json)
+Output generated:  ~[N]K tokens  (CODEBASE.md + PATTERNS.md + DEPENDENCIES.md + RISKS.md + TESTING.md + intel.json)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```

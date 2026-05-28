@@ -17,8 +17,8 @@ Full project dashboard. Shows where you are across phases, AC progress, wave com
 
 ## Step 1: Load State
 Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/DEBT.md`.
-If a current phase exists, also read `.buildflow/epics/[epic]/PLAN.md`.
-If `.buildflow/epics/[epic]/VERIFICATION.md` exists, read it as the AC verification ledger.
+If a current phase exists, also read `.buildflow/epics/[epic]/PLAN.md` (index) and the current wave file from `waves/`.
+If `.buildflow/epics/[epic]/CHECK.md` exists, read it as the AC verification ledger.
 If `.buildflow/epics/[epic]/STATE.md` exists, read it first for the compact resume state and show any mismatch with `PLAN.md`/`MEMORY.md` as a warning.
 
 ---
@@ -45,7 +45,7 @@ Spec Status
 ```
 
 ### AC progress bar (if spec is locked)
-Read `ACCEPTANCE.md`. Prefer `.buildflow/epics/[epic]/VERIFICATION.md` for each AC's latest status and evidence. If it is missing, fall back to the last `/buildflow-check` output if cached; otherwise show as `?`.
+Read `ACCEPTANCE.md`. Prefer `.buildflow/epics/[epic]/CHECK.md` for each AC's latest status and evidence. If it is missing, fall back to the last `/buildflow-check` output if cached; otherwise show as `?`.
 ```
 AC Progress  [Phase N — spec v[N]]
 ───────────────────────────────────

@@ -17,6 +17,8 @@ Use this when:
 
 ## Usage
 - `/buildflow-workspace` — discover and map all repos/packages in the workspace
+- `/buildflow-workspace onboard` — discover repos, multiselect which to onboard, run /buildflow-onboard for each selected
+- `/buildflow-workspace onboard --update` — same discovery, but run --update for already-onboarded repos
 - `/buildflow-workspace add <path>` — register an additional repo path
 - `/buildflow-workspace impact <change-description>` — cross-repo impact analysis
 - `/buildflow-workspace contracts` — show all shared API contracts between repos
@@ -221,6 +223,143 @@ git log --since="[last workspace map date]" --name-only --format="" | grep -E "^
 ```
 
 For each changed repo: update its summary in WORKSPACE.md and refresh `contracts.json`.
+
+---
+
+---
+
+## Workspace Onboard Mode (`/buildflow-workspace onboard`)
+
+Discovers all repos/packages in the workspace, presents a **multiselect list**, and runs `/buildflow-onboard` for each selected repo — so you never have to `cd` into each repo individually.
+
+### Step O1: Discover Repos
+
+Scan for subdirectories containing a recognizable project manifest:
+
+```bash
+find . -maxdepth 3 -type f \( \
+  -name "package.json" \
+  -o -name "go.mod" \
+  -o -name "Cargo.toml" \
+  -o -name "pom.xml" \
+  -o -name "build.gradle" \
+  -o -name "build.gradle.kts" \
+  -o -name "pyproject.toml" \
+  -o -name "requirements.txt" \
+  -o -name "pubspec.yaml" \
+  -o -name "Package.swift" \
+  -o -name "build.sbt" \
+  -o -name "Gemfile" \
+  -o -name "composer.json" \
+\) 2>/dev/null | grep -v node_modules | grep -v "\.buildflow" | grep -v "\.git" \
+  | grep -v "dist/" | grep -v "build/" | grep -v "target/" | grep -v "\.next/" \
+  | sed 's|/[^/]*$||' | sort -u
+```
+
+Exclude the workspace root itself (only include subdirectories).
+
+For each discovered path, detect stack from which manifest was found:
+
+| Manifest | Stack |
+|---|---|
+| `package.json` | Node.js / JS / TS |
+| `go.mod` | Go |
+| `Cargo.toml` | Rust |
+| `pom.xml` / `build.gradle*` | Java / Kotlin |
+| `pyproject.toml` / `requirements.txt` | Python |
+| `pubspec.yaml` | Dart / Flutter |
+| `Package.swift` | Swift |
+| `Gemfile` | Ruby |
+| `composer.json` | PHP |
+| `build.sbt` | Scala |
+
+Also include paths registered in `.buildflow/workspace/WORKSPACE.md` (if it exists) that are not yet in the discovered list.
+
+Mark onboard status per repo:
+- `intel.json` exists at `[repo]/.buildflow/codebase/intel.json` → **ONBOARDED** (show `onboarded_at` date)
+- `.buildflow/` exists but no `intel.json` → **PARTIAL**
+- No `.buildflow/` → **NOT ONBOARDED**
+
+---
+
+### Step O2: Multiselect Prompt
+
+Present all discovered repos as a numbered multiselect list. User can pick multiple at once:
+
+```
+Workspace Onboard
+──────────────────────────────────────────────────
+Found [N] repo(s). Select which to onboard (comma-separated numbers, or shortcut):
+
+  [1]  repo-a/           Node.js / TypeScript    NOT ONBOARDED
+  [2]  repo-b/           Python                  NOT ONBOARDED
+  [3]  repo-c/           Go                      ONBOARDED  (2026-01-15)
+  [4]  packages/ui/      Node.js / TypeScript    PARTIAL
+  [5]  packages/shared/  Node.js / TypeScript    NOT ONBOARDED
+
+Shortcuts:
+  [A] All repos
+  [N] All NOT ONBOARDED only (skip already-onboarded)
+  [R] Re-onboard all (full re-run, ignores existing data)
+
+  ↳ Already-ONBOARDED repos will run --update mode unless [R] is selected.
+
+Your selection (e.g. 1,3,5 or A or N):
+```
+
+Parse input:
+- `1,3,5` → onboard those repos
+- `A` / `all` → onboard all repos
+- `N` → onboard only NOT ONBOARDED repos
+- `R` → full re-onboard all repos (no --update)
+
+If the user selects an ONBOARDED repo without `R`, run `--update` for it automatically.
+
+---
+
+### Step O3: Run Onboard Per Repo (Sequential)
+
+For each selected repo, in order:
+
+1. Print header: `Onboarding [N/total]: [repo-path]/ ([stack]) ────────`
+2. Set working context to `[repo-path]/`
+3. Run the equivalent of `/buildflow-onboard` (full) or `/buildflow-onboard --update` as determined in Step O2
+4. On completion: print the one-line summary from the onboard output
+5. On failure:
+   ```
+   ✗ Onboard failed: [repo-path]/
+   Error: [message]
+
+     [C] Continue to next repo
+     [R] Retry this repo
+     [A] Abort remaining repos
+   ```
+6. Continue until all selected repos are processed
+
+Each repo's onboard writes to **that repo's own** `.buildflow/codebase/` directory — they do not share a codebase folder.
+
+---
+
+### Step O4: Update WORKSPACE.md + Summary
+
+After all selected repos complete, update `.buildflow/workspace/WORKSPACE.md` with the new onboard status and date for each repo.
+
+Print final summary:
+
+```
+Workspace Onboard Complete
+──────────────────────────────────────────────────
+  ✓ repo-a/          ONBOARDED — 5 modules · 12 hotspots · 6 knowledge files
+  ✓ repo-b/          ONBOARDED — 8 modules · 4 hotspots  · 6 knowledge files
+  ✓ packages/shared/ ONBOARDED — 2 modules · 0 hotspots  · 6 knowledge files
+  ✗ repo-c/          FAILED    — [reason]
+  ─ packages/ui/     SKIPPED   (already onboarded, not selected)
+
+──────────────────────────────────────────────────
+→ Next:  /buildflow-workspace
+   Why:  All repos onboarded — run workspace to map cross-repo dependencies and shared contracts
+──────────────────────────────────────────────────
+```
 
 ---
 
