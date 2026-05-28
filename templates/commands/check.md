@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-check
 description: Verify quality and spec compliance with parallel Reviewer agents
 allowed-tools: Read, Bash, Grep, Glob
@@ -16,9 +16,9 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 - `/buildflow-check tests` — test coverage only
 
 ## Context Packet (load only these)
-- `.buildflow/phases/[N]/ACCEPTANCE.md` — the source of truth for what must be true
-- `.buildflow/phases/[N]/PLAN.md` — what was supposed to be built
-- `.buildflow/phases/[N]/VERIFICATION.md` - AC verification ledger from plan/build
+- `.buildflow/epics/[epic]/ACCEPTANCE.md` — the source of truth for what must be true
+- `.buildflow/epics/[epic]/PLAN.md` — what was supposed to be built
+- `.buildflow/epics/[epic]/VERIFICATION.md` - AC verification ledger from plan/build
 - Changed files — detected as follows:
   - **If `git.permission: approved`:** `git diff --name-only HEAD~[wave-count]..HEAD -- src/`
   - **If `git.permission` is not `approved`:** read the file list from wave completion records in `PLAN.md` (the `Files to create/modify` field per completed task) — this is the authoritative list of what changed
@@ -31,16 +31,16 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 Do NOT load: REQUIREMENTS.md, old phases, research files, retros.
 Load DESIGN.md only when running `--strict`.
 
-Also load `.buildflow/phases/[N]/STATE.md` if it exists. Use it to resume status, risks, and test strategy.
+Also load `.buildflow/epics/[epic]/STATE.md` if it exists. Use it to resume status, risks, and test strategy.
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md`, `.buildflow/epics/[epic]/VERIFICATION.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
 
 Use `STATE.md` to understand what build completed, what tests were already run, and which risks/skips need verification. If it says `Status: check_passed` and current inputs have not changed, continue to the guided next step instead of repeating checks unless the user asks.
 
-Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
+Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 - Current State: `Status: check_passed` or `Status: check_failed`
 - Decisions: user choices for coverage/strict/schema issues
 - Files That Matter: reports written, changed files checked, and blockers
@@ -51,9 +51,9 @@ Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
 ---
 
 ## Step 1: Load Acceptance Criteria
-Read every AC from `.buildflow/phases/[N]/ACCEPTANCE.md`.
+Read every AC from `.buildflow/epics/[epic]/ACCEPTANCE.md`.
 This is the primary verification target — all other checks are secondary.
-Read `.buildflow/phases/[N]/VERIFICATION.md` and compare its AC list/statuses against `ACCEPTANCE.md`.
+Read `.buildflow/epics/[epic]/VERIFICATION.md` and compare its AC list/statuses against `ACCEPTANCE.md`.
 
 If `VERIFICATION.md` is missing or stale:
 - Recreate or refresh it from `ACCEPTANCE.md` before checking.
@@ -66,17 +66,17 @@ Cross-check `ACCEPTANCE.md` against `PLAN.md` and `VERIFICATION.md` for silent r
 
 **Check 1 — Plan coverage:** ACs in `ACCEPTANCE.md` with no task in `PLAN.md`:
 ```bash
-grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/ACCEPTANCE.md | sort -u > /tmp/bf_acs_spec.txt
-grep -oE "AC-NF-[0-9]+" .buildflow/phases/[N]/PLAN.md | sort -u > /tmp/bf_acs_plan.txt
-grep -oE "AC-[0-9]+" .buildflow/phases/[N]/ACCEPTANCE.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_spec.txt
-grep -oE "AC-[0-9]+" .buildflow/phases/[N]/PLAN.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_plan.txt
+grep -oE "AC-NF-[0-9]+" .buildflow/epics/[epic]/ACCEPTANCE.md | sort -u > /tmp/bf_acs_spec.txt
+grep -oE "AC-NF-[0-9]+" .buildflow/epics/[epic]/PLAN.md | sort -u > /tmp/bf_acs_plan.txt
+grep -oE "AC-[0-9]+" .buildflow/epics/[epic]/ACCEPTANCE.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_spec.txt
+grep -oE "AC-[0-9]+" .buildflow/epics/[epic]/PLAN.md | grep -v "AC-NF" | sort -u >> /tmp/bf_acs_plan.txt
 comm -23 <(sort /tmp/bf_acs_spec.txt) <(sort /tmp/bf_acs_plan.txt)
 ```
 
 **Check 2 — Execution coverage:** ACs in `ACCEPTANCE.md` with no row in `VERIFICATION.md`:
 ```bash
 # List VERIFICATION.md AC rows
-grep -oE "AC-NF-[0-9]+|AC-[0-9]+" .buildflow/phases/[N]/VERIFICATION.md | sort -u
+grep -oE "AC-NF-[0-9]+|AC-[0-9]+" .buildflow/epics/[epic]/VERIFICATION.md | sort -u
 # Find any not tracked at all
 ```
 
@@ -235,7 +235,7 @@ Get files changed this phase:
 # If git.permission is approved:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/ 2>/dev/null
 # If git.permission is not approved: read from PLAN.md task "Files to create/modify" fields (all completed tasks)
-grep -A2 "Files to create/modify:" .buildflow/phases/[N]/PLAN.md 2>/dev/null
+grep -A2 "Files to create/modify:" .buildflow/epics/[epic]/PLAN.md 2>/dev/null
 
 # For each changed file, check if any test file imports it
 grep -rn "[filename without ext]" --include="*.test.*" --include="*.spec.*" src/ tests/ 2>/dev/null
@@ -305,7 +305,7 @@ Pause check. User defines ACs, then re-run `/buildflow-check acceptance`.
 Log to DEBT.md: "Coverage below threshold [N]% — accepted: developer decision [date]. Address in future phase."
 Proceed. No block.
 
-Write the coverage map to `.buildflow/phases/[N]/COVERAGE.md` for the ship gate to read.
+Write the coverage map to `.buildflow/epics/[epic]/COVERAGE.md` for the ship gate to read.
 Include the decision and reason taken in Step 4c.
 
 ---
@@ -553,7 +553,7 @@ AC branches:         [N/N complete]
 Strict verdict: PASS / FAIL
 ```
 
-Write results to `.buildflow/phases/[N]/STRICT-REPORT.md` — the ship gate reads this file.
+Write results to `.buildflow/epics/[epic]/STRICT-REPORT.md` — the ship gate reads this file.
 
 If **FAIL**: list every strict violation with file:line. These block ship. They are not style suggestions — they are spec-code divergences.
 If **PASS**: "Strict mode: code structure mirrors spec structure. Safe to ship."
@@ -601,7 +601,7 @@ Manual UAT readiness:
 - If manual UAT is pending, say: "Manual UAT is pending. Ask the user to test the listed use cases or record an explicit skip before ship."
 - If manual UAT failed, block ship and point to the failed use case and affected ACs.
 
-Before exiting, update `.buildflow/phases/[N]/VERIFICATION.md`:
+Before exiting, update `.buildflow/epics/[epic]/VERIFICATION.md`:
 - For each AC checked, set `PASS`, `FAIL`, `BLOCKED`, `DEFERRED`, or `IN PROGRESS`.
 - Add reviewer evidence and command output summaries to `Test/Evidence` or `Notes`.
 - Add manual UAT confirmation, failure, or pending notes for user-confirmed use cases.
@@ -633,7 +633,7 @@ Before printing this block, check session context usage. Because check results d
 ──────────────────────────────────────────────────
 → Next:  /buildflow-ship
    Why:  All [N] ACs passing, no blockers — ready to run ship gates
-   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
+   Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

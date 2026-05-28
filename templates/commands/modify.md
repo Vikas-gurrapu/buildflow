@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-modify
 description: Surgical code change with transitive impact analysis, risk scoring, and test coverage verification
 allowed-tools: Read, Write, Grep, Glob, Bash
@@ -339,7 +339,7 @@ cat requirements.txt pyproject.toml 2>/dev/null | grep pytest
 |-----------------|--------|
 | Found + test files exist | Follow existing conventions exactly |
 | Found + no test files yet | Use framework, create first test file |
-| Not found | Warn user: "No test framework detected. Tests skipped. Add [recommended framework] and re-run." Log gap to `phases/[N]/DEBT.md`. |
+| Not found | Warn user: "No test framework detected. Tests skipped. Add [recommended framework] and re-run." Log gap to `epics/[epic]/DEBT.md`. |
 
 For each source file touched in Step 7:
 

@@ -22,20 +22,20 @@ Goes beyond research — includes engineering cognition modes for architecture r
 
 ## Context Packet
 - `.buildflow/VISION.md`
-- `.buildflow/phases/[N]/STATE.md` (if current phase exists - resume status, decisions, next command)
+- `.buildflow/epics/[epic]/STATE.md` (if current phase exists - resume status, decisions, next command)
 - `.buildflow/MEMORY.md` (app_name, framework, key decisions only)
 - `.buildflow/codebase/MAP.md` (for --arch, --debt, --complexity modes)
-- `.buildflow/phases/[N]/DESIGN.md` (for --arch mode, if exists)
+- `.buildflow/epics/[epic]/DESIGN.md` (for --arch mode, if exists)
 - `~/.buildflow/learnings/global.md` — filter to entries matching current framework/language; include at most 3 relevant entries as prior context for researchers
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`. If a current phase exists, read `.buildflow/phases/[N]/STATE.md`.
+Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`. If a current phase exists, read `.buildflow/epics/[epic]/STATE.md`.
 
 If `STATE.md` says research or architecture review for this topic already completed, summarize the saved recommendation and continue to the guided next step instead of repeating the work unless the user asks to revisit it.
 
-Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
+Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 - Current State: `Status: research_complete` (or `architecture_review_complete` for `--arch`)
 - Decisions: recommendation and confidence
 - Files That Matter: research file path and any architecture/codebase files referenced
@@ -75,7 +75,7 @@ If confidence < 3: "Low confidence. Here's what would increase it: [specific gap
 If confidence ≥ 4: suggest next step (spec / plan / build)
 
 ### Step 6: Save
-Write `.buildflow/phases/[N]/RESEARCH.md`
+Write `.buildflow/epics/[epic]/RESEARCH.md`
 Update `MEMORY.md` key decisions if a choice was made.
 
 ---
@@ -190,7 +190,7 @@ Sort by ROI (impact of fixing ÷ cost to fix). Top 3 items to address next.
 Used before a plan is executed to ask: "Is this too much for the team/timeline?"
 
 ### Step 1: Load Plan
-Read `phases/[N]/PLAN.md`. Sum effort estimates.
+Read `epics/[epic]/PLAN.md`. Sum effort estimates.
 
 ### Step 2: Complexity Assessment
 ```
@@ -242,7 +242,7 @@ Before printing this block, check session context usage and whether the command 
 ──────────────────────────────────────────────────
 → Next:  /buildflow-spec
    Why:  Research complete — translate findings into spec ACs and constraints
-   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
+   Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

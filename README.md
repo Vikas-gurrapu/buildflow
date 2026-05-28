@@ -1,4 +1,4 @@
-# BuildFlow
+﻿# BuildFlow
 
 > Spec-driven, multi-agent AI development orchestration — for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.</p>
 > **v7.0** — Decision workshops, UI design contracts, global learnings, yolo mode, 15 language runtimes, and full CI/CD tooling.
@@ -48,8 +48,8 @@ Once installed, you work entirely inside your AI tool using `/buildflow-*` comma
 
 **Five core ideas that separate BuildFlow from other tools:**
 
-- **Spec-first:** Every phase starts with formal Requirements + Technical Design + Acceptance Criteria. Plans trace to ACs. Ship is blocked if any AC is unsatisfied.
-- **Context isolation + resume:** Each agent receives a minimal context packet, and each phase keeps a compact `STATE.md` so fresh sessions can continue cleanly.
+- **Spec-first:** Every epic starts with formal Requirements + Technical Design + Acceptance Criteria. Plans trace to ACs. Ship is blocked if any AC is unsatisfied.
+- **Context isolation + resume:** Each agent receives a minimal context packet, and each epic keeps a compact `STATE.md` so fresh sessions can continue cleanly.
 - **Auto-prune:** `MEMORY.md` is automatically compressed at session start and after each ship. Long sessions stay lean.
 - **Measured token costs:** Every command reports actual token usage (context loaded + output generated) and accumulates a session total — not estimates.
 - **Cross-project intelligence:** Global learnings written at every milestone completion surface relevant insights in future projects using the same framework.
@@ -102,7 +102,7 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 
 | Command | Agent | Purpose | Token Cost |
 |---------|-------|---------|-----------|
-| `/buildflow-start-epic` | Strategist | Capture vision, detect drift vs last session, load phase history | ~8K |
+| `/buildflow-start-epic` | Strategist | Capture vision, detect drift vs last session, load epic history | ~8K |
 | `/buildflow-think [topic]` | Researcher × 3 + Synthesizer | Parallel research. Modes: `--arch`, `--build-vs-buy`, `--debt`, `--complexity` | ~30K |
 | `/buildflow-spec` | Architect | Generate Requirements + Technical Design + ACs + wave plan in one pass — versioning, approval audit trail, amendment gate, multi-cycle engineering review | ~40K |
 | `/buildflow-discuss [topic]` | Strategist + Researcher | Post-spec clarification — review doubts about generated spec and plan, lock decisions, auto-updates artifacts on confirmation | ~20–35K |
@@ -156,12 +156,12 @@ These are installed into your AI tool and triggered by typing `/buildflow-*`.
 
 | Command | Agent | Purpose | Token Cost |
 |---------|-------|---------|-----------|
-| `/buildflow-status` | Strategist | Phase progress, AC bar, build quality, debt, session token total, next action | ~5K |
+| `/buildflow-status` | Strategist | Epic progress, AC bar, build quality, debt, session token total, next action | ~5K |
 | `/buildflow-explain <term/file>` | Strategist | Plain-language explanation of code, concepts, or errors | ~2K |
 | `/buildflow-back [n]` | Strategist | Undo to restore point (git stash or file snapshot), update state | ~3K |
-| `/buildflow-revert [--phase N]` | Strategist | Revert current, last, or named phase's spec and plan artifacts; asks before code rollback | ~4K |
+| `/buildflow-revert [--epic N-slug]` | Strategist | revert current, last, or named epic's spec and plan artifacts; asks before code rollback | ~4K |
 | `/buildflow-discuss [topic]` | Strategist + Researcher | Post-spec clarification — review doubts about generated spec and plan, auto-updates artifacts on confirmation | ~20–35K |
-| `/buildflow-complete-epic` | Strategist | Archive shipped phases into named milestone, write global learnings, create release tag, reset for next cycle | ~12K |
+| `/buildflow-complete-epic` | Strategist | Archive shipped epics into named milestone, write global learnings, create release tag, reset for next cycle | ~12K |
 | `/buildflow-settings` | Strategist | Interactive settings menu — 13 settings including workflow toggles, yolo mode, and spec coverage | ~3K |
 | `/buildflow-help` | Strategist | Diagnostic mode, 12 recovery paths, git recovery, global learnings viewer, post-milestone feature advisor | ~15–35K |
 
@@ -188,7 +188,7 @@ buildflow audit --target src/api/   # Scan a specific directory
 buildflow audit --report            # Print the most recent saved report
 buildflow fix                       # Interactive issue scanner + auto-fixer
 buildflow fix --target src/         # Fix issues in a specific directory
-buildflow status                    # Print current phase and project state
+buildflow status                    # Print current epic and project state
 buildflow status --verbose          # Also print .buildflow/ directory tree
 buildflow update                    # Re-install slash commands (pick up new versions)
 buildflow update --check            # Check current version without updating
@@ -219,7 +219,7 @@ BuildFlow will:
 /buildflow-start-epic
 ```
 
-Loads vision, detects codebase drift vs last session (file count, schema changes, load-bearing symbol changes), prints phase history from previous SHIPPED.md files. Resets the session token counter.
+Loads vision, detects codebase drift vs last session (file count, schema changes, load-bearing symbol changes), prints epic history from previous SHIPPED.md files. Resets the session token counter.
 
 ### 3. Research (optional)
 
@@ -227,7 +227,7 @@ Loads vision, detects codebase drift vs last session (file count, schema changes
 /buildflow-think auth-strategy
 ```
 
-3 Researchers run in parallel. Synthesizer combines results. Output saved to `.buildflow/phases/[N]/RESEARCH.md`.
+3 Researchers run in parallel. Synthesizer combines results. Output saved to `.buildflow/epics/[epic]/RESEARCH.md`.
 
 ### 4. Spec + Plan — formal artifacts and wave plan in one pass
 
@@ -238,7 +238,7 @@ Loads vision, detects codebase drift vs last session (file count, schema changes
 Generates five locked files in one pass:
 
 ```
-.buildflow/phases/[N]/
+.buildflow/epics/[epic]/
 |-- REQUIREMENTS.md       Product Requirements
 |-- DESIGN.md             Technical Design
 |-- ACCEPTANCE.md         Acceptance Criteria with spec_version
@@ -255,7 +255,7 @@ After the spec is approved, the Architect auto-chains into planning:
 - **Multi-cycle engineering review** — loops until all 7 dimensions are APPROVED
 - `spec_version` recorded in PLAN.md header for ship-time version check
 
-If the spec changes mid-phase, an amendment gate requires explicit confirmation and marks PLAN.md stale. Run `/buildflow-spec --update` to regenerate affected waves.
+If the spec changes mid-epic, an amendment gate requires explicit confirmation and marks PLAN.md stale. Run `/buildflow-spec --update` to regenerate affected waves.
 
 ### 4b. Discuss — clarify doubts after spec is generated (optional)
 
@@ -263,7 +263,7 @@ If the spec changes mid-phase, an amendment gate requires explicit confirmation 
 /buildflow-discuss database-choice
 ```
 
-Post-spec clarification workshop. Reviews the generated requirements, design, and wave plan for doubts, gaps, or concerns. Resolves them as locked decisions, then automatically calls `/buildflow-spec --update` to patch affected artifacts on confirmation. Saved decisions go to `.buildflow/phases/[N]/DECISIONS.md`.
+Post-spec clarification workshop. Reviews the generated requirements, design, and wave plan for doubts, gaps, or concerns. Resolves them as locked decisions, then automatically calls `/buildflow-spec --update` to patch affected artifacts on confirmation. Saved decisions go to `.buildflow/epics/[epic]/DECISIONS.md`.
 
 ```
 # Discuss → confirm → auto-updates spec → proceed to build
@@ -284,8 +284,8 @@ For each wave:
 - **Schema drift check** at wave commit — unapplied migrations flagged immediately
 - **Build telemetry** after each wave: type-check → lint → test coverage (F/P/S prompt, never hard-block) → bundle size
 - **Focused tests first**: run tests for touched files and dependency neighborhoods, then ask the user before impacted-area or app smoke checks
-- **AC status updates**: focused test results are written to `phases/N/VERIFICATION.md` as PASS, IN PROGRESS, FAIL, BLOCKED, or DEFERRED
-- **Parked-changes conflict check** before build start: warns if new phase touches files from a previous failed git commit
+- **AC status updates**: focused test results are written to `epics/[epic]/VERIFICATION.md` as PASS, IN PROGRESS, FAIL, BLOCKED, or DEFERRED
+- **Parked-changes conflict check** before build start: warns if new epic touches files from a previous failed git commit
 - **STATE.md update** after every wave so `/clear` + new session can continue from the correct wave
 
 ### 7. Check
@@ -301,7 +301,7 @@ Also runs:
 
 ### 8. Ship — 4 mandatory gates
 
-Before `/buildflow-ship`, `/buildflow-check` asks the user to manually confirm specific UAT use cases and records pass/fail/pending status in `phases/N/VERIFICATION.md`.
+Before `/buildflow-ship`, `/buildflow-check` asks the user to manually confirm specific UAT use cases and records pass/fail/pending status in `epics/[epic]/VERIFICATION.md`.
 
 ```
 /buildflow-ship
@@ -312,14 +312,14 @@ Before `/buildflow-ship`, `/buildflow-check` asks the user to manually confirm s
 | **Gate 0a** | `spec_version` in PLAN.md matches current `ACCEPTANCE.md` | BLOCK |
 | **Gate 0b** | Every AC is ✓ PASS | BLOCK |
 | **Gate 1** | Security scan (changed files only) | CRITICAL → BLOCK, HIGH → WARN |
-| **Gate 2a** | Current phase tests pass | BLOCK |
-| **Gate 2b** | Cross-phase regression (vs `last_ship_test_count` baseline) | BLOCK |
+| **Gate 2a** | current epic tests pass | BLOCK |
+| **Gate 2b** | Cross-epic regression (vs `last_ship_test_count` baseline) | BLOCK |
 | **Gate 3** | Type-check BLOCK ? Lint errors BLOCK ? Compile BLOCK ? Coverage smart-prompt ? Bundle size alert ? Docker build only after `/buildflow-docker` initializes Docker | Type/compile/Docker -> BLOCK |
 
 After gates pass:
-- Retrospective written to `phases/N/RETRO.md`
+- Retrospective written to `epics/[epic]/RETRO.md`
 - `MEMORY.md` pruned to under 3K tokens
-- `phases/N/SHIPPED.md` written (≤500 tokens, loaded by future phases)
+- `epics/[epic]/SHIPPED.md` written (≤500 tokens, loaded by future epics)
 - Git tag OR file snapshot (no-git mode)
 - **Post-ship feature advisor** auto-runs (market research + engineering standards gaps)
 
@@ -363,9 +363,9 @@ When git is unavailable or denied, all BuildFlow features continue to work using
 
 | Git feature | No-git equivalent |
 |-------------|------------------|
-| `git stash` | `.buildflow/phases/[N]/SNAPSHOTS/` |
+| `git stash` | `.buildflow/epics/[epic]/SNAPSHOTS/` |
 | Wave commit | Recorded in `PLAN.md` task file lists |
-| Phase tag | `STATE.md` entry with snapshot path |
+| Epic tag | `STATE.md` entry with snapshot path |
 | Changed-file detection | PLAN.md task `Files to create/modify` fields |
 
 **Parked changes**: If git fails mid-build, BuildFlow prompts:
@@ -373,7 +373,7 @@ When git is unavailable or denied, all BuildFlow features continue to work using
 - **Park** — save a snapshot, continue working, commit later
 - **Warn only** — proceed without committing
 
-Parked entries are tracked in `MEMORY.md → parked_changes[]`. When a new phase touches files with parked changes, BuildFlow warns and offers to resolve or take a stack snapshot.
+Parked entries are tracked in `MEMORY.md → parked_changes[]`. When a new epic touches files with parked changes, BuildFlow warns and offers to resolve or take a stack snapshot.
 
 **To commit parked changes once git is restored:**
 ```
@@ -431,7 +431,7 @@ changelog:
 ```
 
 ### Approval audit trail
-Every approval is appended to `phases/[N]/APPROVALS.md` — a permanent file that is **never pruned or deleted**, even after ship.
+Every approval is appended to `epics/[epic]/APPROVALS.md` — a permanent file that is **never pruned or deleted**, even after ship.
 
 ### Amendment gate
 If you change the spec while a build is in progress:
@@ -503,7 +503,7 @@ Handles authentication, tagging, and push for all major registries.
 /buildflow-docker scan
 ```
 
-Runs `docker scout` (if available) or Trivy. Reports CVEs by severity, suggests base image improvements, appends critical findings to `phases/[N]/DEBT.md`.
+Runs `docker scout` (if available) or Trivy. Reports CVEs by severity, suggests base image improvements, appends critical findings to `epics/[epic]/DEBT.md`.
 
 ### Pipeline integration
 
@@ -610,7 +610,7 @@ Your debt right now: 3 items in DEBT.md
 Suggested next: /buildflow-spec "Auth hardening + recurring tasks"
 ```
 
-Saved to `.buildflow/phases/[N]/SUGGESTIONS.md`. Also available anytime via `/buildflow-help next`.
+Saved to `.buildflow/epics/[epic]/SUGGESTIONS.md`. Also available anytime via `/buildflow-help next`.
 
 ---
 
@@ -636,10 +636,10 @@ npx buildflow-dev init
         │                          commands ask once per folder, then remember
         │
         ├─ scaffoldBuildflow()     Creates .buildflow/ folder tree with pre-filled files:
-        │                          phases/, codebase/
+        │                          epics/, debug/, hotfix/, codebase/
         │                          
         │
-        ├─ patchGitignore()        Adds .buildflow/phases/*/SNAPSHOTS/
+        ├─ patchGitignore()        Adds .buildflow/snapshots/
         │
         ├─ ensureGit()             Only if git.permission === 'approved'
         │
@@ -654,23 +654,23 @@ Every AI session runs this automatically:
 
 1. Check for BuildFlow updates
 2. Prune `MEMORY.md` if over 3K tokens
-3. Load `STATE.md` for current phase
-4. Load `.buildflow/phases/N/STATE.md` if a phase is active
+3. Load `STATE.md` for current epic
+4. Load `.buildflow/epics/[epic]/STATE.md` if an epic is active
 5. Detect git availability, set `git_available` in `MEMORY.md`
 5b. Check `~/.buildflow/learnings/global.md` — surface matching insights for current framework
 6. Run codebase drift check against `intel.json` baseline
 7. Reset `session_tokens_used: 0` in `STATE.md`
 
-### Phase resume contract
+### Epic resume contract
 
-Every major phase command (`think`, `spec`, `plan`, `build`, `check`, `ship`) reads and updates:
+Every major epic command (`think`, `spec`, `plan`, `build`, `check`, `ship`) reads and updates:
 
 ```
-.buildflow/phases/N/STATE.md
+.buildflow/epics/[epic]/STATE.md
 ```
 
 That file is intentionally small and contains:
-- current phase and wave
+- current epic and wave
 - status
 - decisions
 - files that matter
@@ -705,7 +705,7 @@ buildflow-dev/
 │   │   ├── init.js               Detects languages/frameworks. Docker is opt-in via /buildflow-docker.
 │   │   │                         Git permission prompt. Scaffolds .buildflow/.
 │   │   │                         Writes PREFERENCES.md, MEMORY.md, STATE.md, VISION.md, GLOSSARY.md
-│   │   │                         scaffolds phases/ and codebase/ directories.
+│   │   │                         scaffolds epics/, debug/, hotfix/, and codebase/ directories.
 │   │   │                         Seeds path_permissions for Folder Access Guard.
 │   │   │
 │   │   ├── install.js            TOOLS object: one entry per supported AI tool.
@@ -724,7 +724,7 @@ buildflow-dev/
 │   │   │
 │   │   ├── fix.js                Same scan as audit.js, split into autoFixable vs needsPrompt.
 │   │   │                         autoFix.apply() rewrites file content.
-│   │   │                         logSecurityDebt() appends to phases/[N]/DEBT.md.
+│   │   │                         logSecurityDebt() appends to epics/[epic]/DEBT.md.
 │   │   │
 │   │   ├── status.js             Reads STATE.md + MEMORY.md, prints project state.
 │   │   │                         --verbose walks .buildflow/ tree.
@@ -742,7 +742,7 @@ buildflow-dev/
 │   │                             tracking explanation, core rules, agents table.
 │   │
 │   └── commands/                 27 markdown files — one per slash command.
-│       ├── start-epic.md         Vision, drift detection, phase history load
+│       ├── start-epic.md         Vision, drift detection, epic history load
 │       ├── think.md              Parallel research + 5 analysis modes + global learnings context
 │       ├── discuss.md            Pre-plan decision workshop — surface, research, lock decisions with confidence scores
 │       ├── spec.md               REQUIREMENTS + DESIGN + ACs, versioning, approval audit trail, amendment gate
@@ -760,10 +760,10 @@ buildflow-dev/
 │       ├── deploy.md             Pre-flight, Docker deployment path, migrations, health check
 │       ├── docker.md             Scaffold, build, run, push, scan, shell, clean
 │       ├── workspace.md          Monorepo mapping, cross-service contract detection, blast radius
-│       ├── status.md             Phase, AC bar, token spend with session total, debt, suggestions
+│       ├── status.md             Epic, AC bar, token spend with session total, debt, suggestions
 │       ├── explain.md            Plain-language explanation
 │       ├── back.md               Undo with dual-mode restore point
-│       ├── revert.md             Revert current, last, or named phase spec and plan artifacts
+│       ├── revert.md             Revert current, last, or named epic spec and plan artifacts
 │       ├── complete-epic.md      Milestone archival, global learnings write, release tag, state reset
 │       ├── settings.md           13-item interactive settings menu (git, workflow, yolo, coverage, security)
 │       ├── ui-spec.md            UI design contract — color system, typography, spacing, components, a11y
@@ -780,25 +780,25 @@ buildflow-dev/
 
 ## The .buildflow/ Scaffold
 
-Global files are created at init. Phase-specific files are created on demand by the command that needs them.
+Global files are created at init. Epic-specific files are created on demand by the command that needs them.
 
 ```
 .buildflow/
 │
-├── VISION.md           ← created at init — what we're building (global, all phases)
-├── STATE.md            ← created at init — current phase, status, phase history
+├── VISION.md           ← created at init — what we're building (global, all epics)
+├── STATE.md            ← created at init — current epic, status, epic history
 ├── PREFERENCES.md      ← created at init — experience level, git permission, workflow
 │                         toggles, spec coverage threshold, path_permissions
 ├── MEMORY.md           ← created at init — persistent context ≤3K tokens, auto-pruned
 ├── GLOSSARY.md         ← created at init — project terminology, grows with /buildflow-explain
 │
-├── phases/             ← created at init (subdirs added per phase)
-│   ├── 0/              ← isolated catch-all (hotfix/debug run outside any active phase)
-│   │   ├── debug/          ← /buildflow-debug records when no phase is active
-│   │   │   └── DEBUG-001.md
-│   │   └── hotfix/         ← /buildflow-hotfix records when no phase is active
-│   │       └── HOTFIX-001.md
-│   └── N/              ← single source of truth for phase N — all workflow artifacts live here
+├── debug/              ← created at init — /buildflow-debug records outside any active epic
+│   └── DEBUG-001.md
+├── hotfix/             ← created at init — /buildflow-hotfix records outside any active epic
+│   └── HOTFIX-001.md
+│
+├── epics/              ← created at init (subdirs named N-slug, added per epic)
+│   └── 1-auth/         ← single source of truth for epic "1-auth" — all workflow artifacts live here
 │       ├── STATE.md        Compact resume contract — loaded at every session start
 │       ├── RESEARCH.md     ← /buildflow-think output with source citations
 │       ├── DECISIONS.md    ← /buildflow-discuss locked decisions log
@@ -810,14 +810,14 @@ Global files are created at init. Phase-specific files are created on demand by 
 │       ├── VERIFICATION.md ← /buildflow-build AC ledger with test evidence
 │       ├── COVERAGE.md     ← /buildflow-check spec coverage traceability + decisions
 │       ├── AUDIT.md        ← /buildflow-audit OWASP security scan report
-│       ├── SHIPPED.md      ← /buildflow-ship ≤500-token cross-phase summary
+│       ├── SHIPPED.md      ← /buildflow-ship ≤500-token cross-epic summary
 │       ├── RETRO.md        ← /buildflow-ship archived MEMORY.md data after ship
 │       ├── DEBT.md         ← deferred issues: CVEs accepted, coverage drops, parked debt
 │       ├── SUGGESTIONS.md  ← /buildflow-ship post-ship feature advisor output
 │       ├── UI-SPEC.md      ← /buildflow-ui-spec UI design contract
-│       ├── debug/          ← /buildflow-debug session records
+│       ├── debug/          ← /buildflow-debug session records during this epic
 │       │   └── DEBUG-001.md    Root cause, hypothesis chain, fix, test evidence
-│       └── hotfix/         ← /buildflow-hotfix records
+│       └── hotfix/         ← /buildflow-hotfix records during this epic
 │           └── HOTFIX-001.md   Problem, fix, files changed, restore point, test results
 │
 └── codebase/           ← /buildflow-onboard (existing projects only)
@@ -882,7 +882,7 @@ Each agent gets a fresh context window with a minimal context packet — no cont
 
 ### `/buildflow-discuss` — Pre-Plan Decision Workshop
 
-New command that captures key architectural decisions before speccing. Surfaces blocking and high-impact open decisions, optionally spawns parallel Researchers per option, produces a locked decision with confidence score (1–5), and saves it to `.buildflow/phases/[N]/DECISIONS.md` as a spec constraint. Usage: `/buildflow-discuss`, `/buildflow-discuss "database choice"`, `/buildflow-discuss --review`.
+New command that captures key architectural decisions before speccing. Surfaces blocking and high-impact open decisions, optionally spawns parallel Researchers per option, produces a locked decision with confidence score (1–5), and saves it to `.buildflow/epics/[epic]/DECISIONS.md` as a spec constraint. Usage: `/buildflow-discuss`, `/buildflow-discuss "database choice"`, `/buildflow-discuss --review`.
 
 ### Scope-Reduction Detection
 
@@ -890,11 +890,11 @@ New command that captures key architectural decisions before speccing. Surfaces 
 
 ### `/buildflow-ui-spec` — UI Design Contract
 
-Generates a locked `.buildflow/phases/[N]/UI-SPEC.md` before any frontend phase. Detects existing CSS framework (Tailwind, MUI, Chakra, etc.), documents color system, typography scale, spacing, component inventory with variants and states, responsive breakpoints, and accessibility requirements. Builder agents follow this contract automatically.
+Generates a locked `.buildflow/epics/[epic]/UI-SPEC.md` before any frontend phase. Detects existing CSS framework (Tailwind, MUI, Chakra, etc.), documents color system, typography scale, spacing, component inventory with variants and states, responsive breakpoints, and accessibility requirements. Builder agents follow this contract automatically.
 
 ### `/buildflow-ui-review` — 6-Dimension UI Audit
 
-Retroactive audit of UI implementation against the design contract. Scores 6 dimensions — color consistency, typography, spacing, component coverage, responsive behavior, accessibility — with PASS/WARN/FAIL verdicts and a prioritized fix list. Saves report to `.buildflow/phases/[N]/AUDIT.md`.
+Retroactive audit of UI implementation against the design contract. Scores 6 dimensions — color consistency, typography, spacing, component coverage, responsive behavior, accessibility — with PASS/WARN/FAIL verdicts and a prioritized fix list. Saves report to `.buildflow/epics/[epic]/AUDIT.md`.
 
 ### Global Learnings Store
 
@@ -910,7 +910,7 @@ New `workflow` block in `PREFERENCES.md`: `require_think`, `require_check`, `res
 
 ### `/buildflow-complete-epic` — Milestone Archival
 
-Replaces the removed `/buildflow-complete-milestone`. Archives all shipped phases, prompts for milestone name and version, writes `MILESTONE.md`, creates a git tag (`git.permission: approved`), deep-prunes memory, and resets state for the next cycle.
+Replaces the removed `/buildflow-complete-milestone`. Archives all shipped epics, prompts for milestone name and version, writes `MILESTONE.md`, creates a git tag (`git.permission: approved`), deep-prunes memory, and resets state for the next cycle.
 
 ### 15-Language Runtime Support
 
@@ -924,7 +924,7 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 
 | Feature | Description |
 |---------|-------------|
-| **Phase STATE.md resume** | Each phase keeps a compact resume file — fresh sessions continue from it without chat history |
+| **Epic STATE.md resume** | Each epic keeps a compact resume file — fresh sessions continue from it without chat history |
 | **Spec governance** | Versioned specs, approval audit trail, amendment gate, spec diff viewer |
 | **Git permission system** | Setup-time prompt, no-git mode with file snapshots, parked changes |
 | **Build telemetry** | Type-check + lint + coverage + bundle size gates at every wave |
@@ -933,14 +933,14 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 | **Multi-cycle plan review** | 7-dimension engineering review, loops until APPROVED |
 | **Deviation handling** | HARD/SOFT/SCOPE tiers with structured records |
 | **Schema drift detection** | Unapplied migrations flagged at wave commit and check |
-| **Cross-phase regression** | Full suite run at ship, baseline from last ship |
+| **Cross-epic regression** | Full suite run at ship, baseline from last ship |
 | **Git worktree isolation** | Each Builder works in an isolated worktree |
 | **5-lens onboarding** | Arch/Quality/Security/Data/Features lenses in parallel |
 | **Queryable intel.json** | Machine-readable codebase index for agent lookups |
 | **Auto-drift detection** | Schema and load-bearing file changes detected at session start |
 | **Multi-repo workspace** | Cross-repo contract detection and blast-radius analysis |
 | **Post-ship feature advisor** | Auto market research + engineering standards gaps after every ship |
-| **SHIPPED.md cross-phase continuity** | ≤500-token phase summary loaded by future phases |
+| **SHIPPED.md cross-epic continuity** | ≤500-token epic summary loaded by future epics |
 
 ---
 
@@ -948,26 +948,26 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 
 | Scenario | Tokens | Notes |
 |----------|--------|-------|
-| Greenfield full workflow | 120–150K | All phases, one session |
+| Greenfield full workflow | 120–150K | All epics, one session |
 | Onboarding existing project | +35–40K | One-time cost, pays back every session |
-| `/buildflow-spec` | ~40K | Per phase — REQUIREMENTS + DESIGN + ACs + PLAN + VERIFICATION in one pass |
+| `/buildflow-spec` | ~40K | Per epic — REQUIREMENTS + DESIGN + ACs + PLAN + VERIFICATION in one pass |
 | `/buildflow-discuss` | ~20–35K | Optional post-spec clarification (no research: 20K, with parallel researchers: 35K) |
 | `/buildflow-build` per wave | ~50K | Context packets keep Builders lean |
 | `/buildflow-check` | ~26K | 4 reviewers + drift + coverage + scope-reduction check |
 | `/buildflow-ship` | ~40K | 4 gates + post-ship market research |
-| `/buildflow-ui-spec` | ~12K | One-time per frontend phase |
+| `/buildflow-ui-spec` | ~12K | One-time per frontend epic |
 | `/buildflow-ui-review` | ~15–25K | --quick: 15K / full 6-dimension audit: 25K |
 | `/buildflow-docker scaffold` | ~10K | One-time Dockerfile + Compose generation |
 | `/buildflow-hotfix` | ~10K | 5× cheaper than a full build cycle |
 | `/buildflow-complete-epic` | ~12K | Milestone archival + global learnings write |
 | Light memory load per session | ~1.5K | Pruned to ≤3K — saves ~10K in re-detection |
-| Context pruning savings | −5–15K | Stale phase data archived not reloaded |
+| Context pruning savings | −5–15K | Stale epic data archived not reloaded |
 
 **Token efficiency strategy:**
 - `MEMORY.md` stays under 3K (auto-pruned at session start and after each ship)
 - Each agent gets a minimal context packet: task spec + relevant files only
 - Builders never load the full codebase — context packets have max 5 relevant files
-- Old phase data archived to `phases/N/RETRO.md`, never reloaded unless explicitly requested
+- Old epic data archived to `epics/[epic]/RETRO.md`, never reloaded unless explicitly requested
 - Symbol-level intel.json lookups replace loading full GRAPH.md (−10K per modify)
 
 ---
@@ -989,7 +989,7 @@ node bin/buildflow.js --help
 - **Node 18+ compatibility** — use `dirname(fileURLToPath(import.meta.url))`, not `import.meta.dirname`.
 - **No TypeScript, no bundler** — source files run directly. Zero build step.
 - **Lazy command imports** — `bin/buildflow.js` uses `() => import(...)` for fast startup.
-- **Keep phase commands resumable** - major phase templates must read/update `.buildflow/phases/[N]/STATE.md`.
+- **Keep epic commands resumable** - major epic templates must read/update `.buildflow/epics/[epic]/STATE.md`.
 - **Respect user permissions** - template changes that read/write project folders must mention Folder Access Guard behavior.
 - **Post-change testing only** - do not add failing-test-first or test-before-code flows. Add/update tests after implementation and keep first runs focused on touched files and dependencies.
 
@@ -997,14 +997,14 @@ node bin/buildflow.js --help
 
 1. Add an entry to the `TOOLS` object in [`src/commands/install.js`](src/commands/install.js)
 2. Implement `detect()`, `installGlobal()`, `installLocal()`, and `triggerNote`
-3. Ensure install output includes update checks, Folder Access Guard instructions, and phase `STATE.md` resume rules
+3. Ensure install output includes update checks, Folder Access Guard instructions, and epic `STATE.md` resume rules
 4. Add it to the Supported AI Tools table in this README
 
 ### Adding a new slash command
 
 1. Create `templates/commands/<name>.md` with frontmatter + numbered steps
 2. Add the name to `commandNames` in `loadCommandTemplates()` in [`install.js`](src/commands/install.js) **and** to `COMMAND_NAMES` in [`uninstall.js`](src/commands/uninstall.js)
-3. If it is a major phase command, add a Phase State Resume step that reads and updates `.buildflow/phases/[N]/STATE.md`
+3. If it is a major epic command, add an Epic State Resume step that reads and updates `.buildflow/epics/[epic]/STATE.md`
 4. Add it to the quick reference table in [`templates/CLAUDE.md`](templates/CLAUDE.md)
 5. Document it in the AI Slash Commands table in this README
 

@@ -24,7 +24,7 @@ Before listing or using git restore points, read `.buildflow/PREFERENCES.md`.
 - If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
 Check available options in order:
-1. Named BuildFlow checkpoints in `.buildflow/phases/`
+1. Named BuildFlow checkpoints in `.buildflow/epics/`
 2. File snapshots in `.buildflow/snapshots/`
 3. Git commits and stash entries (only if `git.permission: approved`)
 

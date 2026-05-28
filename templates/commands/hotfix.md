@@ -35,17 +35,15 @@ Before reading or writing any source file, apply the installed **Folder Access G
 - `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
 - Identify the fix's target folder(s) upfront — ask once, not per file
 
-## Phase Resolution (resolve [N] before any file write)
+## Epic Resolution (resolve target folder before any file write)
 
 Read `.buildflow/STATE.md`:
-- If `current_phase` is set → use that value as `[N]`
-- If `current_phase` is absent or file does not exist → set `[N] = 0`
+- If `current_epic` is set → hotfix record goes to `.buildflow/epics/[current_epic]/hotfix/`
+- If `current_epic` is absent, empty, or `none` → hotfix record goes to `.buildflow/hotfix/`
 
-Phase `0` is the catch-all for hotfixes run outside any active phase (e.g., production incident on a fresh install, or between phases). All record files for isolated hotfixes go to `.buildflow/phases/0/hotfix/`.
-
-Note this at the top of the final HOTFIX record:
+When recording outside any active epic, note at the top of the HOTFIX record:
 ```yaml
-phase: 0   # isolated — no active phase at time of hotfix
+epic: none   # isolated — no active epic at time of hotfix
 ```
 
 ---
@@ -168,7 +166,7 @@ find . -name "*.test.ts" -o -name "*.test.js" -o -name "test_*.py" | head -3
 ```
 
 - **Framework found:** write the regression test using it
-- **No framework found:** warn — "No test framework detected. Regression test skipped. This bug may recur." Log to `phases/[N]/DEBT.md`: "Hotfix [description] shipped without regression test — no framework available."
+- **No framework found:** warn — "No test framework detected. Regression test skipped. This bug may recur." Log to the active epic's `DEBT.md` (or `.buildflow/debug/DEBT.md` if no active epic): "Hotfix [description] shipped without regression test — no framework available."
 - Do not block the hotfix for a missing framework, but always log the gap.
 
 For the specific behavior being fixed:
@@ -303,12 +301,16 @@ If no test coverage existed: "⚠ No test covers this area. Consider adding one.
 
 ## Final Step: Save Hotfix Record
 
-Use the **Write tool** to create `.buildflow/phases/[N]/hotfix/HOTFIX-[sequence].md` (increment sequence from existing files in that folder, starting at 001). Do not output as text — write to disk.
+Use the **Write tool** to create the hotfix record at the path resolved by the Epic Resolution step above:
+- Active epic: `.buildflow/epics/[current_epic]/hotfix/HOTFIX-[sequence].md`
+- No active epic: `.buildflow/hotfix/HOTFIX-[sequence].md`
+
+Increment sequence from existing files in that folder, starting at 001. Do not output as text — write to disk.
 
 ```markdown
 # Hotfix — [short description]
 Date: [ISO datetime]
-Phase: [N]
+Epic: [current_epic or "none"]
 Triggered by: [bug description or incident reference]
 
 ## Problem

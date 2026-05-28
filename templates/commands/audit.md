@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-audit
 description: Comprehensive OWASP Top 10 security audit
 allowed-tools: Read, Bash, Grep, Glob
@@ -115,7 +115,7 @@ Check Dockerfile itself for common misconfigurations:
 
 ## Phase 3: Generate Report
 
-Write to `.buildflow/phases/[N]/audit-[date].md`:
+Write to `.buildflow/epics/[epic]/audit-[date].md`:
 
 ```
 # Security Audit Report

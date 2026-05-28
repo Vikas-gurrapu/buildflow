@@ -11,12 +11,12 @@ Begin your project. Works for both greenfield and existing codebases.
 
 ## Context Packet (load only these)
 - `.buildflow/MEMORY.md`
-- `.buildflow/phases/[N]/STATE.md` (if current phase exists - compact resume status and next command)
+- `.buildflow/epics/[epic]/STATE.md` (if current epic exists — compact resume status and next command)
 - `.buildflow/PREFERENCES.md`
 
-Only load the current phase `STATE.md`, not full phase specs/plans/reports.
+Only load the current epic `STATE.md`, not full epic specs/plans/reports.
 
-Do NOT load: specs, phases, codebase files — this is vision only.
+Do NOT load: specs, epics, codebase files — this is vision only.
 
 ## Step 1: Load Memory
 Read `.buildflow/MEMORY.md` and `.buildflow/PREFERENCES.md`.
@@ -68,28 +68,28 @@ Only report warnings — never block session start. The user may already know ab
 
 ---
 
-## Step 1c: Load Phase History (cross-phase continuity)
+## Step 1c: Load Epic History (cross-epic continuity)
 
-If any `phases/*/SHIPPED.md` files exist, load the last 3 (sorted by phase number descending). Each is ≤500 tokens, so 3 together cost ≤1.5K tokens — worth it for full project continuity.
+If any `.buildflow/epics/*/SHIPPED.md` files exist, load the last 3 (sorted by epic number descending). Each is ≤500 tokens, so 3 together cost ≤1.5K tokens — worth it for full project continuity.
 
 ```bash
-ls .buildflow/phases/*/SHIPPED.md 2>/dev/null | sort -t/ -k3 -rn | head -3
+ls .buildflow/epics/*/SHIPPED.md 2>/dev/null | sort -t/ -k3 -rn | head -3
 ```
 
 From these, extract:
-- What was built in prior phases (prevents re-speccing already-shipped features)
-- Open technical debt inherited from prior phases
-- Architecture decisions that constrain the current phase
+- What was built in prior epics (prevents re-speccing already-shipped features)
+- Open technical debt inherited from prior epics
+- Architecture decisions that constrain the current epic
 
-Print a one-line history summary per phase:
+Print a one-line history summary per epic:
 ```
-Phase history
-─────────────
-Phase 1 (shipped 2024-01-10): Auth — login, password reset, JWT [6 ACs, 74% coverage]
-Phase 2 (shipped 2024-01-20): User profiles — avatar, bio, preferences [8 ACs, 79% coverage]
+Epic history
+────────────
+1-auth (shipped 2024-01-10): Auth — login, password reset, JWT [6 ACs, 74% coverage]
+2-profiles (shipped 2024-01-20): User profiles — avatar, bio, preferences [8 ACs, 79% coverage]
 ```
 
-If no SHIPPED.md files: skip silently (first phase or pre-continuity project).
+If no SHIPPED.md files: skip silently (first epic or pre-continuity project).
 
 ---
 
@@ -116,9 +116,8 @@ Use the **Write tool** to create or update `.buildflow/MEMORY.md` with:
 app_name: [name]
 framework: [detected or stated]
 language: [detected or stated]
-phase: 0
+current_epic: none
 spec_status: none
-plan_status: none
 onboard_status: [yes/no]
 last_session: [today]
 ```
@@ -156,9 +155,9 @@ Never show a table to the user — pick one command and explain why.
 
 ## MEMORY.md Pruning Rules (silent — never shown to user)
 If `MEMORY.md` exceeds 3K tokens on session start:
-- Remove: completed phase task lists, wave details, build timestamps older than last phase
-- Archive these to the most recent `phases/[N]/RETRO.md`
-- Keep: app_name, framework, language, current_phase, spec_status, style_fingerprint, last 2 decisions
+- Remove: completed epic task lists, wave details, build timestamps older than last epic
+- Archive these to the most recent `epics/[epic]/RETRO.md`
+- Keep: app_name, framework, language, current_epic, spec_status, style_fingerprint, last 2 decisions
 - Do NOT report this operation. It is invisible.
 
 ## Token Budget: ~8K

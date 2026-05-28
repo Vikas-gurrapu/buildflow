@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-ship
 description: Finalize phase with spec gate, security gate, build telemetry gate, and context pruning
 allowed-tools: Read, Write, Bash
@@ -10,21 +10,21 @@ agents: strategist, security-auditor
 Finalize current phase. Three gates run before shipping: spec compliance, security scan, and test pass. After shipping, session context is pruned so the next phase starts clean.
 
 ## Context Packet (load only these)
-- `.buildflow/phases/[N]/ACCEPTANCE.md`
+- `.buildflow/epics/[epic]/ACCEPTANCE.md`
 - `.buildflow/STATE.md`
 - `.buildflow/MEMORY.md`
-- `.buildflow/phases/[N]/VERIFICATION.md`
-- `.buildflow/phases/[N]/STATE.md` (if exists - resume status, check result, risks, test strategy)
+- `.buildflow/epics/[epic]/VERIFICATION.md`
+- `.buildflow/epics/[epic]/STATE.md` (if exists - resume status, check result, risks, test strategy)
 - Changed file list only: git diff if `git.permission: approved`; otherwise completed wave file lists from `PLAN.md`
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/phases/[N]/PLAN.md`, `.buildflow/phases/[N]/VERIFICATION.md`, and `.buildflow/phases/[N]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md`, `.buildflow/epics/[epic]/VERIFICATION.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
 
 Use `STATE.md` to confirm the latest build/check status, risks, skipped tests, and intended ship path. If it says `Status: shipped` and `SHIPPED.md` exists, summarize the shipped state and continue to the next-phase recommendation instead of re-shipping unless the user explicitly asks.
 
-Before exiting, update `.buildflow/phases/[N]/STATE.md` with:
+Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 - Current State: `Status: shipped`, `Wave: complete`
 - Decisions: ship gate outcomes, accepted debt, post-ship advisor choice
 - Files That Matter: `SHIPPED.md`, `RETRO.md`, snapshots/tags, and key shipped files
@@ -50,8 +50,8 @@ Override: /buildflow-ship --skip-spec (logs to DEBT.md)
 ```
 
 **0b — Full AC compliance:**
-Read `.buildflow/phases/[N]/ACCEPTANCE.md`. Verify every AC is satisfied.
-Read `.buildflow/phases/[N]/VERIFICATION.md` first and use it as the evidence ledger. Every AC must be `PASS` or have equivalent fresh evidence from this ship run. `IN PROGRESS`, `FAIL`, `BLOCKED`, `DEFERRED`, or missing AC rows block ship.
+Read `.buildflow/epics/[epic]/ACCEPTANCE.md`. Verify every AC is satisfied.
+Read `.buildflow/epics/[epic]/VERIFICATION.md` first and use it as the evidence ledger. Every AC must be `PASS` or have equivalent fresh evidence from this ship run. `IN PROGRESS`, `FAIL`, `BLOCKED`, `DEFERRED`, or missing AC rows block ship.
 
 ```
 Spec Gate (v[spec_version])
@@ -76,7 +76,7 @@ Override (skips spec gate only): /buildflow-ship --skip-spec
 
 **0c — Strict Mode Gate (if `strict_mode: true` in PREFERENCES.md OR phase was planned with `--strict`):**
 
-Read `.buildflow/phases/[N]/STRICT-REPORT.md`.
+Read `.buildflow/epics/[epic]/STRICT-REPORT.md`.
 If the file does not exist: "Run `/buildflow-check --strict` first — strict mode is enabled for this phase."
 If the file exists:
 
@@ -100,7 +100,7 @@ Code structure diverges from spec structure:
   [S3] src/auth/service.ts — logout() has no linked AC
   [S4] AC-004 — refreshToken() has no expiry check branch
 
-Fix violations listed in .buildflow/phases/[N]/STRICT-REPORT.md, then re-run:
+Fix violations listed in .buildflow/epics/[epic]/STRICT-REPORT.md, then re-run:
   /buildflow-check --strict
   /buildflow-ship
 
@@ -183,7 +183,7 @@ last_ship_test_count: [N passing tests]
 last_ship_date: [today]
 ```
 
-Update `.buildflow/phases/[N]/VERIFICATION.md` after Gate 2:
+Update `.buildflow/epics/[epic]/VERIFICATION.md` after Gate 2:
 - Mark every AC verified by ship gates as `PASS`.
 - If any gate fails, mark affected ACs as `FAIL` or `BLOCKED`.
 - Append full/regression test commands to `## Test Runs`.
@@ -315,7 +315,7 @@ pytest --cov=src --cov-report=term-missing 2>/dev/null
 go test ./... -cover 2>/dev/null
 ```
 
-Also check `.buildflow/phases/[N]/COVERAGE.md` (written by `/buildflow-check`):
+Also check `.buildflow/epics/[epic]/COVERAGE.md` (written by `/buildflow-check`):
 - If COVERAGE.md has a recorded exception decision (bugfix/incremental), inherit that decision — no re-prompt needed. Log inherited decision and proceed.
 
 | Coverage state | Action |
@@ -391,7 +391,7 @@ Ask:
 3. What did you learn?
 4. Confidence in deliverables (1-5)?
 
-Save to `.buildflow/phases/[N]/RETRO.md`
+Save to `.buildflow/epics/[epic]/RETRO.md`
 
 ---
 
@@ -399,7 +399,7 @@ Save to `.buildflow/phases/[N]/RETRO.md`
 
 After a successful ship, prune `MEMORY.md` to stay lean for the next phase:
 
-**Archive** these from `MEMORY.md` to `phases/[N]/RETRO.md`:
+**Archive** these from `MEMORY.md` to `epics/[epic]/RETRO.md`:
 - Phase-specific task lists
 - Wave completion details
 - Build timestamps
@@ -407,7 +407,7 @@ After a successful ship, prune `MEMORY.md` to stay lean for the next phase:
 
 **Keep** in `MEMORY.md`:
 - app_name, framework, language
-- current_phase (update to N+1 or "complete")
+- current_epic (update to N+1 or "complete")
 - spec_status (reset to "none" for next phase)
 - spec_version (reset to 0 — next phase starts fresh)
 - style_fingerprint
@@ -415,14 +415,14 @@ After a successful ship, prune `MEMORY.md` to stay lean for the next phase:
 - onboard_status
 
 **Never archive or delete:**
-- `.buildflow/phases/[N]/APPROVALS.md` — permanent audit trail, never pruned
-- `.buildflow/phases/[N]/PLAN.md` `## Deviations` section — permanent record
+- `.buildflow/epics/[epic]/APPROVALS.md` — permanent audit trail, never pruned
+- `.buildflow/epics/[epic]/PLAN.md` `## Deviations` section — permanent record
 
 **Target:** `MEMORY.md` must be under 3K tokens after pruning.
 
 Update `MEMORY.md`:
 ```yaml
-current_phase: [N+1 or complete]
+current_epic: [N+1 or complete]
 last_ship_date: [today]
 last_ship_spec_version: [N]   ← record what version shipped
 last_ship_coverage: [N]%      ← baseline for next phase coverage drop detection
@@ -436,7 +436,7 @@ context_pruned: [today]
 
 ## Step 4: Write Phase History (cross-phase continuity)
 
-Write `.buildflow/phases/[N]/SHIPPED.md` — a compact, permanent record future phases can load as context:
+Write `.buildflow/epics/[epic]/SHIPPED.md` — a compact, permanent record future phases can load as context:
 
 ```markdown
 # Phase [N] — Shipped [date]
@@ -514,7 +514,7 @@ This snapshot is the authoritative record of what was shipped — equivalent to 
 Your feature is built, tested, and all acceptance criteria are satisfied.
 
 Code snapshot:   .buildflow/snapshots/phase-[N]-shipped/
-Phase record:    .buildflow/phases/[N]/SHIPPED.md
+Phase record:    .buildflow/epics/[epic]/SHIPPED.md
 State:           .buildflow/STATE.md  (phase_[N]_status: shipped)
 
 To add version control at any time:
@@ -583,14 +583,14 @@ Your debt right now: [N items in DEBT.md] — consider a cleanup phase if > 5
 Suggested next: /buildflow-spec "[suggested phase name]"
 ```
 
-Save to `.buildflow/phases/[N]/SUGGESTIONS.md` (appends, doesn't overwrite).
+Save to `.buildflow/epics/[epic]/SUGGESTIONS.md` (appends, doesn't overwrite).
 
 ---
 
 ## Override Flags
-- `--skip-spec` — skips spec gate only. Logs to `phases/[N]/DEBT.md`: "Spec gate skipped — [reason]"
+- `--skip-spec` — skips spec gate only. Logs to `epics/[epic]/DEBT.md`: "Spec gate skipped — [reason]"
 - `--force` — skips security gate only. Requires typed confirmation. Logged with timestamp.
-- `--skip-telemetry` — skips Gate 3. Logs to `phases/[N]/DEBT.md`: "Build telemetry gate skipped — [reason]"
+- `--skip-telemetry` — skips Gate 3. Logs to `epics/[epic]/DEBT.md`: "Build telemetry gate skipped — [reason]"
 
 No flag skips the test gate (Gate 2) or type errors in Gate 3. Type safety and green tests are non-negotiable.
 
@@ -625,7 +625,7 @@ The post-ship advisor (Step 6b) already surfaced the top suggestion. Close with:
 ──────────────────────────────────────────────────
 → Next:  /buildflow-spec "[suggested phase name]"
    Why:  Phase [N] shipped ✓ — start defining what to build next
-   Context: Saved to .buildflow/phases/[N]/STATE.md. Recommended: run /clear, then run the next command.
+   Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 Session: ~[N]K tokens
 ```

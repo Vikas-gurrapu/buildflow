@@ -21,15 +21,15 @@ This command reverts BuildFlow planning/spec metadata first. It only reverts sou
 ## Scope
 
 Phase artifacts that can be reverted:
-- `.buildflow/phases/[N]/REQUIREMENTS.md`
-- `.buildflow/phases/[N]/DESIGN.md`
-- `.buildflow/phases/[N]/ACCEPTANCE.md`
-- `.buildflow/phases/[N]/PLAN.md`
-- `.buildflow/phases/[N]/VERIFICATION.md`
-- `.buildflow/phases/[N]/STATE.md`
-- `.buildflow/phases/[N]/COVERAGE.md`
+- `.buildflow/epics/[epic]/REQUIREMENTS.md`
+- `.buildflow/epics/[epic]/DESIGN.md`
+- `.buildflow/epics/[epic]/ACCEPTANCE.md`
+- `.buildflow/epics/[epic]/PLAN.md`
+- `.buildflow/epics/[epic]/VERIFICATION.md`
+- `.buildflow/epics/[epic]/STATE.md`
+- `.buildflow/epics/[epic]/COVERAGE.md`
 
-Do not delete `.buildflow/phases/[N]/APPROVALS.md`. Append a revert record there instead — it is the permanent audit trail.
+Do not delete `.buildflow/epics/[epic]/APPROVALS.md`. Append a revert record there instead — it is the permanent audit trail.
 Do not delete `SHIPPED.md` or `RETRO.md` unless `--all` and the user explicitly confirms completed history deletion.
 
 ## Step 1: Load Registry
@@ -37,7 +37,7 @@ Do not delete `SHIPPED.md` or `RETRO.md` unless `--all` and the user explicitly 
 Read:
 - `.buildflow/MEMORY.md`
 - `.buildflow/STATE.md`
-- `.buildflow/phases/*/STATE.md` (header only — phase number, status, last command)
+- `.buildflow/epics/*/STATE.md` (header only — phase number, status, last command)
 
 If `--list`:
 Print:
@@ -51,10 +51,10 @@ Then stop.
 ## Step 2: Resolve Target
 
 Resolve target in this order:
-1. `--all`: target all phase folders under `.buildflow/phases/*/`
+1. `--all`: target all phase folders under `.buildflow/epics/*/`
 2. `--phase <N>`: match the exact phase number
 3. `--last`: newest phase by `STATE.md` updated date; if unavailable, newest folder modified time
-4. default: current active phase from `MEMORY.md` (`current_phase`) or `STATE.md`
+4. default: current active phase from `MEMORY.md` (`current_epic`) or `STATE.md`
 5. if no current phase exists: last phase
 
 If no target matches, show known phases and stop.
@@ -105,7 +105,7 @@ Type: delete all buildflow phases
 ## Step 5: Revert BuildFlow Files
 
 For each selected target:
-1. Delete these phase markdown files from `.buildflow/phases/[N]/`:
+1. Delete these phase markdown files from `.buildflow/epics/[epic]/`:
    - `REQUIREMENTS.md`
    - `DESIGN.md`
    - `ACCEPTANCE.md`
@@ -114,7 +114,7 @@ For each selected target:
    - `STATE.md`
    - `COVERAGE.md`
 2. Do not delete: `APPROVALS.md`, `SHIPPED.md`, `RETRO.md` (unless `--all` with explicit confirmation).
-3. Append to `.buildflow/phases/[N]/APPROVALS.md`:
+3. Append to `.buildflow/epics/[epic]/APPROVALS.md`:
    ```
    ## Reverted — Phase [N] — [datetime]
    Reason: user requested /buildflow-revert [args]
@@ -139,7 +139,7 @@ If no-git mode:
 ## Step 7: Update State
 
 Update `.buildflow/MEMORY.md`:
-- Clear `current_phase`, `spec_status`, and `spec_version` if the reverted phase was current.
+- Clear `current_epic`, `spec_status`, and `spec_version` if the reverted phase was current.
 - Set `last_revert: [datetime] Phase [N]`.
 
 Update `.buildflow/STATE.md`:

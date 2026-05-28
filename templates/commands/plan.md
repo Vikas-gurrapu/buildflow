@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-plan
 description: Redirects to /buildflow-spec — wave planning is now part of the unified spec command
 allowed-tools: Read
@@ -20,7 +20,7 @@ agent: strategist
 This will:
 1. Generate and lock REQUIREMENTS.md, DESIGN.md, and ACCEPTANCE.md
 2. Auto-chain into wave planning: task derivation, dependency reasoning, effort estimation, wave grouping, file ownership map, AC coverage verification, engineering review
-3. Write PLAN.md and VERIFICATION.md to `.buildflow/phases/[N]/`
+3. Write PLAN.md and VERIFICATION.md to `.buildflow/epics/[epic]/`
 4. Guide you to `/buildflow-discuss` (optional) or `/buildflow-build`
 
 ## If you want to re-plan after a spec amendment
