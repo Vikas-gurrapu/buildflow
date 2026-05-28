@@ -318,42 +318,81 @@ Include the decision and reason taken in Step 4c.
 
 ---
 
-## Step 5b: Manual UAT Confirmation
+## Step 5b: Manual UAT Confirmation (one-by-one)
 
 Treat UAT as a manual confirmation step. Do not mark subjective user flows, UX behavior, business workflow correctness, copy/label expectations, or external integration behavior as fully UAT-passed from code inspection alone.
 
-Build a short use-case checklist from `ACCEPTANCE.md`, `PLAN.md`, and changed files:
+Build a use-case list from `ACCEPTANCE.md`, `PLAN.md`, and changed files. Then present them **one at a time** — the user tests each one and gives immediate pass/fail feedback before moving to the next.
+
+**Before starting:** print a brief header:
 ```
-Manual UAT needed
-─────────────────
-I can verify code/tests, but these use cases need user confirmation:
-
-1. [Use case name] — covers AC-[N], AC-[N]
-   What to check: [specific user action and expected visible result]
-2. [Use case name] — covers AC-[N]
-   What to check: [specific user action and expected visible result]
-3. [Use case name] — covers AC-[N]
-   What to check: [specific user action and expected visible result]
-
-Please test these and confirm:
-1. All pass
-2. Some fail — tell me which use case and what happened
-3. Skip UAT for now — record as pending before ship
+Manual UAT — [N] use cases to verify
+─────────────────────────────────────
+Test each case and respond with [P]ass, [F]ail, or [S]kip.
+You can fix failures inline before continuing.
 ```
 
-If the user confirms all pass:
-- Mark the related rows in `CHECK.md` as `PASS` only when automated evidence is also sufficient, otherwise `IN PROGRESS` with note `Manual UAT passed; automated evidence pending`.
-- Add a `## Test Runs` row with `Scope: Manual UAT`, `Command: user-confirmed`, `Result: PASS`, and covered ACs.
+**For each use case, show one at a time:**
+```
+──────────────────────────────────────────────────
+UAT [current] of [total]  ·  covers AC-[N], AC-[N]
 
-If the user reports failures:
-- Mark affected ACs as `FAIL` or `BLOCKED`.
-- Add the failure details to `Notes`.
-- Ship readiness is blocked until fixed.
+[Use case name]
+What to test: [specific user action and expected visible result]
 
-If the user skips UAT:
-- Mark affected ACs as `IN PROGRESS` or `DEFERRED`.
-- Add `Manual UAT pending` to `Notes`.
-- Do not claim full AC readiness. Ship can proceed only if `/buildflow-ship` explicitly accepts or resolves the pending UAT.
+  [P] Pass  — works as expected
+  [F] Fail  — something went wrong
+  [S] Skip  — test later (marks AC as DEFERRED)
+──────────────────────────────────────────────────
+```
+
+Wait for the user's response before showing the next use case.
+
+**On [P] Pass:**
+- Mark the related AC rows in `CHECK.md` as `PASS` (if automated evidence also supports) or `IN PROGRESS` with note `Manual UAT passed; automated evidence pending`.
+- Print: `✓ AC-[N] — passed. Moving to next...`
+- Show the next use case.
+
+**On [F] Fail:**
+- Ask what went wrong:
+  ```
+  What happened? (brief description):
+  ```
+- Record the failure description.
+- Mark affected ACs as `FAIL` or `BLOCKED` in `CHECK.md`. Add failure details to `Notes`.
+- Ask:
+  ```
+  ──────────────────────────────────────────────────
+  AC-[N] marked FAIL.
+
+    [X] Fix now  — pause UAT, I'll fix this, then continue
+    [C] Continue — move to next use case, fix later
+  ──────────────────────────────────────────────────
+  ```
+  - **[X] Fix now:** Pause UAT. Apply the fix (invoke debug/build logic as needed). After fix is applied, re-present the same use case for re-testing before continuing.
+  - **[C] Continue:** Record the failure, move to next use case. Ship will be blocked by this failure.
+
+**On [S] Skip:**
+- Mark related ACs as `DEFERRED` in `CHECK.md`. Add note: `Manual UAT skipped — pending before ship`.
+- Print: `─ AC-[N] — deferred. Moving to next...`
+- Show the next use case.
+
+**After all use cases are processed, print the UAT summary:**
+```
+UAT Summary
+───────────────────────────────
+  ✓ PASS     [N] use cases  (AC-001, AC-002, AC-005)
+  ✗ FAIL     [N] use cases  (AC-003)
+  ─ DEFERRED [N] use cases  (AC-004)
+
+Ship readiness: [READY / BLOCKED — fix AC-003 before shipping / CONDITIONAL — deferred UAT must be resolved at ship]
+```
+
+- All PASS → proceed to Step 6 normally.
+- Any FAIL → ship readiness is blocked. Note which ACs must be fixed.
+- Any DEFERRED → ship can proceed only if `/buildflow-ship` explicitly accepts the deferred UAT.
+
+Update `CHECK.md` after the full UAT run: add a `## Test Runs` row with `Scope: Manual UAT`, `Command: user-confirmed`, result per AC, and covered ACs.
 
 ---
 

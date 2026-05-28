@@ -49,12 +49,34 @@ mkdir -p .buildflow/codebase .buildflow/memory
 
 Check for prior state:
 - If `.buildflow/codebase/CODEBASE.md` already exists and `--update` is NOT passed: ask "Full re-onboard or incremental update?" — in non-interactive context, default to incremental.
-- If `--update`: identify changed files since last `drift_baseline.recorded_at` in `intel.json`, then re-run only affected steps:
-  - Any change to `locales/`, `i18n/`, `translations/`, `lang/`, `*.po`, `*.mo`, `*.arb`, `*.resx`, `*.properties`, `Localizable.strings`, `strings.xml` → re-run Step 9c and update `locale_support` in intel.json and PATTERNS.md
-  - Any change to route/screen/page/handler files → re-run Step 9a and update PATTERNS.md
-  - Any change to source files → re-run Steps 4–6 (import graph, load-bearing, risk scores)
-  - Any change to dependency files → re-run Step 8 and update CODEBASE.md, DEPENDENCIES.md
-  - Any structural change (new dirs, new entry points) → re-run Step 3 and update CODEBASE.md
+- If `--update`: identify changed files since last `drift_baseline.recorded_at` in `intel.json`, classify them into drift areas, then present a **multiselect** of affected areas. If `--paths` is also given, skip the multiselect and use those paths directly.
+
+  **Drift area classification:**
+
+  | Changed file type | Drift area | Steps to re-run |
+  |---|---|---|
+  | `locales/`, `i18n/`, `*.po/arb/resx/strings.xml` | `locale` | Step 9c → PATTERNS.md + intel.json |
+  | Route / screen / page / handler files | `routes` | Step 9a → PATTERNS.md |
+  | Source files (general) | `modules` | Steps 4–6 → import graph, load-bearing, risk |
+  | Dependency files (`package.json`, `go.mod`, etc.) | `dependencies` | Step 8 → CODEBASE.md, DEPENDENCIES.md |
+  | Structural change (new dirs, new entry points) | `structure` | Step 3 → CODEBASE.md |
+
+  **Multiselect prompt (shown when drift is detected):**
+  ```
+  Drift detected since last onboard ([date])
+  ──────────────────────────────────────────────────
+  Select areas to refresh (comma-separated, or "all"):
+
+    [1]  structure    — [N] new directories or entry points
+    [2]  modules      — [N] source files changed
+    [3]  dependencies — package manifest changed
+    [4]  routes       — [N] route/screen/page files changed
+    [5]  locale       — locale catalog or i18n files changed
+
+  Your selection (e.g. 1,3 or "all"):
+  ```
+
+  Re-run only the steps corresponding to the selected drift areas. If no drift is detected in any area, print "No drift detected since [date] — onboard data is current." and exit.
 - If `--query [term]`: search `.buildflow/codebase/*.md` and `intel.json` for the term, print matches, and exit without rewriting any files.
 - If `--paths [paths]`: validate paths are repo-relative, don't contain `..` or shell metacharacters, then restrict all scans to those paths.
 
