@@ -13,14 +13,14 @@ Finalize current phase. Three gates run before shipping: spec compliance, securi
 - `.buildflow/epics/[epic]/ACCEPTANCE.md`
 - `.buildflow/STATE.md`
 - `.buildflow/MEMORY.md`
-- `.buildflow/epics/[epic]/VERIFICATION.md`
+- `.buildflow/epics/[epic]/CHECK.md`
 - `.buildflow/epics/[epic]/STATE.md` (if exists - resume status, check result, risks, test strategy)
-- Changed file list only: git diff if `git.permission: approved`; otherwise completed wave file lists from `PLAN.md`
+- Changed file list only: git diff if `git.permission: approved`; otherwise completed wave file lists from `waves/wave-[N].md` files
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md`, `.buildflow/epics/[epic]/VERIFICATION.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md` (index), `.buildflow/epics/[epic]/CHECK.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
 
 Use `STATE.md` to confirm the latest build/check status, risks, skipped tests, and intended ship path. If it says `Status: shipped` and `SHIPPED.md` exists, summarize the shipped state and continue to the next-phase recommendation instead of re-shipping unless the user explicitly asks.
 
@@ -51,7 +51,7 @@ Override: /buildflow-ship --skip-spec (logs to DEBT.md)
 
 **0b — Full AC compliance:**
 Read `.buildflow/epics/[epic]/ACCEPTANCE.md`. Verify every AC is satisfied.
-Read `.buildflow/epics/[epic]/VERIFICATION.md` first and use it as the evidence ledger. Every AC must be `PASS` or have equivalent fresh evidence from this ship run. `IN PROGRESS`, `FAIL`, `BLOCKED`, `DEFERRED`, or missing AC rows block ship.
+Read `.buildflow/epics/[epic]/CHECK.md` first and use it as the evidence ledger. Every AC must be `PASS` or have equivalent fresh evidence from this ship run. `IN PROGRESS`, `FAIL`, `BLOCKED`, `DEFERRED`, or missing AC rows block ship.
 
 ```
 Spec Gate (v[spec_version])
@@ -96,7 +96,7 @@ Strict verdict: PASS / FAIL
 🔴 SHIP BLOCKED — Strict Mode Violations
 
 Code structure diverges from spec structure:
-  [S1] POST /api/login — response field "accessToken" != DESIGN.md contract "token"
+  [S1] POST /api/login — response field "accessToken" != SPEC.md contract "token"
   [S3] src/auth/service.ts — logout() has no linked AC
   [S4] AC-004 — refreshToken() has no expiry check branch
 
@@ -116,7 +116,7 @@ No override flag exists for strict violations. Strict mode means the spec is law
 Spawn Security Auditor in `--pre-ship` mode:
 - Scan changed files only:
   - **If `git.permission: approved`:** `git diff --name-only HEAD~1..HEAD -- src/`
-  - **If `git.permission` is not `approved`:** use file list from completed wave tasks in `PLAN.md` (same source as check.md)
+  - **If `git.permission` is not `approved`:** use file list from completed wave task files (`waves/wave-[N].md`) — same source as check.md
 - Check for secrets
 - Check critical injection patterns
 - Check auth bypass risks
@@ -183,7 +183,7 @@ last_ship_test_count: [N passing tests]
 last_ship_date: [today]
 ```
 
-Update `.buildflow/epics/[epic]/VERIFICATION.md` after Gate 2:
+Update `.buildflow/epics/[epic]/CHECK.md` after Gate 2:
 - Mark every AC verified by ship gates as `PASS`.
 - If any gate fails, mark affected ACs as `FAIL` or `BLOCKED`.
 - Append full/regression test commands to `## Test Runs`.
@@ -315,8 +315,8 @@ pytest --cov=src --cov-report=term-missing 2>/dev/null
 go test ./... -cover 2>/dev/null
 ```
 
-Also check `.buildflow/epics/[epic]/COVERAGE.md` (written by `/buildflow-check`):
-- If COVERAGE.md has a recorded exception decision (bugfix/incremental), inherit that decision — no re-prompt needed. Log inherited decision and proceed.
+Also check `.buildflow/epics/[epic]/CHECK.md` (written by `/buildflow-check`):
+- If CHECK.md has a recorded exception decision (bugfix/incremental), inherit that decision — no re-prompt needed. Log inherited decision and proceed.
 
 | Coverage state | Action |
 |----------------|--------|

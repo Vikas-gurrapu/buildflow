@@ -17,26 +17,27 @@ Quality and spec-compliance verification. Four parallel Reviewers check code cor
 
 ## Context Packet (load only these)
 - `.buildflow/epics/[epic]/ACCEPTANCE.md` — the source of truth for what must be true
-- `.buildflow/epics/[epic]/PLAN.md` — what was supposed to be built
-- `.buildflow/epics/[epic]/VERIFICATION.md` - AC verification ledger from plan/build
+- `.buildflow/epics/[epic]/PLAN.md` (index) — what was supposed to be built
+- `.buildflow/epics/[epic]/waves/wave-[N].md` (relevant wave file(s)) — task details
+- `.buildflow/epics/[epic]/CHECK.md` — AC coverage map + verification ledger
 - Changed files — detected as follows:
   - **If `git.permission: approved`:** `git diff --name-only HEAD~[wave-count]..HEAD -- src/`
-  - **If `git.permission` is not `approved`:** read the file list from wave completion records in `PLAN.md` (the `Files to create/modify` field per completed task) — this is the authoritative list of what changed
+  - **If `git.permission` is not `approved`:** read the file list from wave files for completed tasks — this is the authoritative list of what changed
 - `.buildflow/codebase/PATTERNS.md` (if exists)
-- `.buildflow/codebase/STRUCTURE.md` (if exists — structural drift and expected paths)
+- `.buildflow/codebase/CODEBASE.md` (if exists — structural drift and expected paths)
 - `.buildflow/codebase/TESTING.md` (if exists — expected test commands/layout)
-- `.buildflow/codebase/CONCERNS.md` (if exists — known fragile areas)
-- `.buildflow/codebase/INTEGRATIONS.md` (if exists — env/webhook/external service contracts)
+- `.buildflow/codebase/RISKS.md` (if exists — known fragile areas)
+- `.buildflow/codebase/DEPENDENCIES.md` (if exists — env/webhook/external service contracts)
 
-Do NOT load: REQUIREMENTS.md, old phases, research files, retros.
-Load DESIGN.md only when running `--strict`.
+Do NOT load: old phases, research files, retros.
+Load SPEC.md only when running `--strict`.
 
 Also load `.buildflow/epics/[epic]/STATE.md` if it exists. Use it to resume status, risks, and test strategy.
 
 ---
 
 ## Phase State Resume
-Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md`, `.buildflow/epics/[epic]/VERIFICATION.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
+Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md` (index), relevant wave files, `.buildflow/epics/[epic]/CHECK.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
 
 Use `STATE.md` to understand what build completed, what tests were already run, and which risks/skips need verification. If it says `Status: check_passed` and current inputs have not changed, continue to the guided next step instead of repeating checks unless the user asks.
 
@@ -53,16 +54,16 @@ Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 ## Step 1: Load Acceptance Criteria
 Read every AC from `.buildflow/epics/[epic]/ACCEPTANCE.md`.
 This is the primary verification target — all other checks are secondary.
-Read `.buildflow/epics/[epic]/VERIFICATION.md` and compare its AC list/statuses against `ACCEPTANCE.md`.
+Read `.buildflow/epics/[epic]/CHECK.md` and compare its AC list/statuses against `ACCEPTANCE.md`.
 
-If `VERIFICATION.md` is missing or stale:
+If `CHECK.md` is missing or stale:
 - Recreate or refresh it from `ACCEPTANCE.md` before checking.
 - Preserve existing test run evidence when AC IDs still match.
 - Mark new/changed ACs as `NOT STARTED`.
 
 ## Step 1b: Scope-Reduction Detection
 
-Cross-check `ACCEPTANCE.md` against `PLAN.md` and `VERIFICATION.md` for silent requirement drops.
+Cross-check `ACCEPTANCE.md` against `PLAN.md` and `CHECK.md` for silent requirement drops.
 
 **Check 1 — Plan coverage:** ACs in `ACCEPTANCE.md` with no task in `PLAN.md`:
 ```bash
@@ -73,10 +74,10 @@ grep -oE "AC-[0-9]+" .buildflow/epics/[epic]/PLAN.md | grep -v "AC-NF" | sort -u
 comm -23 <(sort /tmp/bf_acs_spec.txt) <(sort /tmp/bf_acs_plan.txt)
 ```
 
-**Check 2 — Execution coverage:** ACs in `ACCEPTANCE.md` with no row in `VERIFICATION.md`:
+**Check 2 — Execution coverage:** ACs in `ACCEPTANCE.md` with no row in `CHECK.md`:
 ```bash
-# List VERIFICATION.md AC rows
-grep -oE "AC-NF-[0-9]+|AC-[0-9]+" .buildflow/epics/[epic]/VERIFICATION.md | sort -u
+# List CHECK.md AC rows
+grep -oE "AC-NF-[0-9]+|AC-[0-9]+" .buildflow/epics/[epic]/CHECK.md | sort -u
 # Find any not tracked at all
 ```
 
@@ -86,11 +87,11 @@ Scope-Reduction Check
 ──────────────────────
 ACs in ACCEPTANCE.md:     [N]
 ACs in plan:              [M]   (dropped from plan: [list or NONE])
-ACs in VERIFICATION.md:   [K]   (not tracked in execution: [list or NONE])
+ACs in CHECK.md:   [K]   (not tracked in execution: [list or NONE])
 ```
 
 - **Dropped from plan:** Means the plan was written without covering these requirements. Surface as FAIL in Step 6 regardless of other reviewer findings.
-- **Not tracked in VERIFICATION.md:** Means execution never attempted to satisfy these ACs. Mark those rows as `NOT STARTED` in VERIFICATION.md immediately, then include them in Reviewer A's check.
+- **Not tracked in CHECK.md:** Means execution never attempted to satisfy these ACs. Mark those rows as `NOT STARTED` in CHECK.md immediately, then include them in Reviewer A's check.
 - **0 issues in both checks:** Silent — proceed.
 
 ---
@@ -119,15 +120,15 @@ AC-NF-001 ⚠ PARTIAL — [what works, what doesn't]
 - Is the code readable?
 - Are there unnecessary duplications?
 - Does it match `.buildflow/codebase/PATTERNS.md`?
-- Does it fit the paths/modules documented in `.buildflow/codebase/STRUCTURE.md`?
-- Does it avoid known fragile areas or include guards from `.buildflow/codebase/CONCERNS.md`?
+- Does it fit the paths/modules documented in `.buildflow/codebase/CODEBASE.md`?
+- Does it avoid known fragile areas or include guards from `.buildflow/codebase/RISKS.md`?
 - Are functions appropriately sized?
 
 **Reviewer D — Security:**
 - No hardcoded secrets?
 - No obvious injection risks?
 - No sensitive data in logs?
-- External service/env/webhook changes match `.buildflow/codebase/INTEGRATIONS.md` or include map-update notes.
+- External service/env/webhook changes match `.buildflow/codebase/DEPENDENCIES.md` or include map-update notes.
 - Relevant ACs for auth/security satisfied?
 
 ## Step 3: Schema Drift Detection
@@ -192,11 +193,11 @@ If any drift detected: **BLOCK ship readiness.** "Schema drift found — resolve
 
 ## Step 3b: Codebase Map Drift Detection
 
-If `.buildflow/codebase/STRUCTURE.md` exists, classify changed files against the last mapped structure:
+If `.buildflow/codebase/CODEBASE.md` exists, classify changed files against the last mapped structure:
 
 | Category | Trigger |
 |----------|---------|
-| `new_dir` | new directory/path not represented in `STRUCTURE.md` |
+| `new_dir` | new directory/path not represented in `CODEBASE.md` |
 | `route` | new route/API/page/screen file |
 | `migration` | schema/migration file |
 | `barrel` | new `index.ts/js` public export |
@@ -234,8 +235,8 @@ Get files changed this phase:
 ```bash
 # If git.permission is approved:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/ 2>/dev/null
-# If git.permission is not approved: read from PLAN.md task "Files to create/modify" fields (all completed tasks)
-grep -A2 "Files to create/modify:" .buildflow/epics/[epic]/PLAN.md 2>/dev/null
+# If git.permission is not approved: read from wave files task "Files to create/modify" fields (all completed tasks)
+grep -A2 "Files to create/modify:" .buildflow/epics/[epic]/waves/*.md 2>/dev/null
 
 # For each changed file, check if any test file imports it
 grep -rn "[filename without ext]" --include="*.test.*" --include="*.spec.*" src/ tests/ 2>/dev/null
@@ -294,7 +295,7 @@ Proceed. No block.
 
 **On [N] — new coverage exception:**
 Ask: "Which files are part of the coverage build-up?" 
-Mark those files as `ACCEPTABLE — coverage in progress` in COVERAGE.md.
+Mark those files as `ACCEPTABLE — coverage in progress` in CHECK.md.
 Log: "Coverage below threshold [N]% — accepted: incremental coverage build-up for [files] [date]."
 Proceed. No block.
 
@@ -305,7 +306,7 @@ Pause check. User defines ACs, then re-run `/buildflow-check acceptance`.
 Log to DEBT.md: "Coverage below threshold [N]% — accepted: developer decision [date]. Address in future phase."
 Proceed. No block.
 
-Write the coverage map to `.buildflow/epics/[epic]/COVERAGE.md` for the ship gate to read.
+Write the coverage map to `.buildflow/epics/[epic]/CHECK.md` for the ship gate to read.
 Include the decision and reason taken in Step 4c.
 
 ---
@@ -341,7 +342,7 @@ Please test these and confirm:
 ```
 
 If the user confirms all pass:
-- Mark the related rows in `VERIFICATION.md` as `PASS` only when automated evidence is also sufficient, otherwise `IN PROGRESS` with note `Manual UAT passed; automated evidence pending`.
+- Mark the related rows in `CHECK.md` as `PASS` only when automated evidence is also sufficient, otherwise `IN PROGRESS` with note `Manual UAT passed; automated evidence pending`.
 - Add a `## Test Runs` row with `Scope: Manual UAT`, `Command: user-confirmed`, `Result: PASS`, and covered ACs.
 
 If the user reports failures:
@@ -384,14 +385,14 @@ If not set, use the default list above. Any file whose path matches one of these
 
 ### S1: Technical Design API Contract Verification
 
-Read the API Contracts table from `DESIGN.md`. For each contract row:
+Read the API Contracts table from `SPEC.md`. For each contract row:
 
 1. Locate the handler/function in the codebase:
    ```bash
    grep -rn "router\.\(post\|get\|put\|patch\|delete\)\|app\.\(post\|get\|put\|patch\|delete\)\|@\(Post\|Get\|Put\|Patch\|Delete\)\|def [a-z_]*:" src/ --include="*.ts" --include="*.js" --include="*.py" --include="*.go" --include="*.rb" | grep -i "[path-fragment]"
    ```
 2. Verify **request shape field names** match exactly — not just "a body exists":
-   - Extract field names from DESIGN.md contract row
+   - Extract field names from SPEC.md contract row
    - Grep handler for each field name
    - Flag any field that is absent or renamed
 3. Verify **response shape field names** match exactly:
@@ -405,7 +406,7 @@ Report per contract:
 ```
 S1: API Contract Verification
 ──────────────────────────────
-POST /api/login  [DESIGN.md row 1]
+POST /api/login  [SPEC.md row 1]
   Request fields: { email, password }
     ✓ email    — found at src/auth/handler.ts:14
     ✓ password — found at src/auth/handler.ts:14
@@ -428,7 +429,7 @@ POST /api/login  [DESIGN.md row 1]
 
 ### S2: Component Map Verification
 
-Read the Component Map table from `DESIGN.md`. For each row:
+Read the Component Map table from `SPEC.md`. For each row:
 
 1. **Existence check** — verify the file/module the component maps to exists:
    ```bash
@@ -440,11 +441,11 @@ Read the Component Map table from `DESIGN.md`. For each row:
    ```
 3. **Requirements linkage** — every component must be linked to at least one feature (F-XX). If `Interface Type` column is populated, verify the interface type matches actual implementation (REST route vs gRPC stub vs event handler vs plain function).
 
-Reverse check — for each file **created or modified this phase**, verify it appears in the DESIGN.md Component Map:
+Reverse check — for each file **created or modified this phase**, verify it appears in the SPEC.md Component Map:
 ```bash
 # git.permission approved:
 git diff --name-only HEAD~[wave-count]..HEAD -- src/
-# git.permission not approved: read from PLAN.md task "Files to create/modify" fields
+# git.permission not approved: read from wave files task "Files to create/modify" fields
 ```
 
 Report:
@@ -455,11 +456,11 @@ AuthService      → src/auth/service.ts     ✓ exists  ✓ isolated  ✓ linke
 UserRepository   → src/users/repo.ts       ✓ exists  ✓ isolated  ✓ linked F-01
 LoginRoute       → src/routes/auth.ts      ✓ exists  ⚠ imports AuthService + DB directly (verify: intentional?)
 
-Ghost components  (in code this phase, not in DESIGN.md Component Map):
+Ghost components  (in code this phase, not in SPEC.md Component Map):
   src/utils/tokenHelper.ts  — ✗ not mapped
-    → Add to DESIGN.md Component Map or mark ACCEPTABLE-UTILITY
+    → Add to SPEC.md Component Map or mark ACCEPTABLE-UTILITY
 
-Orphaned components  (in DESIGN.md, not found in code):
+Orphaned components  (in SPEC.md, not found in code):
   NONE
 ```
 
@@ -601,7 +602,7 @@ Manual UAT readiness:
 - If manual UAT is pending, say: "Manual UAT is pending. Ask the user to test the listed use cases or record an explicit skip before ship."
 - If manual UAT failed, block ship and point to the failed use case and affected ACs.
 
-Before exiting, update `.buildflow/epics/[epic]/VERIFICATION.md`:
+Before exiting, update `.buildflow/epics/[epic]/CHECK.md`:
 - For each AC checked, set `PASS`, `FAIL`, `BLOCKED`, `DEFERRED`, or `IN PROGRESS`.
 - Add reviewer evidence and command output summaries to `Test/Evidence` or `Notes`.
 - Add manual UAT confirmation, failure, or pending notes for user-confirmed use cases.
@@ -643,4 +644,4 @@ If schema drift detected: `→ Next: resolve schema drift (run pending migration
 If spec coverage below threshold and no exception recorded: the smart prompt in Step 4c already captured user decision — next step is whatever was chosen.
 If strict mode FAIL: `→ Next: fix strict violations listed in STRICT-REPORT.md, then re-run /buildflow-check --strict`.
 
-## Token Budget: ~26K standard / ~38K with --strict (adds DESIGN.md + symbol grep + branch analysis)
+## Token Budget: ~26K standard / ~38K with --strict (adds SPEC.md + symbol grep + branch analysis)

@@ -19,14 +19,20 @@ Only load the current epic `STATE.md`, not full epic specs/plans/reports.
 Do NOT load: specs, epics, codebase files — this is vision only.
 
 ## Step 1: Load Memory
-Read `.buildflow/MEMORY.md` and `.buildflow/PREFERENCES.md`.
+Read `.buildflow/MEMORY.md`, `.buildflow/PREFERENCES.md`, and `.buildflow/STATE.md`.
 If `MEMORY.md` is over 3K tokens: prune it now (see pruning rules below).
+
+**Paused epics check:** If `paused_epics` is non-empty in `STATE.md`, show:
+```
+Note: You have [N] paused epic(s): [slugs]. Use /buildflow-switch-epic to resume one instead of starting new.
+```
+Proceed if user confirms they want a new epic.
 
 ## Step 1b: Codebase Drift Detection (runs if onboard_status: yes)
 
 If `intel.json` exists at `.buildflow/codebase/intel.json`, run a fast drift check against the recorded baseline. This takes seconds and catches silent codebase changes between sessions.
 
-Also read `.buildflow/codebase/STRUCTURE.md` frontmatter if present. Prefer `last_mapped_commit` from `STRUCTURE.md` for structural drift; fall back to `intel.json.drift_baseline.last_mapped_commit` or `onboarded_at`.
+Also read `.buildflow/codebase/CODEBASE.md` frontmatter if present. Prefer `last_mapped_commit` from `CODEBASE.md` for structural drift; fall back to `intel.json.drift_baseline.last_mapped_commit` or `onboarded_at`.
 
 **Drift checks:**
 
@@ -105,9 +111,9 @@ Ask vision questions one at a time:
 6. Confidence in the idea (1-5)?
 
 **Existing codebase (src/ exists):**
-Check if `.buildflow/codebase/MAP.md` exists.
+Check if `.buildflow/codebase/CODEBASE.md` exists.
 - If NO: "Run `/buildflow-onboard` first to analyze your codebase."
-- If YES: Load MAP.md summary only (not full file). Ask about goals for this session.
+- If YES: Load CODEBASE.md summary only (not full file). Ask about goals for this session.
 
 ## Step 3: Save Vision
 Use the **Write tool** to create `.buildflow/VISION.md` — do not just output the content as text, write it to disk.

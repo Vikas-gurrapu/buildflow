@@ -18,16 +18,11 @@ Works for features and bugfixes equally.
 - `/buildflow-modify --dry-run "Rename getUserById to fetchUserById"`
 
 ## Context Packet
-- `.buildflow/codebase/MAP.md`
-- `.buildflow/codebase/STACK.md`
-- `.buildflow/codebase/STRUCTURE.md`
-- `.buildflow/codebase/INTEGRATIONS.md`
+- `.buildflow/codebase/CODEBASE.md`
+- `.buildflow/codebase/DEPENDENCIES.md` (external integrations, import dependency graph — essential for impact analysis)
 - `.buildflow/codebase/TESTING.md`
-- `.buildflow/codebase/CONCERNS.md`
-- `.buildflow/codebase/GRAPH.md` (import dependency graph — essential for impact analysis)
-- `.buildflow/codebase/HOTSPOTS.md`
-- `.buildflow/codebase/PATTERNS.md`
-- `.buildflow/codebase/FEATURES.md` (existing capabilities, local support, locale support, feature ownership)
+- `.buildflow/codebase/RISKS.md`
+- `.buildflow/codebase/PATTERNS.md` (code conventions + feature inventory: existing capabilities, local support, locale support)
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support`
 - Target file(s) if named in command
 
@@ -67,18 +62,17 @@ Also read `features[]`, `local_support`, and `locale_support` if present:
 - Add those capabilities to the impact summary so the change preserves them deliberately.
 
 Also read focused map docs if present:
-- `STRUCTURE.md`: confirm target path belongs to a known module or flag structural drift if adding a new directory/route/barrel.
-- `STACK.md`: check dependency/runtime compatibility before adding imports or packages.
-- `INTEGRATIONS.md`: detect env/webhook/external service contracts touched by the change.
+- `CODEBASE.md`: confirm target path belongs to a known module or flag structural drift if adding a new directory/route/barrel; check dependency/runtime compatibility before adding imports or packages.
+- `DEPENDENCIES.md`: detect env/webhook/external service contracts touched by the change.
 - `TESTING.md`: choose the targeted test command and test file location.
-- `CONCERNS.md`: flag known fragile areas before editing.
+- `RISKS.md`: flag known fragile areas before editing.
 
 **If `symbol_callers` exists in intel.json** (onboarded with GAP-H symbol tracking):
 - Identify the **specific functions/methods** being changed (from Step 1)
 - Look up each changed symbol in `symbol_callers` to get the exact files AND LINE NUMBERS that call it
 - This gives a precise caller list — not "all files that import this module" but "all lines that call this function"
 
-**If intel.json predates symbol tracking** (no `symbol_callers` key): fall back to file-level impact using `GRAPH.md` fan-in/fan-out (2b).
+**If intel.json predates symbol tracking** (no `symbol_callers` key): fall back to file-level impact using `DEPENDENCIES.md` import graph / fan-in/fan-out (2b).
 
 ### 2b: Trace Full Impact Chain
 
@@ -113,12 +107,12 @@ Level 3 — Entry point:
 ```
 
 For each affected file, annotate:
-- **Risk score** (from HOTSPOTS.md, or calculate: fan-in + size + test coverage)
+- **Risk score** (from RISKS.md, or calculate: fan-in + size + test coverage)
 - **Test coverage**: does a test file cover this file?
 - **Contract sensitivity**: does this file export a public API? If yes, callers may break.
 - **Module boundary**: does this change cross a module boundary?
 - **Structural drift**: does this add a new directory, route, migration, barrel export, dependency, integration, test convention, or locale/copy asset not represented in codebase maps?
-- **Feature ownership**: which `FEATURES.md` capability or `intel.json.features[]` entry this file supports, if any.
+- **Feature ownership**: which `PATTERNS.md` (feature inventory) capability or `intel.json.features[]` entry this file supports, if any.
 - **Local-support sensitivity**: whether this affects local run/dev workflows, local config, mocks, seed data, fixtures, compose/devcontainer files, or documented setup.
 - **Locale-support sensitivity**: whether this affects locale JSON catalogs, static labels/copy, localized docs, message keys, i18n imports/loaders/providers, route prefixes, language switchers, or fallback/default locale behavior.
 

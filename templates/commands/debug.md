@@ -24,8 +24,24 @@ Before reading or writing any source file, apply the installed **Folder Access G
 ## Epic Resolution (resolve target folder before any file write)
 
 Read `.buildflow/STATE.md`:
-- If `current_epic` is set → debug record goes to `.buildflow/epics/[current_epic]/debug/`
-- If `current_epic` is absent, empty, or `none` → debug record goes to `.buildflow/debug/`
+- If `current_epic` is absent, empty, or `none` → auto-assign to `.buildflow/debug/` (no prompt needed)
+- If `current_epic` is set → ask once:
+
+  ```
+  ──────────────────────────────────────────────────
+  Active epic: [current_epic] — "[epic name]"
+
+  Is this debug session part of the active epic?
+    [E] Yes — file under epics/[current_epic]/debug/
+    [I] No  — independent fix, file under debug/
+  ──────────────────────────────────────────────────
+  ```
+
+  - **[E]:** store at `.buildflow/epics/[current_epic]/debug/DEBUG-[seq].md`
+  - **[I]:** store at `.buildflow/debug/DEBUG-[seq].md` — note at the top of the record:
+    ```yaml
+    epic: none   # independent fix — not part of active epic [current_epic]
+    ```
 
 When recording outside any active epic, note at the top of the DEBUG record:
 ```yaml
@@ -176,7 +192,7 @@ Targeted tests passed. Run full app-level test suite?
 
 ## Step 8: Prevent Recurrence
 - Add a test that would have caught this bug
-- Note the fix in `.buildflow/epics/[epic]/DECISIONS.md` if it reveals a systemic issue
+- Note the fix in `.buildflow/epics/[epic]/CONTEXT.md` if it reveals a systemic issue
 
 ## Step 9: Save Debug Record
 

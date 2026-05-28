@@ -23,7 +23,7 @@ Before reading or writing any source file, apply the installed **Folder Access G
 ---
 
 ## Step 1: Load Context
-Read `.buildflow/codebase/MAP.md`, `PATTERNS.md`, `HOTSPOTS.md`.
+Read `.buildflow/codebase/CODEBASE.md`, `PATTERNS.md`, `RISKS.md`.
 
 ## Step 2: Define Refactor Goal
 Clarify what kind of improvement:

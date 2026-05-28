@@ -18,8 +18,8 @@ Generates `.buildflow/epics/[epic]/UI-SPEC.md` — a locked design contract that
 ## Context Packet
 - `.buildflow/VISION.md`
 - `.buildflow/MEMORY.md`
-- `.buildflow/epics/[epic]/REQUIREMENTS.md` (if exists)
-- `.buildflow/codebase/STACK.md` (if exists — detect CSS framework)
+- `.buildflow/epics/[epic]/SPEC.md` (if exists)
+- `.buildflow/codebase/CODEBASE.md` (if exists — detect CSS framework)
 - `package.json` (detect: Tailwind, MUI, Chakra, Radix, shadcn, etc.)
 
 ---
@@ -131,7 +131,7 @@ Primary target: [mobile / desktop / both equally]
 
 ## Step 6: Component Inventory
 
-List every UI component needed for this phase (from REQUIREMENTS.md or the user's description):
+List every UI component needed for this phase (from SPEC.md requirements section or the user's description):
 
 ```
 Component Inventory

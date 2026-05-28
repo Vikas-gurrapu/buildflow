@@ -15,26 +15,22 @@ Run after `/buildflow-start-epic`. After this completes, run `/buildflow-discuss
 - `/buildflow-spec` — full spec + wave plan from vision
 - `/buildflow-spec --fast` — minimal spec + plan for small features (single screen / endpoint)
 - `/buildflow-spec --review` — critique existing spec without regenerating
-- `/buildflow-spec --update` — apply locked decisions from DECISIONS.md to existing spec and plan (called automatically by `/buildflow-discuss`)
-- `/buildflow-spec --strict` — mark this phase as strict mode: every task must trace to a DESIGN.md component or API contract; `/buildflow-check --strict` mandatory before ship
+- `/buildflow-spec --update` — apply locked decisions from CONTEXT.md to existing spec and plan (called automatically by `/buildflow-discuss`)
+- `/buildflow-spec --strict` — mark this phase as strict mode: every task must trace to a SPEC.md component or API contract; `/buildflow-check --strict` mandatory before ship
 - `/buildflow-spec --scaffold-first` — Wave 0 creates all file stubs before implementation begins
 
 ## Context Packet
 - `.buildflow/VISION.md`
 - `.buildflow/epics/[epic]/STATE.md` (if current epic exists — resume status, decisions, risks, next command)
-- `.buildflow/codebase/STACK.md` (if exists — runtime, frameworks, critical dependencies)
-- `.buildflow/codebase/STRUCTURE.md` (if exists — physical layout and entry points)
-- `.buildflow/codebase/INTEGRATIONS.md` (if exists — external services, env contracts, webhooks)
+- `.buildflow/codebase/CODEBASE.md` (if exists — runtime, frameworks, physical layout, entry points)
+- `.buildflow/codebase/DEPENDENCIES.md` (if exists — external services, env contracts, webhooks, dependency chain)
 - `.buildflow/codebase/TESTING.md` (if exists — test framework and validation patterns)
-- `.buildflow/codebase/CONCERNS.md` (if exists — risks, debt, blind spots)
-- `.buildflow/codebase/PATTERNS.md` (if exists — align spec with existing architecture)
-- `.buildflow/codebase/FEATURES.md` (if exists — existing capability inventory)
-- `.buildflow/codebase/MAP.md` (if exists)
-- `.buildflow/codebase/GRAPH.md` (if exists — for dependency chain reasoning)
+- `.buildflow/codebase/RISKS.md` (if exists — risks, debt, blind spots)
+- `.buildflow/codebase/PATTERNS.md` (if exists — align spec with existing architecture, feature inventory)
 - `.buildflow/codebase/intel.json` fields `features[]`, `local_support`, and `locale_support` (if exists)
 - `.buildflow/MEMORY.md` (app_name, framework, current_epic only)
-- `.buildflow/epics/[epic]/REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, `PLAN.md` (if regenerating or updating)
-- `.buildflow/epics/[epic]/DECISIONS.md` (if exists — carry locked decisions as spec constraints)
+- `.buildflow/epics/[epic]/SPEC.md`, `ACCEPTANCE.md`, `PLAN.md` (if regenerating or updating)
+- `.buildflow/epics/[epic]/CONTEXT.md` (if exists — carry locked decisions as spec constraints)
 
 ---
 
@@ -46,7 +42,7 @@ Use `STATE.md` to avoid making the user restate prior research, decisions, risks
 Before exiting, create or update `.buildflow/epics/[epic]/STATE.md` with:
 - Current State: `Status: plan_ready` when both spec and plan are complete
 - Decisions: major product/technical decisions from REQUIREMENTS/DESIGN
-- Files That Matter: `REQUIREMENTS.md`, `DESIGN.md`, `ACCEPTANCE.md`, `PLAN.md`, `VERIFICATION.md`
+- Files That Matter: `SPEC.md`, `ACCEPTANCE.md`, `PLAN.md`, `CHECK.md`
 - Next Command: `/buildflow-discuss` (optional) or `/buildflow-build`
 - Risks / Open Questions: known risks plus unresolved spec questions
 - Test Strategy: acceptance criteria verification approach and constraints from `TESTING.md`
@@ -59,22 +55,21 @@ Before exiting, create or update `.buildflow/epics/[epic]/STATE.md` with:
 Read `.buildflow/VISION.md`.
 If empty: "Run `/buildflow-start-epic` first."
 
-If `PATTERNS.md` exists: note the existing architectural style. DESIGN.md must align — don't invent new patterns unless explicitly asked.
+If `PATTERNS.md` exists: note the existing architectural style. SPEC.md must align — don't invent new patterns unless explicitly asked.
 
 If focused codebase maps exist:
-- Use `STACK.md` to constrain runtime/framework/dependency choices.
-- Use `STRUCTURE.md` to avoid inventing paths or layers that conflict with the repo layout.
-- Use `INTEGRATIONS.md` to preserve external service/env/webhook contracts.
+- Use `CODEBASE.md` to constrain runtime/framework/dependency choices and avoid conflicting paths or layers.
+- Use `DEPENDENCIES.md` to preserve external service/env/webhook contracts.
 - Use `TESTING.md` to make acceptance criteria verifiable with existing test conventions.
-- Use `CONCERNS.md` to surface known risks and blind spots as constraints.
+- Use `RISKS.md` to surface known risks and blind spots as constraints.
 
-If `FEATURES.md` or `intel.json.features[]` exists:
+If `PATTERNS.md` (feature inventory section) or `intel.json.features[]` exists:
 - List existing implemented/partial/docs-only capabilities before writing scope.
 - Treat implemented features as existing system constraints, not new scope.
 - Preserve `local_support` and `locale_support` unless explicitly asked to remove.
 - If the phase touches locale support, add explicit ACs for default locale, fallback behavior, catalog sync, and localized docs.
 
-If `DECISIONS.md` exists: treat all locked entries as firm constraints — do not contradict or re-open them.
+If `CONTEXT.md` exists: treat all locked decision entries as firm constraints — do not contradict or re-open them.
 
 ---
 
@@ -82,7 +77,7 @@ If `DECISIONS.md` exists: treat all locked entries as firm constraints — do no
 If `.buildflow/epics/*/SHIPPED.md` files exist, load the last 2. Extract:
 - Already-shipped features → exclude from this spec's scope
 - Open debt from prior epics → surface as constraints
-- Prior architecture decisions → DESIGN.md must not contradict them
+- Prior architecture decisions → SPEC.md must not contradict them
 
 Print: "Prior epics: [N]. Already shipped: [brief list]. Open debt: [N items]."
 If no history: skip silently.
@@ -103,7 +98,7 @@ Create an internal queue of up to 5 clarification topics, ordered by spec risk:
 4. Third-party integrations or external dependencies
 5. If `--fast`: the single feature boundary in one sentence
 
-Skip any topic already answered clearly by existing context or DECISIONS.md.
+Skip any topic already answered clearly by existing context or CONTEXT.md.
 
 ### 2b — Ask One Question at a Time
 For each remaining topic, ask exactly one question and wait for the user's answer before asking the next.
@@ -163,11 +158,13 @@ Set `[epic]` to this value for all file paths in the steps below. Update `STATE.
 
 ---
 
-## Step 3: Generate REQUIREMENTS.md
-Use the **Write tool** to create `.buildflow/epics/[epic]/REQUIREMENTS.md`. Do not output the content as text — write it to disk.
+## Step 3: Generate SPEC.md — Requirements Section
+Use the **Write tool** to create `.buildflow/epics/[epic]/SPEC.md`. Do not output the content as text — write it to disk. The file has two parts: Part 1 (Requirements) written here, Part 2 (Technical Design) written in Step 4.
 
 ```markdown
-# Product Requirements Document
+# Spec
+
+## Part 1: Product Requirements
 **App:** [name]  **Phase:** [N]  **Date:** [today]  **Status:** DRAFT
 
 ## Problem Statement
@@ -205,13 +202,13 @@ Use the **Write tool** to create `.buildflow/epics/[epic]/REQUIREMENTS.md`. Do n
 
 ---
 
-## Step 4: Generate DESIGN.md
-Use the **Write tool** to create `.buildflow/epics/[epic]/DESIGN.md`. Do not output the content as text — write it to disk.
+## Step 4: Generate SPEC.md — Technical Design Section
+Use the **Write tool** to append the Technical Design section to `.buildflow/epics/[epic]/SPEC.md`. Do not output the content as text — write it to disk.
 
 If `PATTERNS.md` exists: components and API shapes must follow existing conventions.
 
 ```markdown
-# Technical Design Document
+## Part 2: Technical Design
 **App:** [name]  **Phase:** [N]  **Date:** [today]  **Status:** DRAFT
 
 ## Architecture Overview
@@ -318,18 +315,18 @@ Search every AC for these banned words. Flag any found:
 For each flagged word: replace with a specific, measurable alternative or mark `[NEEDS SPECIFICITY]`.
 
 ### Coverage Check
-- Every feature in REQUIREMENTS.md has at least 2 ACs (1 happy + 1 error/edge) — flag if not
+- Every feature in SPEC.md (requirements section) has at least 2 ACs (1 happy + 1 error/edge) — flag if not
 - Every user story US-XX is referenced in at least one AC's feature section — flag orphans
-- Every component in DESIGN.md maps to at least one REQUIREMENTS.md feature — flag orphans
-- Every NFR in DESIGN.md has a corresponding AC-NF — flag gaps
+- Every component in SPEC.md (technical design section) maps to at least one feature — flag orphans
+- Every NFR in SPEC.md (technical design section) has a corresponding AC-NF — flag gaps
 
 ### Testability Check
 For each AC, verify it can be answered as a pass/fail automated test or explicit manual step.
 
 ### Consistency Check
-- API contracts in DESIGN.md match any referenced endpoints in ACs
-- Data model changes in DESIGN.md are sufficient to support all AC outcomes
-- Technology decisions don't contradict any constraints in REQUIREMENTS.md
+- API contracts in SPEC.md (technical design section) match any referenced endpoints in ACs
+- Data model changes in SPEC.md (technical design section) are sufficient to support all AC outcomes
+- Technology decisions don't contradict any constraints in the requirements section of SPEC.md
 
 ### Critic Report
 Show the user:
@@ -339,7 +336,7 @@ Spec Critic Report
 Vague language:   [N found — fixed N, flagged N]
 Coverage gaps:    [list any orphaned features/stories/components]
 Testability:      [list any ACs needing rework]
-Consistency:      [any DESIGN.md/REQUIREMENTS.md conflicts]
+Consistency:      [any SPEC.md technical design/requirements conflicts]
 Overall quality:  STRONG / NEEDS REVISION
 ```
 
@@ -438,14 +435,14 @@ Record the locked `spec_version` in `PLAN.md` header — this is the version thi
 
 Read all ACs. Confirm: "Planning to satisfy [N] ACs across [N] features (spec v[N])."
 
-If `FEATURES.md` or `intel.json.features[]` exists:
+If `PATTERNS.md` (feature inventory section) or `intel.json.features[]` exists:
 - Mark already-implemented capabilities as "existing support" and avoid recreating them.
 - Preserve `local_support` and `locale_support` unless explicitly out of scope.
 
 ---
 
 ## Step 9: Component & Task Derivation
-For each feature in REQUIREMENTS.md, derive the implementation tasks needed to satisfy its ACs:
+For each feature in SPEC.md (requirements section), derive the implementation tasks needed to satisfy its ACs:
 
 For each task ask:
 1. What code needs to exist that doesn't exist yet?
@@ -620,11 +617,11 @@ Before writing the plan file, review the plan as an Engineering Lead:
 
 **Architecture smell check:**
 - Does the plan introduce patterns that conflict with `PATTERNS.md`?
-- Does the plan introduce paths/layers that conflict with `STRUCTURE.md`?
-- Does the plan add dependencies or runtime assumptions that conflict with `STACK.md`?
-- Does the plan change external services/env/webhooks without tasks to update `INTEGRATIONS.md`?
-- Does any task modify a HOTSPOT file? If yes, flag with: "⚠ This task touches [file] (risk: [N]) — verify test coverage before proceeding."
-- Does any task unintentionally remove an existing feature from `FEATURES.md`, especially local support?
+- Does the plan introduce paths/layers that conflict with `CODEBASE.md`?
+- Does the plan add dependencies or runtime assumptions that conflict with `CODEBASE.md` (stack section)?
+- Does the plan change external services/env/webhooks without tasks to update `DEPENDENCIES.md`?
+- Does any task modify a file listed in `RISKS.md` hotspots? If yes, flag with: "⚠ This task touches [file] (risk: [N]) — verify test coverage before proceeding."
+- Does any task unintentionally remove an existing feature from `PATTERNS.md` (feature inventory), especially local support?
 
 **Engineering Review Report:**
 ```
@@ -655,8 +652,8 @@ engineering_review_verdict: APPROVED
 When `--strict` is active:
 
 1. **Tag each task** with its technical design mapping:
-   - Every `NEW`/`MODIFY` task must reference the DESIGN.md Component Map row it implements (`[Design: ComponentName]`)
-   - Every task implementing an API endpoint must reference its DESIGN.md API Contract row (`[Design: POST /api/path]`)
+   - Every `NEW`/`MODIFY` task must reference the SPEC.md Component Map row it implements (`[Design: ComponentName]`)
+   - Every task implementing an API endpoint must reference its SPEC.md API Contract row (`[Design: POST /api/path]`)
 
 2. **Mark the plan header:**
    ```yaml
@@ -666,15 +663,19 @@ When `--strict` is active:
 
 3. **Critical module flag** — tasks touching critical module files get a `[CRITICAL]` tag.
 
-4. If any task cannot be mapped to DESIGN.md → flag and block until resolved.
+4. If any task cannot be mapped to SPEC.md → flag and block until resolved.
 
 ---
 
-## Step 15: Write Plan + VERIFICATION
+## Step 15: Write Plan Index + Wave Files + CHECK.md
+
+### 15a: Write PLAN.md (index only)
 Use the **Write tool** to create `.buildflow/epics/[epic]/PLAN.md`. Do not output the plan as text — write it to disk.
 
+PLAN.md is a lightweight index only — no task lists. Full task lists live in `waves/wave-[N].md`.
+
 ```markdown
-# Phase [N] Plan
+# Phase [N] Plan — Index
 **Goal:** [one sentence — what the user can DO after this phase that they can't do now]
 **ACs:** [N]  **Tasks:** [N]  **Waves:** [N]  **Est. total:** [sum of estimates]
 **Spec version:** v[N]
@@ -691,29 +692,61 @@ Use the **Write tool** to create `.buildflow/epics/[epic]/PLAN.md`. Do not outpu
 |------|-----------|------------|
 | src/... | Wave 1 | [task name] |
 
-## Waves
+## Wave Index
+| Wave | Theme | Tasks | Est | Depends On | Status |
+|------|-------|-------|-----|------------|--------|
+| 1 | [DB/Schema] | [N] | [est] | none | PENDING |
+| 2 | [API/Services] | [N] | [est] | Wave 1 | PENDING |
+| 3 | [Routes/Integration] | [N] | [est] | Wave 2 | PENDING |
 
-### Wave 1 — [theme: DB/Schema]
+Wave task details: see `waves/wave-[N].md` for each wave.
+
+## AC → Task Traceability
+| AC | Task(s) | Wave |
+|----|---------|------|
+| AC-001 | Task C, Task E | Wave 2 |
+```
+
+### 15b: Write Wave Files
+For each wave, use the **Write tool** to create `.buildflow/epics/[epic]/waves/wave-[N].md`:
+
+```markdown
+# Wave [N]: [Name]
+Epic: [epic-slug]
+Goal: [one sentence]
+Depends on: [Wave N-1 or none]
+Tasks: [N]
+
+## Tasks
 | Task | ACs | Est | Type | Files | Tests | Design Ref |
 |------|-----|-----|------|-------|-------|---------|
 | [name] | AC-001 | S | NEW | src/... | focused after change | [ComponentName / —] |
 
-### Wave 2 — [theme: API/Services]
-...
-
-## AC → Task Traceability
-| AC | Task(s) |
-|----|---------|
-| AC-001 | Task C, Task E |
+## ACs Targeted
+- AC-001: [brief description]
+- AC-002: [brief description]
 ```
 
-Also create `.buildflow/epics/[epic]/VERIFICATION.md` from every AC in `ACCEPTANCE.md`:
+Create one wave file per wave. Do not put task lists in PLAN.md.
+
+### 15c: Create CHECK.md
+Also create `.buildflow/epics/[epic]/CHECK.md` from every AC in `ACCEPTANCE.md`:
 
 ```markdown
-# Phase [N] Verification
+# Phase [N] Check
 **Spec version:** v[N]
 **Status:** NOT STARTED
 **Last updated:** [ISO datetime]
+
+## AC Coverage Map
+| File | ACs | Status |
+|------|-----|--------|
+| src/... | AC-001, AC-002 | NOT STARTED |
+
+## Acceptance Criteria Verification
+| AC | Requirement | Planned Task(s) | Test/Evidence | Status | Last Checked | Notes |
+|----|-------------|-----------------|---------------|--------|--------------|-------|
+| AC-001 | [exact AC summary] | Task C, Task E | pending | NOT STARTED | - | - |
 
 ## Summary
 | Status | Count |
@@ -721,11 +754,6 @@ Also create `.buildflow/epics/[epic]/VERIFICATION.md` from every AC in `ACCEPTAN
 | NOT STARTED | [N] |
 | PASS | 0 |
 | FAIL | 0 |
-
-## Acceptance Criteria Verification
-| AC | Requirement | Planned Task(s) | Test/Evidence | Status | Last Checked | Notes |
-|----|-------------|-----------------|---------------|--------|--------------|-------|
-| AC-001 | [exact AC summary] | Task C, Task E | pending | NOT STARTED | - | - |
 
 ## Test Runs
 | Time | Scope | Command | Result | ACs Covered | Notes |
@@ -744,27 +772,28 @@ task_count: [N]
 est_total: [size]
 ```
 
+Wave files written: `waves/wave-1.md` through `waves/wave-[N].md`
+
 ---
 
 # --update Mode (`/buildflow-spec --update`)
 
-Called automatically by `/buildflow-discuss` when the user confirms decisions. Can also be run manually after locking new decisions in DECISIONS.md.
+Called automatically by `/buildflow-discuss` when the user confirms decisions. Can also be run manually after locking new decisions in CONTEXT.md.
 
 ## When to use
 - After `/buildflow-discuss` locks new decisions that affect spec artifacts
-- When DECISIONS.md has entries newer than `ACCEPTANCE.md → approved_at`
+- When CONTEXT.md has decision entries newer than `ACCEPTANCE.md → approved_at`
 
 ## Steps
 
-**1. Load DECISIONS.md** — read all decisions with `status: locked` that post-date `ACCEPTANCE.md → approved_at`.
+**1. Load CONTEXT.md** — read all decisions with `status: locked` that post-date `ACCEPTANCE.md → approved_at`.
 
 **2. Impact analysis** — for each new decision:
-- Which section of REQUIREMENTS.md does it affect? (features, constraints, out-of-scope)
-- Which section of DESIGN.md does it affect? (architecture, component map, data model, API contracts, tech decisions)
+- Which section of SPEC.md does it affect? (requirements: features, constraints, out-of-scope; design: architecture, component map, data model, API contracts, tech decisions)
 - Which ACs does it affect? (any AC whose Given/When/Then references the changed design)
-- Which PLAN tasks does it affect? (tasks that implement affected ACs)
+- Which PLAN tasks does it affect? (tasks that implement affected ACs, in wave files)
 
-**3. Apply patches** — edit only the affected sections using the Write tool. Preserve all unaffected content exactly.
+**3. Apply patches** — edit only the affected sections using the Write tool. Preserve all unaffected content exactly. Update affected wave files if task lists change.
 
 **4. Re-run Critic pass** on changed sections only.
 
@@ -774,11 +803,10 @@ Spec Update — Phase [N] v[N] → v[N+1]
 ──────────────────────────────────────
 Decisions applied: [N]
 Sections changed:
-  REQUIREMENTS.md: [which sections]
-  DESIGN.md: [which sections]
+  SPEC.md: [which sections]
   ACCEPTANCE.md: [AC-XXX updated; AC-YYY added]
 Plan changes:
-  Wave [N]: [tasks added/removed/updated]
+  Wave [N] (waves/wave-[N].md): [tasks added/removed/updated]
 Critic: STRONG / FLAG
 ```
 
@@ -868,7 +896,7 @@ Verbose output (only if `verbose_context: true` in PREFERENCES.md):
 Token Cost — /buildflow-spec
 ─────────────────────────────
 Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens   (REQUIREMENTS + DESIGN + ACCEPTANCE + PLAN + VERIFICATION)
+Output generated:  ~[N]K tokens   (SPEC + ACCEPTANCE + PLAN + waves/wave-[N].md + CHECK)
 This command:      ~[N]K tokens
 Session total:     ~[N]K tokens   (since [session_start])
 ```
