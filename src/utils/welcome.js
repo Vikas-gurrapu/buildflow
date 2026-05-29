@@ -26,7 +26,7 @@ export async function showWelcome() {
     ' ' +
     chalk.bold.hex('#F59E0B')(majorVersion)
   )
-  console.log(chalk.dim('  Spec-driven multi-agent AI development orchestration\n'))
+  console.log(chalk.dim('  From epic to ship — multi-agent, spec-driven AI development\n'))
 
   console.log(
     chalk.dim('  Works with: ') +
