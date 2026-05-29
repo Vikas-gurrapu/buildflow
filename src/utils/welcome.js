@@ -18,8 +18,15 @@ export async function showWelcome() {
   }).catch(() => {})
   const isInitialized = existsSync(join(process.cwd(), '.buildflow'))
 
-  console.log('\n' + chalk.bold.white('  BuildFlow v3.0'))
-  console.log(chalk.dim('  Adaptive AI-powered development orchestration\n'))
+  const majorVersion = `v${pkg.version.split('.')[0]}.0`
+  console.log(
+    '\n  ' +
+    chalk.bold.hex('#8B5CF6')('Build') +
+    chalk.bold.hex('#6366F1')('Flow') +
+    ' ' +
+    chalk.bold.hex('#F59E0B')(majorVersion)
+  )
+  console.log(chalk.dim('  Spec-driven multi-agent AI development orchestration\n'))
 
   console.log(
     chalk.dim('  Works with: ') +
