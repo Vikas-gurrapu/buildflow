@@ -3,6 +3,7 @@ name: buildflow-check
 description: Verify quality and spec compliance with parallel Reviewer agents
 allowed-tools: Read, Bash, Grep, Glob
 agent: reviewer
+multi-agent: true
 ---
 
 # /buildflow-check
@@ -48,6 +49,15 @@ Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 - Next Command: `/buildflow-ship` when passing, otherwise the exact `/buildflow-build` or `/buildflow-check` retry
 - Risks / Open Questions: failed ACs, schema drift, low coverage, strict violations, skipped checks
 - Test Strategy: checks/tests run, coverage map status, and remaining ship regression gate
+
+---
+
+## Multi-Agent Protocol
+
+Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
+
+- **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each Reviewer prompt is self-contained with its own context slice.
+- **Gemini CLI / Codex CLI / Cursor** — Execute each Reviewer sequentially: print `=== Reviewer [A/B/C/D] START ===`, complete using only that reviewer's context, print `=== Reviewer [A/B/C/D] END ===`.
 
 ---
 
@@ -97,6 +107,22 @@ ACs in CHECK.md:   [K]   (not tracked in execution: [list or NONE])
 ---
 
 ## Step 2: Parallel Review (4 reviewers)
+
+**Claude Code** — spawn all 4 Reviewers in one response:
+```
+Agent({ description: "Reviewer A: Spec Compliance", prompt: "You are a BuildFlow Reviewer checking spec compliance. For each AC in ACCEPTANCE.md, verify the code satisfies it. Score each: AC-ID ✓ PASS / ✗ FAIL / ⚠ PARTIAL with brief evidence. Files to read: ACCEPTANCE.md, CHECK.md, changed source files." })
+Agent({ description: "Reviewer B: Correctness",     prompt: "You are a BuildFlow Reviewer checking correctness. Does the code do what was specified? Are edge cases handled? Are there logical errors? Read changed source files and PLAN.md task descriptions." })
+Agent({ description: "Reviewer C: Code Quality",    prompt: "You are a BuildFlow Reviewer checking code quality. Check: readability, unnecessary duplications, pattern compliance vs PATTERNS.md, module fit vs CODEBASE.md, fragile areas per RISKS.md, function size." })
+Agent({ description: "Reviewer D: Security",        prompt: "You are a BuildFlow Reviewer checking security. Check: no hardcoded secrets, no injection risks (SQL/command/XSS), no sensitive data in logs, DEPENDENCIES.md coverage for external changes, auth/security ACs satisfied." })
+```
+
+**Gemini CLI / Codex CLI / Cursor** — sequential:
+`=== Reviewer A: Spec Compliance START ===` → check all ACs → `=== Reviewer A END ===`
+`=== Reviewer B: Correctness START ===` → check logic/edge cases → `=== Reviewer B END ===`
+`=== Reviewer C: Code Quality START ===` → check patterns/structure → `=== Reviewer C END ===`
+`=== Reviewer D: Security START ===` → check secrets/injection/auth → `=== Reviewer D END ===`
+
+---
 
 **Reviewer A — Spec Compliance (most important):**
 For each acceptance criterion:

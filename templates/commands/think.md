@@ -3,6 +3,7 @@ name: buildflow-think
 description: Deep research, architecture review, build-vs-buy reasoning, and engineering cognition
 allowed-tools: Read, Write, WebSearch
 agents: strategist, researcher, synthesizer
+multi-agent: true
 ---
 
 # /buildflow-think
@@ -45,6 +46,15 @@ Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 
 ---
 
+## Multi-Agent Protocol
+
+Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
+
+- **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each agent prompt must be fully self-contained (no shared state, no cross-references).
+- **Gemini CLI / Codex CLI / Cursor** — Execute each role sequentially with context isolation: print `=== [Role] START ===`, complete that role's task using only its context packet, print `=== [Role] END ===`. Do not carry state between roles.
+
+---
+
 ## Standard Research Mode (default)
 
 ### Step 1: Clarify Research Goal
@@ -56,11 +66,19 @@ Break the topic into 2–3 specific, answerable sub-questions.
 Assign one to each Researcher agent.
 
 ### Step 3: Parallel Research
-Spawn up to 3 Researcher agents simultaneously, each:
-- Answering their specific sub-question
-- Finding 2–3 sources
-- Rating each source trust: 1 (blog opinion) → 5 (official docs / peer-reviewed)
-- Summarizing key findings in bullet points
+
+**Claude Code** — spawn all Researchers in one response (true parallel):
+```
+Agent({ description: "Researcher A: [sub-question 1]", prompt: "You are a BuildFlow Researcher. Research this question: [sub-question 1]. Find 2–3 sources. Rate each trust 1–5 (1=blog opinion, 5=official docs/peer-reviewed). Return: sources with trust scores, then bullet-point key findings. Be concise." })
+Agent({ description: "Researcher B: [sub-question 2]", prompt: "You are a BuildFlow Researcher. Research this question: [sub-question 2]. Find 2–3 sources. Rate each trust 1–5 (1=blog opinion, 5=official docs/peer-reviewed). Return: sources with trust scores, then bullet-point key findings. Be concise." })
+Agent({ description: "Researcher C: [sub-question 3]", prompt: "You are a BuildFlow Researcher. Research this question: [sub-question 3]. Find 2–3 sources. Rate each trust 1–5 (1=blog opinion, 5=official docs/peer-reviewed). Return: sources with trust scores, then bullet-point key findings. Be concise." })
+```
+Spawn only as many Researchers as sub-questions (max 3). All Agent calls in one message = parallel execution.
+
+**Gemini CLI / Codex CLI / Cursor** — sequential with context isolation:
+`=== Researcher A START ===` → answer sub-question 1, find sources, rate trust → `=== Researcher A END ===`
+`=== Researcher B START ===` → answer sub-question 2, same format → `=== Researcher B END ===`
+`=== Researcher C START ===` → answer sub-question 3 if needed → `=== Researcher C END ===`
 
 ### Step 4: Synthesize
 Synthesizer combines all findings:

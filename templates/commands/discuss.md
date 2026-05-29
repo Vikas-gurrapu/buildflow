@@ -3,6 +3,7 @@ name: buildflow-discuss
 description: Post-spec clarification workshop — review doubts about the generated spec and plan, auto-updates artifacts on confirmation
 allowed-tools: Read, Write, WebSearch
 agent: strategist
+multi-agent: true
 ---
 
 # /buildflow-discuss
@@ -37,6 +38,15 @@ Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 - Status: `decisions_captured` (if spec not yet updated) or `plan_ready` (after spec --update runs)
 - Decisions: list of decisions locked this session
 - Next Command: `/buildflow-build`
+
+---
+
+## Multi-Agent Protocol
+
+Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
+
+- **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each prompt must be self-contained.
+- **Gemini CLI / Codex CLI / Cursor** — Execute each role sequentially: print `=== [Role] START ===`, complete using only that role's context, print `=== [Role] END ===`.
 
 ---
 
@@ -84,11 +94,18 @@ Stakes:   [what happens downstream if we choose wrong]
 
 If this is a factual/technical question with meaningful tradeoffs:
 - Ask: "Want me to research the options before deciding? (~2 min)"
-- If yes: spawn one Researcher per option (parallel, max 3), each producing:
-  - Key strengths
-  - Key risks
-  - Best fit for this project type
-  - Source trust score (1–5)
+- If yes — spawn one Researcher per option (max 3):
+
+  **Claude Code** — spawn all in one response (true parallel):
+  ```
+  Agent({ description: "Researcher: [option A]", prompt: "You are a BuildFlow Researcher. Research option: [option A] for [project type]. Find: key strengths, key risks, best fit for this project type, source trust score 1–5. Be concise." })
+  Agent({ description: "Researcher: [option B]", prompt: "You are a BuildFlow Researcher. Research option: [option B] for [project type]. Find: key strengths, key risks, best fit for this project type, source trust score 1–5. Be concise." })
+  Agent({ description: "Researcher: [option C]", prompt: "You are a BuildFlow Researcher. Research option: [option C] for [project type]. Find: key strengths, key risks, best fit for this project type, source trust score 1–5. Be concise." })
+  ```
+
+  **Gemini CLI / Codex CLI / Cursor** — sequential:
+  `=== Researcher [A]: [option A] START ===` → strengths, risks, fit, trust score → `=== END ===` (repeat per option)
+
 - If no: proceed with the user's stated reasoning.
 
 Use `research_depth` from PREFERENCES.md to set research thoroughness (quick/standard/thorough).

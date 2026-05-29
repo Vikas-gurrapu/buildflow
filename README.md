@@ -1,6 +1,6 @@
 ﻿# BuildFlow
 
-> Spec-driven, multi-agent AI development orchestration — for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.</p>
+> From epic to ship — spec-driven, multi-agent AI development with epics, planning, build, test, debug, perf, security audit, and deploy — for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.
 > **v8.0** — Session continuity (`--continue` for debug/hotfix), stale session cleanup, epic templates, and full-stack performance profiling (`/buildflow-perf`).
 
 [![npm version](https://badge.fury.io/js/buildflow-dev.svg)](https://www.npmjs.com/package/buildflow-dev)

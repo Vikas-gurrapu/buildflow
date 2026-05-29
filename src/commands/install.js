@@ -690,7 +690,7 @@ export function printBuildFlowBanner(subtitle = 'AI Tool Integration') {
   console.log('')
   console.log(chalk.bold.white(`  BuildFlow ${chalk.dim(`v${pkg.version}`)}`))
   console.log(chalk.dim(`  Developed by ${author}`))
-  console.log(chalk.white('  Spec-driven, multi-agent development orchestration.'))
+  console.log(chalk.white('  Spec-driven, multi-agent AI development orchestration.'))
   console.log(chalk.dim('  Works with Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.'))
   console.log('')
   console.log(chalk.bold.white('  Status'))

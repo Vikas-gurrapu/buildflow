@@ -3,6 +3,7 @@ name: buildflow-build
 description: Spec-traced wave execution with pattern-matched Builders, auto-test, auto-fix, and PR-ready commits
 allowed-tools: Read, Write, Bash, Grep, Glob
 agents: builder, reviewer
+multi-agent: true
 ---
 
 # /buildflow-build
@@ -486,6 +487,17 @@ This fingerprint applies to every Builder in every wave.
 
 ---
 
+## Multi-Agent Protocol
+
+Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
+
+- **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each Builder prompt must include the full self-contained context packet — no shared state.
+- **Gemini CLI / Codex CLI / Cursor** — Execute each Builder sequentially: print `=== Builder: [task name] START ===`, execute using only that task's context packet, print `=== Builder: [task name] END ===`.
+
+Serialized tasks (file overlap detected in Step 3a) always run sequentially regardless of tool.
+
+---
+
 ## Step 3: Wave Execution Loop
 
 Repeat for each wave:
@@ -547,9 +559,16 @@ Merge conflicts = undeclared ownership violation → log as SCOPE deviation, upd
 **If `git.permission` is not `approved` (no-git mode):**
 Skip worktree isolation entirely. Use Step 3a serialization as the sole safety net — overlapping tasks run sequentially, not in parallel. Note in wave report: "Worktree isolation skipped (no git) — serial execution applied to overlapping tasks."
 
-Spawn one Builder per task. Each Builder receives ONLY its context packet.
+**Claude Code** — spawn one Builder per non-overlapping task in a single response:
+```
+Agent({ description: "Builder: [task name]", prompt: "You are a BuildFlow Builder. Your context packet:\n---\nTask: [task name]\nAC refs: [AC-001, AC-003]\nBefore: [what currently exists]\nAfter: [what must be true when done]\nFiles to create/modify: [list]\nClosest existing example: [path/to/file]\nKey pattern: [convention from PATTERNS.md]\nDefinition of done: [linked ACs]\n---\nWrite code satisfying the Before→After contract. Follow the closest example's structure exactly. Cover referenced ACs. Write focused tests for the code change in the same task." })
+```
+One Agent call per task with no file overlap. Overlapping tasks run sequentially per Step 3a serialization.
 
-Each Builder:
+**Gemini CLI / Codex CLI / Cursor** — sequential with context isolation:
+`=== Builder: [task name] START ===` → execute using only this task's context packet → `=== Builder: [task name] END ===`
+
+Each Builder (all tools):
 - Writes code that satisfies the Before → After contract
 - Follows the closest existing example's structure
 - Covers the referenced ACs

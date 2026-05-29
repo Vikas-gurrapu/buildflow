@@ -2,7 +2,8 @@
 name: buildflow-ship
 description: Finalize phase with spec gate, security gate, build telemetry gate, and context pruning
 allowed-tools: Read, Write, Bash
-agents: strategist, security-auditor
+agents: strategist, security-auditor, researcher
+multi-agent: true
 ---
 
 # /buildflow-ship
@@ -31,6 +32,15 @@ Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 - Next Command: `/buildflow-spec "[suggested phase name]"`
 - Risks / Open Questions: open debt, deferred checks, follow-up work
 - Test Strategy: ship tests/regression results and baseline counts/coverage
+
+---
+
+## Multi-Agent Protocol
+
+Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
+
+- **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each prompt must be self-contained.
+- **Gemini CLI / Codex CLI / Cursor** — Execute each role sequentially: print `=== [Role] START ===`, complete using only that role's context, print `=== [Role] END ===`.
 
 ---
 
@@ -113,14 +123,18 @@ No override flag exists for strict violations. Strict mode means the spec is law
 
 ## MANDATORY Gate 1: Pre-Ship Security Scan
 
-Spawn Security Auditor in `--pre-ship` mode:
-- Scan changed files only:
-  - **If `git.permission: approved`:** `git diff --name-only HEAD~1..HEAD -- src/`
-  - **If `git.permission` is not `approved`:** use file list from completed wave task files (`waves/wave-[N].md`) — same source as check.md
-- Check for secrets
-- Check critical injection patterns
-- Check auth bypass risks
-- Check critical dependency CVEs
+**Claude Code** — spawn Security Auditor as a true agent:
+```
+Agent({ description: "Security Auditor: pre-ship scan", prompt: "You are a BuildFlow Security Auditor running a pre-ship scan. Scan changed files only (from git diff HEAD~1..HEAD -- src/ if git is approved, otherwise from wave task file lists). Check for: secrets exposure, critical injection patterns (SQL/command/XSS), auth bypass risks, critical dependency CVEs. Output: CLEAN or list of findings with severity (CRITICAL/HIGH) and file:line location." })
+```
+
+**Gemini CLI / Codex CLI / Cursor:**
+`=== Security Auditor: pre-ship START ===` → scan changed files for secrets, injection, auth bypass, CVEs → `=== Security Auditor END ===`
+
+Scan scope (all tools):
+- **If `git.permission: approved`:** `git diff --name-only HEAD~1..HEAD -- src/`
+- **If `git.permission` is not `approved`:** use file list from completed wave task files (`waves/wave-[N].md`)
+- Check for secrets, critical injection patterns, auth bypass risks, critical dependency CVEs
 
 **Critical found → BLOCK:**
 ```
@@ -555,10 +569,16 @@ If `VISION.md` contains a roadmap or future features list: surface the next 2–
 "Remaining from your vision: [items]"
 
 ### 6b — Market & standards gap (auto-runs, parallel)
-Spawn two quick Researchers (same as `/buildflow-help next` Step 5b):
 
-**Researcher A** — top 3 features users of this app type expect that aren't shipped yet
-**Researcher B** — engineering standards for this app type that are missing
+**Claude Code** — spawn in one response:
+```
+Agent({ description: "Researcher A: competitor features",   prompt: "You are a BuildFlow Researcher. Search for the top 3–5 apps in the same category as [app type from VISION.md]. List: standard features users expect in this category, differentiating features, features this app is missing. Max 3–5 queries. Be concise." })
+Agent({ description: "Researcher B: engineering standards", prompt: "You are a BuildFlow Researcher. Search for engineering standards and best practices for [app type from VISION.md]. List protocols/standards missing from this project. Max 3–5 queries. Be concise." })
+```
+
+**Gemini CLI / Codex CLI / Cursor:**
+`=== Researcher A: Competitor Features START ===` → research → `=== Researcher A END ===`
+`=== Researcher B: Engineering Standards START ===` → research → `=== Researcher B END ===`
 
 Time-box each to a fast search (3–5 queries). This runs automatically — user doesn't need to trigger it.
 

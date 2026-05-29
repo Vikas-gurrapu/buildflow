@@ -217,7 +217,16 @@ Core features shipped so far: [list from shipped phases]
 ```
 
 ### 5b — Market Research (parallel)
-Spawn two parallel Researchers:
+
+**Claude Code** — spawn in one response:
+```
+Agent({ description: "Researcher A: competitor features",   prompt: "You are a BuildFlow Researcher. Search for the top 3–5 apps in the same category as [app type]. For each: list core features standard in this category, differentiating features driving retention, features this app has vs is missing. Max 3–5 queries. Be concise." })
+Agent({ description: "Researcher B: engineering standards", prompt: "You are a BuildFlow Researcher. Search for engineering standards and best practices for [app type]. List protocols/patterns/standards this project is missing. Max 3–5 queries. Be concise." })
+```
+
+**Gemini CLI / Codex CLI / Cursor:**
+`=== Researcher A: Competitor Features START ===` → research → `=== Researcher A END ===`
+`=== Researcher B: Engineering Standards START ===` → research → `=== Researcher B END ===`
 
 **Researcher A — Competitor feature set:**
 Search for the top 3–5 apps in the same category. For each, identify:
