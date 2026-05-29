@@ -18,6 +18,56 @@ Only load the current epic `STATE.md`, not full epic specs/plans/reports.
 
 Do NOT load: specs, epics, codebase files — this is vision only.
 
+## Usage
+- `/buildflow-start-epic` — begin or continue a session
+- `/buildflow-start-epic --template <name>` — bootstrap an epic from a pre-built template
+
+**Available templates:**
+
+| Template | Domain | Pre-built focus areas |
+|----------|--------|-----------------------|
+| `auth` | Authentication | Login, register, password reset, JWT, sessions, OAuth |
+| `payments` | Payments | Checkout, Stripe/provider integration, receipts, refunds, webhooks |
+| `crud` | Data management | List + filters, create, read, update, delete, pagination, search |
+| `notifications` | Notifications | Email, in-app alerts, push, preferences, read/unread state |
+| `api` | REST API layer | Endpoints, auth middleware, rate limiting, versioning, error handling |
+| `dashboard` | Analytics UI | Data visualization, filters, date ranges, export, real-time updates |
+
+When `--template <name>` is passed:
+
+1. Validate the template name. If unknown: list available templates and stop.
+2. Skip the vision questions (Step 2 prompts) — template provides the foundation.
+3. Pre-populate `.buildflow/VISION.md` with the template's domain description and the app name from MEMORY.md.
+4. Print the template's pre-built spec outline so the user can review and adjust before speccing:
+
+```
+Template: auth
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • User registration with email verification
+  • Login with JWT + refresh token rotation
+  • Password reset via email link
+  • OAuth 2.0 (Google / GitHub)
+  • Session management + secure logout
+  • Rate limiting on auth endpoints
+
+Acceptance Criteria hints (will be expanded by /buildflow-spec):
+  AC-001  User can register with email + password
+  AC-002  Email verification required before first login
+  AC-003  Login returns JWT (15min) + refresh token (7d)
+  AC-004  Refresh token rotation on every use
+  AC-005  Password reset link expires in 1 hour
+  AC-006  OAuth login creates or links existing account
+  AC-007  Failed login rate-limited after 5 attempts
+─────────────────────────────────────────────
+These are starting points — /buildflow-spec will expand, refine, and add project-specific ACs.
+```
+
+5. Update MEMORY.md with `current_epic: none`, `spec_status: none`.
+6. Go directly to Step 4 (Guided Next Step) — suggest `/buildflow-spec` as the next command.
+
+---
+
 ## Step 1: Load Memory
 Read `.buildflow/MEMORY.md`, `.buildflow/PREFERENCES.md`, and `.buildflow/STATE.md`.
 If `MEMORY.md` is over 3K tokens: prune it now (see pruning rules below).

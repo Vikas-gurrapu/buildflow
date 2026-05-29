@@ -22,6 +22,10 @@ Do NOT use for: new features, refactors, or anything that touches more than ~5 f
 - `/buildflow-hotfix "fix login crash on empty password"`
 - `/buildflow-hotfix "bump lodash to 4.17.21"`
 - `/buildflow-hotfix src/api/auth.ts "rate limiting not applying to /refresh"`
+- `/buildflow-hotfix --list` — show all active hotfix sessions
+- `/buildflow-hotfix --continue` — resume the most recent active session
+- `/buildflow-hotfix --continue HOTFIX-002` — resume a specific session by reference
+- `/buildflow-hotfix --cleanup` — archive shipped sessions older than 30 days
 
 ## Context Packet (minimal — load only what's needed)
 - `.buildflow/MEMORY.md` (app_name, framework fields only)
@@ -64,7 +68,122 @@ epic: none   # isolated — no active epic at time of hotfix
 
 ---
 
+## Subcommand: --cleanup
+
+When `--cleanup` is passed:
+
+Scan all hotfix folders for stale sessions:
+```bash
+ls .buildflow/hotfix/HOTFIX-*.md .buildflow/epics/*/hotfix/HOTFIX-*.md 2>/dev/null
+```
+
+A session is **stale** when:
+- `progress: shipped` AND
+- `updated` date is more than 30 days ago
+
+Display stale sessions found:
+```
+Stale Hotfix Sessions (shipped > 30 days ago)
+─────────────────────────────────────────────
+  HOTFIX-001  epics/1-auth/hotfix/  shipped  2026-04-01  (58 days ago)
+              Fix: Login crash on empty password
+  HOTFIX-002  hotfix/               shipped  2026-03-15  (75 days ago)
+              Fix: Lodash bump to 4.17.21
+─────────────────────────────────────────────
+Archive these 2 sessions to .buildflow/hotfix/archive/ ? [Y/N]
+```
+
+If no stale sessions: print "No stale sessions found (all shipped sessions are < 30 days old)." and stop.
+
+On `[Y]`: move each file to `.buildflow/hotfix/archive/` (create folder if needed). Print: `Archived 2 session(s) to .buildflow/hotfix/archive/`
+On `[N]`: print "Cleanup cancelled." and stop.
+
+STOP after cleanup.
+
+---
+
+## Subcommand: --list
+
+When `--list` is passed:
+
+Scan both global and epic hotfix folders:
+```bash
+ls .buildflow/hotfix/HOTFIX-*.md 2>/dev/null
+ls .buildflow/epics/*/hotfix/HOTFIX-*.md 2>/dev/null
+```
+
+For each file, read `progress` from frontmatter. Group into two sections:
+
+```
+Active Hotfix Sessions
+─────────────────────────────────────────────
+  Ref          Location                       Progress       Date
+  HOTFIX-003   epics/2-payments/hotfix/       tests-failed   2026-05-28
+               Fix: Null check on req.body.user
+               Next: re-apply with different approach (attempt 2/3)
+
+  HOTFIX-002   hotfix/                        fix-applied    2026-05-27
+               Fix: Rate limiter applied to /refresh route
+               Next: run targeted tests
+
+Shipped Sessions (resumable with explicit ref)
+─────────────────────────────────────────────
+  HOTFIX-001   epics/1-auth/hotfix/           shipped        2026-05-25
+               Fix: Login crash on empty password
+─────────────────────────────────────────────
+Resume with: /buildflow-hotfix --continue HOTFIX-003
+```
+
+If no files found: print "No hotfix sessions found. Run `/buildflow-hotfix <description>` to start one."
+
+STOP after displaying list.
+
+---
+
+## Subcommand: --continue
+
+When `--continue` is passed:
+
+**With a reference** (`--continue HOTFIX-002`):
+- Validate ref matches `^HOTFIX-[0-9]+$`. If not, print "Invalid reference. Use format: HOTFIX-001. Run `/buildflow-hotfix --list` to see sessions." and stop.
+- Search `.buildflow/hotfix/` and `.buildflow/epics/*/hotfix/`. If not found, print "No session found: {ref}. Run `/buildflow-hotfix --list`." and stop.
+- Shipped sessions ARE resumable when ref is explicitly provided. Re-open by setting `progress: fix-applied` and print: `Note: resuming a shipped hotfix — prior fix was: {fix summary}`
+
+**Without a reference** (`--continue` only):
+- Find the most recently modified active (non-shipped) session:
+  ```bash
+  ls -t .buildflow/hotfix/HOTFIX-*.md .buildflow/epics/*/hotfix/HOTFIX-*.md 2>/dev/null | xargs grep -l "^progress: investigating\|^progress: fix-applied\|^progress: tests-failed" 2>/dev/null | head -1
+  ```
+- If none found: print "No active hotfix sessions. Run `/buildflow-hotfix --list` to see all sessions, or use `/buildflow-hotfix --continue HOTFIX-N` to reopen a shipped one." and stop.
+
+Read the session file. Print resume context:
+
+```
+Resuming: {ref}  [{file path}]
+─────────────────────────────────────────────
+Triggered by: {trigger}
+Progress:     {progress}
+Fix applied:  {fix summary or "not yet"}
+Next step:    {next_step}
+Attempts:     {attempts}
+Files:        {files_changed or "none yet"}
+─────────────────────────────────────────────
+```
+
+Resume from the step matching `progress`:
+- `investigating` → Step 1 (re-parse, files already noted)
+- `fix-applied` → Step 5 (run targeted tests)
+- `tests-failed` → Step 4 (re-apply with new approach, log previous as eliminated)
+- `tests-passing` → Step 6 (ship)
+
+Update `progress` and `updated` in session file before continuing.
+
+---
+
 ## Step 1: Understand the Fix
+
+Parse `$ARGUMENTS` for subcommands first (--list, --continue). Remaining text is the description.
+
 Parse the description. Identify:
 - What is broken?
 - What file(s) are likely involved?
@@ -107,10 +226,15 @@ last_restore_reason: "hotfix: [description]"
 To roll back: copy files from the snapshot back to their original paths.
 
 ## Step 4: Apply Fix
+
+**File reading rule:** When reading files to apply the fix, load the full relevant function or module block — not just the affected line. Use `offset` and `limit` to get at least 50 lines of surrounding context.
+
 Make the minimal change:
 - Fix only the root cause
 - Do not refactor, rename, or clean up surrounding code
 - Match existing code style
+
+If this is a `--continue` resuming from `tests-failed`: log the previous failed approach under `## Eliminated Approaches` in the session file before applying the new fix.
 
 ## Step 4c: Locale Catalog Sync (runs after fix — only if label/i18n keys changed)
 
@@ -265,7 +389,43 @@ xcodebuild test -scheme AppTests -only-testing "AppTests/AuthServiceTests"
 sbt "testOnly *.AuthServiceSpec"
 ```
 
-If tests fail: fix and re-run. Max 3 attempts, then stop and report what's unresolved.
+If tests fail: fix and re-run. Max 3 attempts. On each failure, save/update the session file (create if not exists) using the Epic Resolution path and next available sequence number:
+
+```markdown
+---
+progress: tests-failed
+updated: {today}
+next_step: "re-apply fix with new approach"
+attempts: {N}
+---
+
+# Hotfix — [short description]
+Date: [ISO datetime]
+Epic: [current_epic or "none"]
+Triggered by: [description]
+
+## Fix
+[what was attempted]
+
+## Files Changed
+- [path] — [what changed]
+
+## Eliminated Approaches
+- attempt {N}: [what was tried] — [why it failed]
+
+## Restore Point
+[snapshot path or git stash ref]
+
+## Test Results
+[commands run and failures]
+
+## Risk
+investigation in progress
+```
+
+Print: `Session saved: {path} — resume with /buildflow-hotfix --continue {ref}`
+
+After 3 failed attempts: stop and ask the user. Suggest: `→ Next: /buildflow-debug --continue` to escalate to full root-cause analysis.
 
 **After targeted tests pass — ask once:**
 ```
@@ -317,13 +477,24 @@ If no test coverage existed: "⚠ No test covers this area. Consider adding one.
 
 ## Final Step: Save Hotfix Record
 
-Use the **Write tool** to create the hotfix record at the path resolved by the Epic Resolution step above:
+**If a session file was already created** (partial save from Step 5 test failures): update it in place with the final record below. Do not create a new file or increment sequence.
+
+**If no session file exists** (single-pass success): use the Write tool to create the record at the path resolved by the Epic Resolution step:
 - Active epic: `.buildflow/epics/[current_epic]/hotfix/HOTFIX-[sequence].md`
 - No active epic: `.buildflow/hotfix/HOTFIX-[sequence].md`
 
 Increment sequence from existing files in that folder, starting at 001. Do not output as text — write to disk.
 
+Single-pass hotfixes that complete without test failures skip file I/O entirely until this final step — zero overhead on the fast path.
+
 ```markdown
+---
+progress: shipped
+updated: [today]
+next_step: ""
+attempts: [N]
+---
+
 # Hotfix — [short description]
 Date: [ISO datetime]
 Epic: [current_epic or "none"]
@@ -382,6 +553,7 @@ Session: ~[N]K tokens
 ```
 
 If the hotfix was in a shipped phase: `→ Next: /buildflow-ship` (re-tag the fixed version).
+If tests failed after 3 attempts: `→ Next: /buildflow-debug --continue {ref}` (escalate to full root-cause analysis).
 
 ## Token Budget: ~10K
 
