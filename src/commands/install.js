@@ -368,7 +368,7 @@ globs: ["**/*"]
 alwaysApply: false
 ---
 
-# BuildFlow v3.0
+# BuildFlow v${pkg.version.split('.')[0]}.0
 
 You are integrated with BuildFlow, an adaptive development orchestration system.
 ${UPDATE_CHECK_INSTRUCTION}
@@ -409,7 +409,7 @@ function clineRulesContent(commandFiles) {
   const commandList = Object.keys(commandFiles)
     .map(name => `- /buildflow-${name}`)
     .join('\n')
-  return `# BuildFlow v3.0 Rules for Cline
+  return `# BuildFlow v${pkg.version.split('.')[0]}.0 Rules for Cline
 ${UPDATE_CHECK_INSTRUCTION}
 ${FOLDER_ACCESS_GUARD}
 ## Slash Commands

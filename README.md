@@ -115,6 +115,8 @@ Installed into your AI tool and triggered by typing `/buildflow-*`. Each command
 
 ![Workflow](./image.png)
 
+[![BuildFlow v8.0](https://img.shields.io/badge/BuildFlow-v8.0-8B5CF6?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTV6TTIgMTdsOSA1IDktNXYtNUwyIDEyeiIvPjwvc3ZnPg==)](https://www.npmjs.com/package/buildflow-dev)
+
 | Step | Command | Role | When to use |
 |------|---------|------|-------------|
 | 1 | `/buildflow-start-epic` | **required** | Every session — loads state, detects drift, resets token counter |
