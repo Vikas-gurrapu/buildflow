@@ -80,8 +80,9 @@ Before doing anything else at the start of every session:
 | `/buildflow-check --strict` | Structural spec-to-code mirroring: contract names, component map, critical symbol coverage, AC branches |
 | `/buildflow-ship` | Spec gate + security gate + context prune + git tag only when `git.permission: approved` |
 | `/buildflow-deploy` | Pre-flight checks + deploy staging/production |
-| `/buildflow-hotfix` | Fast-path fix — no planning, no waves |
-| `/buildflow-debug` | Root-cause analysis when tests fail |
+| `/buildflow-hotfix` | Fast-path fix — no planning, no waves · `--continue` resumes interrupted sessions |
+| `/buildflow-debug` | Root-cause analysis when tests fail · `--continue` resumes interrupted sessions |
+| `/buildflow-perf` | Performance profiling — UI rendering, backend endpoints, DB queries |
 | `/buildflow-onboard` | One-time analysis of existing codebase |
 | `/buildflow-modify` | Surgical change or bugfix to existing code |
 | `/buildflow-workspace` | Multi-repo/monorepo cross-service impact analysis |

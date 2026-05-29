@@ -1,7 +1,7 @@
 ﻿# BuildFlow
 
 > Spec-driven, multi-agent AI development orchestration — for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.</p>
-> **v7.1** — Multi-repo workspace onboarding, multiselect UX throughout, one-by-one AC UAT, and structured multi-epic support.
+> **v8.0** — Session continuity (`--continue` for debug/hotfix), stale session cleanup, epic templates, and full-stack performance profiling (`/buildflow-perf`).
 
 [![npm version](https://badge.fury.io/js/buildflow-dev.svg)](https://www.npmjs.com/package/buildflow-dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -133,8 +133,16 @@ Installed into your AI tool and triggered by typing `/buildflow-*`. Each command
 
 Begin or continue a project session. Loads memory and state, checks codebase drift vs last session, prints epic history from previous `SHIPPED.md` files, and resets the session token counter. If paused epics exist, offers to resume one instead of starting fresh.
 
+Use `--template` to bootstrap a new epic from a pre-built domain template — skips vision questions and pre-populates the spec outline so `/buildflow-spec` has a running start.
+
 ```
-/buildflow-start-epic            Begin session — load memory, detect drift, print epic history
+/buildflow-start-epic                      Begin session — load memory, detect drift, print epic history
+/buildflow-start-epic --template auth      Bootstrap an auth epic (login, register, JWT, OAuth, rate limiting)
+/buildflow-start-epic --template payments  Bootstrap a payments epic (checkout, Stripe, receipts, refunds)
+/buildflow-start-epic --template crud      Bootstrap a CRUD epic (list, create, read, update, delete, pagination)
+/buildflow-start-epic --template notifications  Bootstrap a notifications epic (email, in-app, push, preferences)
+/buildflow-start-epic --template api       Bootstrap a REST API epic (endpoints, middleware, versioning, errors)
+/buildflow-start-epic --template dashboard Bootstrap a dashboard epic (charts, filters, export, real-time)
 ```
 
 ---
@@ -298,25 +306,57 @@ Improves code quality without changing behavior. Reads `PATTERNS.md` to match ex
 
 #### `/buildflow-hotfix` · Surgeon · ~10K tokens
 
-Fast-path fix with no spec, no planning, no waves. Creates a restore point, applies the minimal fix, runs regression tests, and commits. ~5× cheaper than a full build cycle.
+Fast-path fix with no spec, no planning, no waves. Creates a restore point, applies the minimal fix, runs regression tests, and commits. ~5× cheaper than a full build cycle. Session state is saved lazily — only when tests fail or the session is interrupted, so single-pass fixes have zero overhead.
 
 ```
 /buildflow-hotfix "fix login crash on empty password"
 /buildflow-hotfix "bump lodash to 4.17.21"
 /buildflow-hotfix src/api/auth.ts "rate limiting not applying to /refresh"
+/buildflow-hotfix --list                      Show active + shipped sessions
+/buildflow-hotfix --continue                  Resume the most recent active session
+/buildflow-hotfix --continue HOTFIX-002       Resume a specific session by reference
+/buildflow-hotfix --cleanup                   Archive shipped sessions older than 30 days
 ```
 
 ---
 
 #### `/buildflow-debug` · Surgeon · ~20K tokens
 
-Systematic root-cause analysis. Traces error → file → line → violated assumption. Runs targeted tests only (failing test + direct callers). When an active epic exists, asks whether this session is part of the epic or an independent fix before saving the debug record.
+Systematic root-cause analysis. Traces error → file → line → violated assumption. Runs targeted tests only (failing test + direct callers). Reads full function/module context — not just the erroring line. Session state is saved lazily — only when root cause is not found in one pass, so fast debugs stay lean.
 
 ```
 /buildflow-debug                              Debug the most recent failure
 /buildflow-debug "error message or desc"      Debug a described error
 /buildflow-debug src/auth/login.ts            Debug a specific file
 /buildflow-debug --trace                      Full stack trace analysis mode
+/buildflow-debug --list                       Show active + resolved sessions
+/buildflow-debug --continue                   Resume the most recent unresolved session
+/buildflow-debug --continue DEBUG-003         Resume a specific session by reference
+/buildflow-debug --cleanup                    Archive resolved sessions older than 30 days
+```
+
+---
+
+#### `/buildflow-perf` · Surgeon · ~20K tokens
+
+Full-stack performance profiling across three tracks. Measures baseline metrics first, then identifies and fixes the highest-impact bottleneck. Session state follows the same lazy save pattern as debug — zero overhead for single-pass investigations.
+
+**UI track:** JS bundle size, LCP/FCP/CLS vitals, render-blocking resources, lazy loading gaps, missing memoization, unoptimized images, third-party script impact.
+
+**Backend track:** Endpoint p50/p95 response times, sequential awaits that should be `Promise.all`, missing response caching, N+1 queries inside request handlers, unbounded in-memory caches, connection pool sizing.
+
+**DB track:** Full table scans from missing indexes, N+1 ORM queries, `SELECT *` overhead, slow JOIN patterns, lock-holding transactions, connection pool exhaustion.
+
+```
+/buildflow-perf                               Profile the full stack (UI + backend + DB)
+/buildflow-perf ui                            UI rendering performance only
+/buildflow-perf backend                       Backend endpoint performance only
+/buildflow-perf db                            Database query performance only
+/buildflow-perf "slow checkout page"          Investigate a described bottleneck
+/buildflow-perf --list                        Show active + resolved perf sessions
+/buildflow-perf --continue                    Resume the most recent active session
+/buildflow-perf --continue PERF-002           Resume a specific session by reference
+/buildflow-perf --cleanup                     Archive resolved sessions older than 30 days
 ```
 
 ---
@@ -963,7 +1003,7 @@ buildflow-dev/
 │   │                             contract, context clear recommendation, token cost
 │   │                             tracking explanation, core rules, agents table.
 │   │
-│   └── commands/                 28 markdown files — one per slash command.
+│   └── commands/                 29 markdown files — one per slash command.
 │       ├── start-epic.md         Vision, drift detection, epic history load
 │       ├── think.md              Parallel research + 5 analysis modes + global learnings context
 │       ├── discuss.md            Pre-plan decision workshop — surface, research, lock decisions with confidence scores
@@ -978,7 +1018,8 @@ buildflow-dev/
 │       ├── modify.md             Symbol-level impact analysis, test coverage, surgical change
 │       ├── refactor.md           Quality improvement without behavior change
 │       ├── audit.md              OWASP Top 10 + container CVE scan + language dependency audit
-│       ├── debug.md              Root-cause analysis, scientific method
+│       ├── debug.md              Root-cause analysis, scientific method · --continue, --list, --cleanup
+│       ├── perf.md               Full-stack perf profiling — UI, backend, DB · --continue, --list, --cleanup
 │       ├── deploy.md             Pre-flight, Docker deployment path, migrations, health check
 │       ├── docker.md             Scaffold, build, run, push, scan, shell, clean
 │       ├── workspace.md          Monorepo mapping, cross-service contract detection, blast radius
@@ -1040,8 +1081,10 @@ Global files are created at init. Epic-specific files are created on demand by t
 │       ├── UI-SPEC.md      ← /buildflow-ui-spec UI design contract
 │       ├── debug/          ← /buildflow-debug session records during this epic
 │       │   └── DEBUG-001.md    Root cause, hypothesis chain, fix, test evidence
-│       └── hotfix/         ← /buildflow-hotfix records during this epic
-│           └── HOTFIX-001.md   Problem, fix, files changed, restore point, test results
+│       ├── hotfix/         ← /buildflow-hotfix records during this epic
+│       │   └── HOTFIX-001.md   Problem, fix, files changed, restore point, test results
+│       └── perf/           ← /buildflow-perf session records during this epic
+│           └── PERF-001.md     Track, baseline metrics, bottlenecks, fix, before/after improvement
 │
 └── codebase/           ← /buildflow-onboard (existing projects only)
     ├── CODEBASE.md         Module map, entry points, folder roles, tech stack, physical layout
@@ -1099,8 +1142,55 @@ Each agent gets a fresh context window with a minimal context packet — no cont
 | ⚒️ **Builder** | Style-matched code generation | `build` (parallel per wave) |
 | 🔬 **Reviewer** | Spec compliance + quality checks | `check` (parallel × 4), `build`, `test` |
 | 🗺️ **Cartographer** | Codebase analysis, symbol graph | `onboard` |
-| 🩺 **Surgeon** | Minimal-footprint code modification | `modify`, `refactor`, `hotfix`, `debug` |
+| 🩺 **Surgeon** | Minimal-footprint code modification | `modify`, `refactor`, `hotfix`, `debug`, `perf` |
 | 🔒 **Security Auditor** | OWASP Top 10 + container CVE scan | `audit`, `ship` (pre-ship gate) |
+
+---
+
+## v8.0: What's New
+
+### Session Continuity — `--continue` for `/buildflow-debug` and `/buildflow-hotfix`
+
+Both commands now persist session state across invocations. State is saved **lazily** — zero file I/O for fast single-pass sessions that resolve immediately. Files are only created when a session can't complete in one pass (root cause not found, or tests fail after 3 attempts).
+
+Each saved session gets a sequential reference (`DEBUG-001`, `HOTFIX-001`) and is resumable with `--continue`. Resolved/shipped sessions are hidden from `--list` by default but remain resumable with an explicit ref — useful when the same bug resurfaces.
+
+```
+/buildflow-debug --list                   Active + resolved sessions across all epics
+/buildflow-debug --continue               Resume the most recent unresolved session
+/buildflow-debug --continue DEBUG-003     Resume any session, including resolved ones
+/buildflow-hotfix --continue HOTFIX-002   Resume a hotfix after a failed test attempt
+```
+
+### Stale Session Cleanup — `--cleanup`
+
+`/buildflow-debug --cleanup` and `/buildflow-hotfix --cleanup` scan for sessions that are resolved/shipped and older than 30 days, show a confirmation list with age, and move them to an `archive/` subfolder. Keeps `--list` output actionable without permanently deleting history.
+
+### Epic Templates — `/buildflow-start-epic --template <name>`
+
+Six built-in domain templates bootstrap a new epic with a pre-built spec outline and AC hints, skipping the blank-page vision questions. Templates cover the most common development domains:
+
+| Template | Domain | Pre-built AC hints |
+|----------|--------|--------------------|
+| `auth` | Authentication | Login, register, JWT, OAuth, rate limiting, sessions |
+| `payments` | Payments | Checkout, Stripe, receipts, refunds, webhooks |
+| `crud` | Data management | List, create, read, update, delete, pagination, search |
+| `notifications` | Notifications | Email, in-app, push, preferences, read/unread |
+| `api` | REST API | Endpoints, middleware, rate limiting, versioning, errors |
+| `dashboard` | Analytics UI | Charts, filters, date ranges, export, real-time |
+
+Templates are starting points — `/buildflow-spec` expands and refines them with project-specific ACs.
+
+### `/buildflow-perf` — Full-Stack Performance Profiling
+
+New command that profiles UI rendering, backend endpoints, and database queries. Measures baseline metrics before investigating, identifies the highest-impact bottleneck per track, applies a minimal fix, and verifies improvement with before/after numbers.
+
+**Three tracks:**
+- **UI** — JS bundle size, LCP/FCP/CLS vitals, render-blocking resources, lazy loading, memoization, image optimization
+- **Backend** — Endpoint p50/p95 times, sequential awaits, missing caching, N+1 queries in handlers, unbounded caches
+- **DB** — Missing indexes, N+1 ORM queries, `SELECT *` overhead, slow JOINs, connection pool exhaustion
+
+Same lazy session file pattern as debug/hotfix — single-pass perf investigations have zero overhead. Supports `--list`, `--continue`, and `--cleanup`.
 
 ---
 
@@ -1217,7 +1307,8 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 | `/buildflow-ui-spec` | ~12K | One-time per frontend epic |
 | `/buildflow-ui-review` | ~15–25K | --quick: 15K / full 6-dimension audit: 25K |
 <!-- | `/buildflow-docker scaffold` | ~10K | One-time Dockerfile + Compose generation | -->
-| `/buildflow-hotfix` | ~10K | 5× cheaper than a full build cycle |
+| `/buildflow-hotfix` | ~10K | 5× cheaper than a full build cycle · lazy session state |
+| `/buildflow-perf` | ~20K | Full-stack profiling: UI + backend + DB in one pass |
 | `/buildflow-complete-epic` | ~12K | Milestone archival + global learnings write |
 | Light memory load per session | ~1.5K | Pruned to ≤3K — saves ~10K in re-detection |
 | Context pruning savings | −5–15K | Stale epic data archived not reloaded |
