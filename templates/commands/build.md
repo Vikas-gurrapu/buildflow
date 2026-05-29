@@ -532,6 +532,7 @@ After:  [what must be true when this task is done]
 Files to create/modify: [explicit list — max 5]
 Closest existing example: [path/to/similar/file.ts — "follow this structure"]
 Key pattern to follow: [specific convention from PATTERNS.md]
+Approach: [implementation approach from wave file Task Details — follow exactly unless a blocker is found]
 Definition of done: [linked ACs that must pass]
 Serialized after: [task name, or "none — runs in parallel"]
 Locale context: [INCLUDE intel.json locale_support section if task type is copy_locale OR task description references label/copy/i18n keys — otherwise OMIT]
@@ -561,7 +562,7 @@ Skip worktree isolation entirely. Use Step 3a serialization as the sole safety n
 
 **Claude Code** — spawn one Builder per non-overlapping task in a single response:
 ```
-Agent({ description: "Builder: [task name]", prompt: "You are a BuildFlow Builder. Your context packet:\n---\nTask: [task name]\nAC refs: [AC-001, AC-003]\nBefore: [what currently exists]\nAfter: [what must be true when done]\nFiles to create/modify: [list]\nClosest existing example: [path/to/file]\nKey pattern: [convention from PATTERNS.md]\nDefinition of done: [linked ACs]\n---\nWrite code satisfying the Before→After contract. Follow the closest example's structure exactly. Cover referenced ACs. Write focused tests for the code change in the same task." })
+Agent({ description: "Builder: [task name]", prompt: "You are a BuildFlow Builder. Your context packet:\n---\nTask: [task name]\nAC refs: [AC-001, AC-003]\nBefore: [what currently exists]\nAfter: [what must be true when done]\nFiles to create/modify: [list]\nClosest existing example: [path/to/file]\nKey pattern: [convention from PATTERNS.md]\nApproach: [implementation approach from wave file — follow exactly unless a blocker is found]\nDefinition of done: [linked ACs]\n---\nWrite code satisfying the Before→After contract. Follow the planned approach. Follow the closest example's structure exactly. Cover referenced ACs. Write focused tests for the code change in the same task." })
 ```
 One Agent call per task with no file overlap. Overlapping tasks run sequentially per Step 3a serialization.
 
