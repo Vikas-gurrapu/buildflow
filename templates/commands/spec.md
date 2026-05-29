@@ -565,6 +565,37 @@ Wave 4 — UI (depends on Wave 3)
 
 If `--risk-first`: within each wave, sort tasks by uncertainty/novelty (most uncertain first).
 
+### 12d — Implementation Approach Analysis (per task)
+
+For every non-trivial task in every wave, evaluate the implementation before writing plan files. This surfaces the best approach and documents alternatives so the user can redirect before any code is written.
+
+For each task:
+1. Identify 2–3 candidate approaches (e.g., REST vs GraphQL, custom vs library, inline vs service layer, optimistic vs server-driven UI)
+2. Score each against: existing patterns in `PATTERNS.md`, spec requirements in `ACCEPTANCE.md`, simplicity, testability, and reversibility
+3. Pick the recommended approach — best score across all criteria
+4. Document rejected alternatives — one line each
+
+Print for each task before writing wave files:
+
+```
+Task: [task name]
+─────────────────────────────────────────────
+Approach (recommended):
+  [Concrete description — e.g., "Use Prisma upsert() in the repository layer, wrap in a service method, throw typed errors on conflict."]
+  Why: [e.g., "Matches service-layer pattern in PATTERNS.md, testable in isolation, spec requires typed error responses."]
+
+Alternatives considered:
+  • [Alt 1] — [why not: e.g., "Bypasses repository layer, breaks PATTERNS.md contract"]
+  • [Alt 2] — [why not: e.g., "Over-abstraction — spec doesn't require this level of indirection"]
+
+Trade-off: [What you give up — e.g., "Slightly more boilerplate than inline, but isolated and unit-testable."]
+Risk: [LOW / MEDIUM / HIGH] — [e.g., "MEDIUM — upsert race condition under concurrent writes; add unique DB constraint as guard."]
+```
+
+If no meaningful alternatives exist (pure scaffold, config, migration, or locale file): write `Approach: [what to create] — no alternatives applicable`.
+
+The user can redirect any task's approach before the plan is locked. Any redirected approach is stored in `CONTEXT.md` as a locked decision and applied when writing wave files.
+
 ---
 
 ## Step 13: AC Coverage Verification
@@ -634,6 +665,7 @@ Hotspot warnings:  [files or NONE]
 Thin-slice order:  [violations or OK]
 File conflicts:    [ownership conflicts or OK]
 Focused tests:     [tasks missing post-change tests or OK]
+Approach quality:  [tasks with weak/risky approach — or OK]
 Verdict: APPROVED / NEEDS REVISION
 ```
 
@@ -719,8 +751,31 @@ Tasks: [N]
 
 ## Tasks
 | Task | ACs | Est | Type | Files | Tests | Design Ref |
-|------|-----|-----|------|-------|-------|---------|
+|------|-----|-----|------|-------|-------|------------|
 | [name] | AC-001 | S | NEW | src/... | focused after change | [ComponentName / —] |
+
+## Task Details
+
+### [Task name]
+**AC refs:** AC-001, AC-002
+**Before:** [what currently exists — "file doesn't exist" or "function X does Y"]
+**After:** [what must be true when this task is done]
+**Files:** `src/...` (create / modify)
+**Closest example:** `src/path/to/similar.ts` — follow this structure
+
+**Approach (recommended):**
+[Concrete implementation description — e.g., "Add a `findByEmail` method to `UserRepository`, call it from `AuthService.login`, throw `AuthError` on miss."]
+Why: [e.g., "Matches repository pattern in PATTERNS.md; service layer stays thin; AuthError is already typed and caught by the global handler."]
+
+**Alternatives considered:**
+- [Alt 1] — [why not chosen]
+- [Alt 2] — [why not chosen]
+
+**Trade-off:** [What you give up with the recommended approach]
+**Risk:** [LOW / MEDIUM / HIGH] — [specific risk and guard if any]
+
+---
+[repeat for each task]
 
 ## ACs Targeted
 - AC-001: [brief description]
