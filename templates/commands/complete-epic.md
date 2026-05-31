@@ -46,14 +46,30 @@ ls .buildflow/epics/*/SHIPPED.md 2>/dev/null
 ```
 
 For any epic that has no `SHIPPED.md`:
+
+**First, run an AC check** — read `.buildflow/epics/[N-slug]/CHECK.md`:
+- Count total ACs and how many are PASS / FAIL / UNVERIFIED
+- If CHECK.md does not exist: treat all ACs as UNVERIFIED
+
+Then show:
 ```
 ⚠ Epic [N-slug] — "[name]" has not been shipped yet.
 
+AC Status:  [N] PASS  /  [N] FAIL  /  [N] UNVERIFIED  (from CHECK.md)
+[If any FAIL or UNVERIFIED:]
+  Failing ACs: AC-001 [title], AC-004 [title] ...
+
 Options:
-  [S] Ship it now — run /buildflow-ship for Epic [N-slug] first, then return here
+  [S] Ship it now   — run /buildflow-ship for Epic [N-slug] first, then return here
+                      (recommended — runs full gates + prune + AC verification)
   [I] Include anyway — mark as incomplete in the milestone summary
-  [X] Exclude — treat as deferred to next milestone
+                      (requires typing "include-unverified" to confirm)
+  [X] Exclude        — treat as deferred to next milestone
 ```
+
+- If the user chooses **[I]**: require typing `include-unverified` before proceeding. Record unverified AC count in the milestone summary and append to `DEBT.md`.
+- If the user chooses **[S]**: stop here — user must run `/buildflow-ship` first, then re-run `/buildflow-complete-epic`.
+- If all ACs are PASS but SHIPPED.md is simply missing: surface as a warning only, not a block.
 
 If any epic is excluded or incomplete, note it in the milestone summary.
 
@@ -186,7 +202,36 @@ Version recorded in STATE.md (no git tag — use 'git tag [version]' later if ne
 
 ---
 
-## Step 7: Reset State for Next Milestone
+## Step 7: Fallback Prune (if any epic was not shipped via /buildflow-ship)
+
+Check: did every epic in this milestone have a `SHIPPED.md`?
+
+If **any epic was included without going through `/buildflow-ship`** (chose [I] Include anyway, or SHIPPED.md was simply absent):
+
+Run the same cleanup that `/buildflow-ship` would have performed for that epic:
+
+1. **Prune epic MEMORY.md entries** — in `.buildflow/MEMORY.md`, remove wave-level build notes, task summaries, and build timestamps for that epic. Keep only: style_fingerprint, key_decisions (last 3), current_focus.
+2. **Write a synthetic SHIPPED.md** — use the **Write tool** to create `.buildflow/epics/[N-slug]/SHIPPED.md`:
+   ```markdown
+   # [Epic Name] — Completed via /buildflow-complete-epic
+   **Completed:** [today]
+   **Note:** /buildflow-ship was not run. ACs: [N PASS / N FAIL / N UNVERIFIED].
+   [If any FAIL/UNVERIFIED:] Unverified ACs logged to DEBT.md.
+
+   ## What Was Built
+   [3–5 bullets from SPEC.md features]
+   ```
+3. **Append to DEBT.md** — log any FAIL or UNVERIFIED ACs with a timestamp:
+   ```
+   [date] /buildflow-complete-epic — ship gate bypassed for epic [N-slug].
+   Unverified ACs: [list]. Reason: included without /buildflow-ship.
+   ```
+
+If all epics had `SHIPPED.md`: skip this step entirely.
+
+---
+
+## Step 7b: Reset State for Next Milestone
 
 Use the **Write tool** to update `.buildflow/STATE.md`:
 - Set `Epic: none` (cleared — ready for next epic)
@@ -195,7 +240,6 @@ Use the **Write tool** to update `.buildflow/STATE.md`:
   ```
   | [Epics N–M] | [Milestone Name] | ✅ Milestone Complete | [today] |
   ```
-- Reset `session_tokens_used: 0`
 - Clear `paused_epics: []` — milestone complete means all epics in this cycle are done
 
 Use the **Write tool** to update `.buildflow/MEMORY.md`:
@@ -207,7 +251,7 @@ Use the **Write tool** to update `.buildflow/MEMORY.md`:
 
 ---
 
-## Step 7b: Write to Global Learnings Store
+## Step 7c: Write to Global Learnings Store
 
 Extract 2–4 cross-project insights from this milestone — things that would be useful in a future project using the same framework or language.
 
@@ -259,16 +303,6 @@ Archived to: .buildflow/milestones/[slug]/MILESTONE.md
    Why:  Milestone archived. Memory pruned. Ready for the next development cycle.
    Context: Saved to STATE.md. Run /clear before starting next phase — milestone boundary.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 ---
-
-## Token Cost Report
-
-Measure actual cost at the end:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (prose-heavy command): `Math.ceil((outputChars / 3.9) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used`
-
-## Token Budget: ~12K

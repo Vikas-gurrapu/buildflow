@@ -14,7 +14,6 @@ View and update BuildFlow preferences interactively. Reads `.buildflow/PREFERENC
 - `/buildflow-settings show` — print current settings only (no changes)
 - `/buildflow-settings experience` — change experience level only
 - `/buildflow-settings git` — change git permission only
-- `/buildflow-settings tokens` — toggle token tracking
 - `/buildflow-settings coverage` — adjust spec coverage threshold
 - `/buildflow-settings strict` — toggle strict mode
 - `/buildflow-settings parallel` — toggle parallel agents / set max researchers
@@ -38,24 +37,22 @@ BuildFlow Settings
 ──────────────────────────────────────────────────────────
   [1] Experience level        [junior / mid / senior]           current: [value]
   [2] Git permission          [approved / denied / denied_permanent] current: [value]
-  [3] Token tracking          [enabled / disabled]              current: [value]
-  [4] Token verbose mode      [on / off]                        current: [value]
-  [5] Spec coverage threshold [0–100%]                          current: [value]%
-  [6] Spec coverage strict    [on / off]                        current: [value]
-  [7] Strict mode             [on / off]                        current: [value]
-  [8] Parallel agents         [on / off]                        current: [value]
-  [9] Max parallel researchers [1–5]                            current: [value]
- [10] Pre-ship security gate  [on / off]                        current: [value]
- [11] Learning aids           [on / off]                        current: [value]
- [12] Undo / restore points   [on / off]                        current: [value]
- [13] Workflow toggles        [require_think / require_check / skip_prompts / research_depth] current: [summary]
+  [3] Spec coverage threshold [0–100%]                          current: [value]%
+  [4] Spec coverage strict    [on / off]                        current: [value]
+  [5] Strict mode             [on / off]                        current: [value]
+  [6] Parallel agents         [on / off]                        current: [value]
+  [7] Max parallel researchers [1–5]                            current: [value]
+  [8] Pre-ship security gate  [on / off]                        current: [value]
+  [9] Learning aids           [on / off]                        current: [value]
+ [10] Undo / restore points   [on / off]                        current: [value]
+ [11] Workflow toggles        [require_think / require_check / skip_prompts / research_depth] current: [summary]
 ──────────────────────────────────────────────────────────
 Type one or more numbers to change settings (comma-separated, e.g. "1,3,7"), or "done" to finish.
 ```
 
 If the user enters multiple numbers (e.g. `1,3,13`): process each setting in order, one after another — no need to return to the menu between them.
 
-If invoked with a specific target (`experience`, `git`, `tokens`, etc.), skip the menu and go directly to that setting's prompt.
+If invoked with a specific target (`experience`, `git`, `coverage`, etc.), skip the menu and go directly to that setting's prompt.
 
 If invoked as `show`: print the table above and exit.
 
@@ -103,39 +100,7 @@ Also update `git_available:` in `.buildflow/MEMORY.md` to match (`true` if appro
 
 ---
 
-### [3] Token Tracking
-
-```
-Token tracking measures and reports actual token usage at the end of every command.
-
-  [Y] Enable  — track tokens, print cost at end of each command
-  [N] Disable — no tracking or reporting
-
-Current: [value]
-New value:
-```
-
-Update `token_tracking.enabled:` in `PREFERENCES.md`.
-
----
-
-### [4] Token Verbose Mode
-
-```
-Verbose mode controls how much detail appears in token reports.
-
-  [Y] On  — full breakdown: context loaded, output generated, this command, session total
-  [N] Off — one line only: "Session: ~NK tokens" (default)
-
-Current: [value]
-New value:
-```
-
-Update `verbose_context:` in `PREFERENCES.md`.
-
----
-
-### [5] Spec Coverage Threshold
+### [3] Spec Coverage Threshold
 
 ```
 Spec coverage threshold is the minimum % of business-logic files that must have AC traceability.
@@ -155,7 +120,7 @@ Update `spec_coverage.threshold:` in `PREFERENCES.md`.
 
 ---
 
-### [6] Spec Coverage Strict Mode
+### [4] Spec Coverage Strict Mode
 
 ```
 Strict coverage mode prompts on ANY drop below threshold, even 1%.
@@ -171,7 +136,7 @@ Update `spec_coverage.strict_mode:` in `PREFERENCES.md`.
 
 ---
 
-### [7] Strict Mode (Spec-to-Code Mirroring)
+### [5] Strict Mode (Spec-to-Code Mirroring)
 
 ```
 Strict mode enforces structural spec-to-code mirroring for auth, payments, crypto, and compliance code.
@@ -191,7 +156,7 @@ Update `strict_mode:` in `PREFERENCES.md`.
 
 ---
 
-### [8] Parallel Agents
+### [6] Parallel Agents
 
 ```
 Parallel agents run multiple Researchers or Builders simultaneously for faster execution.
@@ -207,7 +172,7 @@ Update `parallel.enabled:` in `PREFERENCES.md`.
 
 ---
 
-### [9] Max Parallel Researchers
+### [7] Max Parallel Researchers
 
 ```
 Max parallel researchers controls how many Researcher agents run simultaneously in /buildflow-think.
@@ -225,7 +190,7 @@ Update `parallel.max_researchers:` in `PREFERENCES.md`.
 
 ---
 
-### [10] Pre-Ship Security Gate
+### [8] Pre-Ship Security Gate
 
 ```
 Pre-ship security gate runs /buildflow-audit before every /buildflow-ship.
@@ -242,7 +207,7 @@ Update `security.pre_ship_gate:` in `PREFERENCES.md`.
 
 ---
 
-### [11] Learning Aids
+### [9] Learning Aids
 
 ```
 Learning aids add explanations, confidence checks, and source citations to agent responses.
@@ -259,7 +224,7 @@ Update `learning.show_explanations:`, `learning.confidence_calibration:`, `learn
 
 ---
 
-### [12] Undo / Restore Points
+### [10] Undo / Restore Points
 
 ```
 Restore points automatically snapshot files before destructive operations so /buildflow-back can undo.
@@ -275,7 +240,7 @@ Update `safety.enable_undo:` and `safety.restore_points:` in `PREFERENCES.md`.
 
 ---
 
-### [13] Workflow Toggles
+### [11] Workflow Toggles
 
 Show all toggles at once and let the user select **multiple** to change in one pass:
 
@@ -319,7 +284,7 @@ Update the corresponding `workflow.*` keys in `PREFERENCES.md`.
 ⚠ Reset Confirmation
 
 This will restore all preferences to BuildFlow defaults:
-  experience: junior · git: approved · tokens: enabled · coverage: 70%
+  experience: junior · git: approved · coverage: 70%
   strict_mode: off · parallel: on · max_researchers: 3 · security gate: on
   learning aids: on · restore points: on · skip_prompts: off
   require_think: off · require_check: on · research_depth: standard
@@ -342,17 +307,13 @@ Settings saved to .buildflow/PREFERENCES.md
 
 Changed:
   experience: junior → senior
-  token_tracking.enabled: true → false
 
 Changes take effect in your next AI session.
 ──────────────────────────────────────────────────
 → Next:  Continue with your current command
    Why:  Settings are saved. No restart needed — changes apply from your next session start.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If no changes were made, print: "No changes made."
-
-## Token Budget: ~3K
 

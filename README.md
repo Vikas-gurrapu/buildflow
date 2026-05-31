@@ -1,7 +1,7 @@
 ﻿# BuildFlow
 
 > From epic to ship — spec-driven, multi-agent AI development with epics, planning, build, test, debug, perf, security audit, and deploy — for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.
-> **v8.0** — Session continuity (`--continue` for debug/hotfix), stale session cleanup, epic templates, and full-stack performance profiling (`/buildflow-perf`).
+> **v8.0** — Session continuity, epic templates, performance profiling, multi-agent execution, PR generation, database migration management, production observability, and OpenAPI generation from spec.
 
 [![npm version](https://badge.fury.io/js/buildflow-dev.svg)](https://www.npmjs.com/package/buildflow-dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -19,7 +19,6 @@
 - [CLI Commands](#cli-commands)
 - [Git Permission System](#git-permission-system)
 - [No-Git Mode](#no-git-mode)
-- [Token Cost Tracking](#token-cost-tracking)
 - [Spec Governance](#spec-governance)
 - [Post-Ship Feature Advisor](#post-ship-feature-advisor)
 - [How It Works](#how-it-works)
@@ -28,7 +27,6 @@
 - [Template System](#template-system)
 - [9 Specialized Agents](#9-specialized-agents)
 - [v7.0: What's New](#v70-whats-new)
-- [Token Economics](#token-economics)
 - [Contributing](#contributing)
 - [Publishing](#publishing)
 
@@ -48,7 +46,6 @@ Once installed, you work entirely inside your AI tool using `/buildflow-*` comma
 - **Spec-first:** Every epic starts with formal Requirements + Technical Design + Acceptance Criteria. Plans trace to ACs. Ship is blocked if any AC is unsatisfied.
 - **Context isolation + resume:** Each agent receives a minimal context packet, and each epic keeps a compact `STATE.md` so fresh sessions can continue cleanly.
 - **Auto-prune:** `MEMORY.md` is automatically compressed at session start and after each ship. Long sessions stay lean.
-- **Measured token costs:** Every command reports actual token usage (context loaded + output generated) and accumulates a session total — not estimates.
 - **Cross-project intelligence:** Global learnings written at every milestone completion surface relevant insights in future projects using the same framework.
 
 ---
@@ -339,6 +336,55 @@ Systematic root-cause analysis. Traces error → file → line → violated assu
 
 ---
 
+#### `/buildflow-pr` · Strategist · ~12K tokens
+
+Generates a complete, ready-to-paste pull request description from the most recently completed wave or phase. Reads what was built (wave tasks), what it proves (ACs covered), what changed (git diff), and what was verified (CHECK.md) — then writes a PR description that includes scope, ACs table, manual test steps, migration notes, and breaking change warnings.
+
+```
+/buildflow-pr                   Generate PR for most recently completed wave
+/buildflow-pr --phase           Generate PR for the entire phase (all waves)
+/buildflow-pr wave-2            Generate PR for a specific wave
+/buildflow-pr --draft           Mark PR as draft
+/buildflow-pr --branch          Also suggest branch name
+```
+
+Output is saved to `.buildflow/epics/[epic]/PR-wave-[N].md` and printed ready-to-paste, including a `gh pr create` one-liner.
+
+---
+
+#### `/buildflow-migrate` · Surgeon · ~18K tokens
+
+Database migration management. Diffs the spec data model against the current schema, classifies every change (SAFE / CAUTION / DESTRUCTIVE), generates migration files for your ORM, and produces a rollback plan alongside every migration. Blocks on destructive operations until explicitly confirmed.
+
+Supports: Prisma, Drizzle, TypeORM, Django, Alembic/SQLAlchemy, Knex, raw SQL.
+
+```
+/buildflow-migrate              Detect changes and generate migration
+/buildflow-migrate --check      Detect only, no file writes
+/buildflow-migrate --rollback   Generate rollback for the last migration
+/buildflow-migrate --status     Show applied vs pending migrations
+/buildflow-migrate --safe       Add data backfill guards before NOT NULL constraints
+```
+
+---
+
+#### `/buildflow-observe` · Surgeon · ~22K tokens
+
+Production observability audit and setup. Scans the codebase for four pillars — error tracking, structured logging, health endpoints, and APM/metrics — reports gaps, then generates the missing pieces tailored to the detected framework.
+
+```
+/buildflow-observe              Full audit + generate all missing pieces
+/buildflow-observe --audit      Audit only, no code changes
+/buildflow-observe --error-tracking    Error tracking pillar only
+/buildflow-observe --logging           Structured logging only
+/buildflow-observe --health            Health endpoint only
+/buildflow-observe --apm               APM and metrics only
+```
+
+Generates: Sentry/OpenTelemetry setup, pino/structlog logger module, `/health` + `/ready` endpoints, Prometheus metrics. All code follows the project's existing patterns from `PATTERNS.md`.
+
+---
+
 #### `/buildflow-perf` · Surgeon · ~20K tokens
 
 Full-stack performance profiling across three tracks. Measures baseline metrics first, then identifies and fixes the highest-impact bottleneck. Session state follows the same lazy save pattern as debug — zero overhead for single-pass investigations.
@@ -447,70 +493,129 @@ Dimensions: color consistency · typography · spacing · component coverage · 
 
 #### `/buildflow-workspace` · Architect · ~15–25K tokens
 
-Monorepo and polyrepo mapping with cross-service contract detection (TypeScript types, REST, tRPC, GraphQL, gRPC). Shows blast radius of changes across repos. Includes a root-level **onboard** sub-command so you never have to `cd` into each repo individually.
+Cross-repo orchestration for polyrepo and monorepo setups. Run from the workspace root (the parent folder containing all repos). Handles the full workflow — spec, build, check, ship — across repos in dependency order. Each repo's artifacts (SPEC.md, PLAN.md, waves, CHECK.md, SHIPPED.md) stay in that repo's own `.buildflow/epics/`. The workspace folder holds only the coordination layer: STATE.md, XPLAN.md (contract summary), and STATUS.md.
 
 ```
-/buildflow-workspace                       Discover and map all repos/packages in the workspace (~25K)
+/buildflow-workspace                       Discover and map all repos/packages in the workspace
 /buildflow-workspace onboard               Discover repos, multiselect which to onboard, run /buildflow-onboard for each
 /buildflow-workspace onboard --update      Same discovery, but run --update for already-onboarded repos
 /buildflow-workspace add <path>            Register an additional repo path
-/buildflow-workspace impact <description>  Cross-repo blast-radius analysis for a described change (~15K)
+/buildflow-workspace impact <description>  Cross-repo blast-radius analysis for a described change
 /buildflow-workspace contracts             Show all shared API contracts between repos
 /buildflow-workspace sync                  Refresh all repo intel indexes
+/buildflow-workspace spec "<feature>"      Spec each affected repo in dependency order; write XPLAN.md at workspace level
+/buildflow-workspace discuss               Cross-repo spec clarifications; updates each repo's SPEC.md and XPLAN.md contract
+/buildflow-workspace build                 Build each repo in dependency order; wave files stay local per repo
+/buildflow-workspace build --resume        Resume an interrupted cross-repo build from last incomplete repo
+/buildflow-workspace check                 Aggregate AC verification across all repos
+/buildflow-workspace ship                  Ship each repo in dependency order; workspace STATUS.md updated as each completes
+/buildflow-workspace complete              Archive cross-repo milestone; reset workspace state
 ```
 
-#### Multi-Repo Example (3 sibling repos)
-
+**Cross-repo detection in single-repo commands:** `/buildflow-spec` and `/buildflow-build` detect if a workspace root exists at `../` and if the feature spans sibling repos. When detected, they redirect:
 ```
-workspace/
-├── api/       ← Express + TypeScript backend
-├── web/       ← Next.js frontend
-└── shared/    ← Shared TypeScript types + utils
+⚠ Cross-repo scope detected — run from workspace root:
+  cd ..
+  /buildflow-workspace spec "[feature]"
 ```
 
-**Step 1 — Onboard all 3 repos from the workspace root:**
+#### Multi-Repo Example (5 sibling repos)
+
+```
+workspace/                ← run workspace commands here
+├── core-common/          ← shared modules
+├── public-module/        ← consumes core-common
+├── api-module/           ← consumes core-common
+├── react-module/         ← consumes core-common + api-module
+└── shell-repo/           ← composes all as npm packages
+```
+
+**Step 1 — Onboard all repos from workspace root:**
 ```
 /buildflow-workspace onboard
 
-  Found 3 repo(s). Select which to onboard:
+  Found 5 repo(s). Select which to onboard:
 
-    [1]  api/      Node.js / TypeScript   NOT ONBOARDED
-    [2]  web/      Node.js / TypeScript   NOT ONBOARDED
-    [3]  shared/   Node.js / TypeScript   NOT ONBOARDED
+    [1]  core-common/    Node.js / TypeScript   NOT ONBOARDED
+    [2]  public-module/  Node.js / TypeScript   NOT ONBOARDED
+    [3]  api-module/     Node.js / TypeScript   NOT ONBOARDED
+    [4]  react-module/   Node.js / TypeScript   NOT ONBOARDED
+    [5]  shell-repo/     Node.js / TypeScript   NOT ONBOARDED
 
   Your selection: A
-
-  Onboarding 1/3: api/       → ONBOARDED (6 modules · 4 hotspots)
-  Onboarding 2/3: web/       → ONBOARDED (8 modules · 2 hotspots)
-  Onboarding 3/3: shared/    → ONBOARDED (2 modules · 0 hotspots)
 ```
 
-Each repo's knowledge files land in its own `api/.buildflow/codebase/`, `web/.buildflow/codebase/`, `shared/.buildflow/codebase/`.
+Each repo's knowledge files land in its own `.buildflow/codebase/` — they do not share a codebase folder.
 
 **Step 2 — Map cross-repo dependencies:**
 ```
 /buildflow-workspace
 
-  packages/shared/ ──exports UserType──► api/
-  packages/shared/ ──exports UserType──► web/
-  api/             ──REST /api/users──►  web/
+  core-common/   ──exports UserType──► api-module/
+  core-common/   ──exports UserType──► react-module/
+  api-module/    ──REST /api/users──►  react-module/
+  shell-repo/    ──npm package──►      api-module/, react-module/, ...
 
-  Cross-repo hotspot: shared/ (fan-in: 2) — changes here affect both api/ and web/
+  Cross-repo hotspot: core-common/ (fan-in: 3) — changes here affect 3 repos
 ```
 
-**Step 3 — Before changing a shared type, check blast radius:**
+**Step 3 — Build a cross-repo feature from workspace root:**
 ```
-/buildflow-workspace impact "Add profilePhotoUrl to UserType"
+/buildflow-workspace spec "Add profile photo upload"
 
-  Origin:  shared/src/types/user.ts
-  Direct:  api/ → src/routes/users.ts, src/services/user.service.ts
-           web/ → src/components/UserCard.tsx, src/pages/profile.tsx
+  Cross-Repo Scope:
+    [1] api-module     → POST /users/:id/photo + DB migration (defines contract)
+    [2] react-module   → Upload form + UserCard photo display (consumes contract)
+
+  Speccing 1/2: api-module/ ────────
+    → SPEC.md, ACCEPTANCE.md, PLAN.md written to api-module/.buildflow/epics/1-photo-upload/
+    → Cross-repo contract extracted: POST /users/:id/photo → { photo_url: string }
+
+  Speccing 2/2: react-module/ ────────
+    → SPEC.md, ACCEPTANCE.md, PLAN.md written to react-module/.buildflow/epics/1-photo-upload/
+    → Contract injected as constraint: consumes api-module endpoint above
+
+  Workspace summary: .buildflow/workspace/epics/1-photo-upload/XPLAN.md
+
+/buildflow-workspace build
+
+  Building 1/2: api-module/ — 3 waves · 8 ACs
+  Building 2/2: react-module/ — uses actual api-module output as contract · 3 waves · 6 ACs
+
+/buildflow-workspace check
+
+  | Repo         | ACs | Pass | Fail |
+  | api-module   | 8   | 8    | 0    |
+  | react-module | 6   | 6    | 0    |
+
+/buildflow-workspace ship
+  ✓ api-module shipped
+  ✓ react-module shipped
+```
+
+**Step 4 — Before changing a shared type, check blast radius:**
+```
+/buildflow-workspace impact "Add profilePhotoUrl to UserType in core-common"
+
+  Origin:  core-common/src/types/user.ts
+  Direct:  api-module/ → src/routes/users.ts, src/services/user.service.ts
+           react-module/ → src/components/UserCard.tsx
 
   Build order:
-    1. shared/  (define contract first)
-    2. api/     (implement + migration)
-    3. web/     (consume new field)
+    1. core-common/   (update type — contract source)
+    2. api-module/    (implement + migration)
+    3. react-module/  (consume new field)
 ```
+
+**Workspace state files** (at workspace root `.buildflow/workspace/`):
+
+| File | What it holds |
+|------|---------------|
+| `STATE.md` | Current xepic, per-repo status, build order, rollback branches |
+| `epics/[slug]/XPLAN.md` | Feature summary, cross-repo contract, per-repo scope (not full spec) |
+| `epics/[slug]/STATUS.md` | Quick-glance AC table across all repos |
+
+Full artifacts (SPEC.md, PLAN.md, waves, CHECK.md, SHIPPED.md) always stay in each repo's own `.buildflow/epics/`.
 
 ---
 
@@ -706,38 +811,6 @@ Parked entries are tracked in `MEMORY.md → parked_changes[]`. When a new epic 
 
 ---
 
-## Token Cost Tracking
-
-Every command measures and reports its **actual** token usage — not estimates.
-
-**How it works:**
-1. At command start: estimate input tokens per file using `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose ÷4.0, standard code ÷3.5, Go/Rust/C ÷3.2, JSON/YAML ÷3.2, minified ÷2.7; density penalty 0–0.3 for symbol density; ×1.05 safety margin
-2. At command end: estimate output tokens using a command-specific divisor (code-heavy ÷3.4, mixed ÷3.7, prose-heavy ÷3.9) × 1.05
-3. Add to `STATE.md → session_tokens_used` running total
-4. Print the breakdown
-
-**Token cost report (shown at end of every command):**
-```
-Token Cost — /buildflow-build
-──────────────────────────────
-Context loaded:    ~18K tokens   (3 context packets × 2 waves + 4 fix iterations)
-Output generated:  ~12K tokens   (6 files written, 8 test runs)
-This command:      ~30K tokens
-Session total:     ~52K tokens   (since 2026-05-25 09:14)
-```
-
-**Session total** is reset at every `/buildflow-start-epic`. View anytime with `/buildflow-status`.
-
-**Configure in `PREFERENCES.md`:**
-```yaml
-token_tracking:
-  enabled: true
-  report_at_end: true
-  session_running_total: true
-```
-
----
-
 ## Spec Governance
 
 BuildFlow's spec layer is versioned, auditable, and enforced at every gate.
@@ -923,7 +996,6 @@ Every AI session runs this automatically:
 5. Detect git availability, set `git_available` in `MEMORY.md`
 5b. Check `~/.buildflow/learnings/global.md` — surface matching insights for current framework
 6. Run codebase drift check against `intel.json` baseline
-7. Reset `session_tokens_used: 0` in `STATE.md`
 
 ### Epic resume contract
 
@@ -1024,7 +1096,9 @@ buildflow-dev/
 │       ├── perf.md               Full-stack perf profiling — UI, backend, DB · --continue, --list, --cleanup
 │       ├── deploy.md             Pre-flight, Docker deployment path, migrations, health check
 │       ├── docker.md             Scaffold, build, run, push, scan, shell, clean
-│       ├── workspace.md          Monorepo mapping, cross-service contract detection, blast radius
+│       ├── workspace.md          Cross-repo orchestration — full workflow (spec/discuss/build/check/ship/complete)
+│       │                         from workspace root; workspace STATE.md + XPLAN.md formats;
+│       │                         per-repo execution with dependency-order sequencing
 │       ├── status.md             Epic, AC bar, token spend with session total, debt, suggestions
 │       ├── explain.md            Plain-language explanation
 │       ├── back.md               Undo with dual-mode restore point
@@ -1151,6 +1225,22 @@ Each agent gets a fresh context window with a minimal context packet — no cont
 
 ## v8.0: What's New
 
+### Cross-Repo Workflow Orchestration — `/buildflow-workspace spec/build/check/ship`
+
+The workspace command now supports the full development workflow from the workspace root. All workflow commands (`spec`, `discuss`, `build`, `check`, `ship`, `complete`) can be run from the parent folder containing all sibling repos. Each repo's artifacts stay local to that repo. The workspace folder holds only a coordination layer:
+
+- **`XPLAN.md`** — cross-repo contract summary (endpoint shapes, shared types), not a full spec
+- **`STATE.md`** — per-repo status, build order, rollback branches
+- **`STATUS.md`** — quick-glance AC table across all repos
+
+**Build order enforcement:** the contract-defining repo (e.g. `api-module`) is always specced and built first. Consuming repos (e.g. `react-module`) receive the actual implementation output as a constraint — not just the spec — so the contract lock is real.
+
+**Interrupt and resume:** `--resume` reads workspace `STATE.md` and continues from the last incomplete repo. Rollback instructions are provided per completed repo if a later repo fails.
+
+**Cross-repo detection:** `/buildflow-spec` and `/buildflow-build` run from inside a single repo now detect workspace scope automatically and redirect to `workspace spec` / `workspace build` when cross-repo changes are identified.
+
+---
+
 ### Session Continuity — `--continue` for `/buildflow-debug` and `/buildflow-hotfix`
 
 Both commands now persist session state across invocations. State is saved **lazily** — zero file I/O for fast single-pass sessions that resolve immediately. Files are only created when a session can't complete in one pass (root cause not found, or tests fail after 3 attempts).
@@ -1183,9 +1273,25 @@ Six built-in domain templates bootstrap a new epic with a pre-built spec outline
 
 Templates are starting points — `/buildflow-spec` expands and refines them with project-specific ACs.
 
+### `/buildflow-pr` — Pull Request Generation
+
+Generates a complete PR description from the completed wave: what was built, which ACs are covered, how to manually test, migration notes if the schema changed, and breaking change warnings. Saves to `.buildflow/epics/[epic]/PR-wave-N.md` and prints a ready-to-paste `gh pr create` one-liner.
+
+### `/buildflow-migrate` — Database Migration Management
+
+Diffs the spec data model against the live schema, classifies every change as SAFE / CAUTION / DESTRUCTIVE, generates migration files for the detected ORM (Prisma, Drizzle, TypeORM, Django, Alembic, Knex, raw SQL), and produces a rollback plan alongside every migration. Destructive operations are blocked until explicitly confirmed with `--allow-destructive`.
+
+### `/buildflow-observe` — Production Observability Setup
+
+Audits the codebase across four production pillars — error tracking (Sentry), structured logging (pino/structlog), health endpoints (`/health`, `/ready`), and APM (OpenTelemetry/Prometheus) — then generates the missing pieces following the project's existing code patterns.
+
+### OpenAPI Generation in `/buildflow-spec`
+
+When the spec defines API endpoints, `/buildflow-spec` now automatically generates `openapi.yaml` after locking the spec. The file is ready to import into Postman or preview with Redocly.
+
 ### `/buildflow-perf` — Full-Stack Performance Profiling
 
-New command that profiles UI rendering, backend endpoints, and database queries. Measures baseline metrics before investigating, identifies the highest-impact bottleneck per track, applies a minimal fix, and verifies improvement with before/after numbers.
+Command that profiles UI rendering, backend endpoints, and database queries. Measures baseline metrics before investigating, identifies the highest-impact bottleneck per track, applies a minimal fix, and verifies improvement with before/after numbers.
 
 **Three tracks:**
 - **UI** — JS bundle size, LCP/FCP/CLS vitals, render-blocking resources, lazy loading, memoization, image optimization
@@ -1294,34 +1400,6 @@ Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`
 | **SHIPPED.md cross-epic continuity** | ≤500-token epic summary loaded by future epics |
 
 ---
-
-## Token Economics
-
-| Scenario | Tokens | Notes |
-|----------|--------|-------|
-| Greenfield full workflow | 120–150K | All epics, one session |
-| Onboarding existing project | +35–40K | One-time cost, pays back every session |
-| `/buildflow-spec` | ~40K | Per epic — SPEC.md (requirements + design) + ACs + PLAN index + wave files + CHECK.md in one pass |
-| `/buildflow-discuss` | ~20–35K | Optional post-spec clarification (no research: 20K, with parallel researchers: 35K) |
-| `/buildflow-build` per wave | ~50K | Loads PLAN.md index + single wave file only — other waves never loaded |
-| `/buildflow-check` | ~26K | 4 reviewers + drift + coverage + scope-reduction check |
-| `/buildflow-ship` | ~40K | 4 gates + post-ship market research |
-| `/buildflow-ui-spec` | ~12K | One-time per frontend epic |
-| `/buildflow-ui-review` | ~15–25K | --quick: 15K / full 6-dimension audit: 25K |
-<!-- | `/buildflow-docker scaffold` | ~10K | One-time Dockerfile + Compose generation | -->
-| `/buildflow-hotfix` | ~10K | 5× cheaper than a full build cycle · lazy session state |
-| `/buildflow-perf` | ~20K | Full-stack profiling: UI + backend + DB in one pass |
-| `/buildflow-complete-epic` | ~12K | Milestone archival + global learnings write |
-| Light memory load per session | ~1.5K | Pruned to ≤3K — saves ~10K in re-detection |
-| Context pruning savings | −5–15K | Stale epic data archived not reloaded |
-
-**Token efficiency strategy:**
-- `MEMORY.md` stays under 3K (auto-pruned at session start and after each ship)
-- Each agent gets a minimal context packet: task spec + relevant files only
-- Builders never load the full codebase — context packets have max 5 relevant files
-- Old epic data archived to `epics/[epic]/RETRO.md`, never reloaded unless explicitly requested
-- Symbol-level intel.json lookups replace loading full DEPENDENCIES.md import graph (−10K per modify)
-- Wave files load only the active wave — a 5-wave plan loads 1/5th of the task context per build command
 
 ---
 

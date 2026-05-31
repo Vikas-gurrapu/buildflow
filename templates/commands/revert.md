@@ -158,5 +158,3 @@ Next: /buildflow-status
 If context is large after the revert, recommend:
 `/clear`, then `/buildflow-status`.
 
-## Token Budget: ~4K
-

@@ -715,7 +715,7 @@ function loadCommandTemplates() {
   const commandNames = [
     'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship',
     'onboard', 'modify', 'refactor', 'hotfix', 'audit',
-    'debug', 'perf', 'deploy', 'docker', 'workspace',
+    'debug', 'perf', 'deploy', 'docker', 'workspace', 'pr', 'migrate', 'observe',
     'status', 'explain', 'back', 'revert', 'help',
     'complete-epic', 'switch-epic', 'settings',
     'ui-spec', 'ui-review',

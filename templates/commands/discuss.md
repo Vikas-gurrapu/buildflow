@@ -238,7 +238,6 @@ Spec updated to v[N+1] — [N] decisions applied · [N] ACs changed
    Why:  Spec and plan are locked — start executing wave 1
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 **If [N]:**
@@ -253,7 +252,6 @@ Continue with Step 1 — surface remaining doubts or let the user name another t
 → Next:  /buildflow-build
    Why:  No spec changes needed — proceed to execute wave 1
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If invoked as `--review` only (no decisions changed):
@@ -262,12 +260,9 @@ If invoked as `--review` only (no decisions changed):
 → Next:  /buildflow-discuss <topic>  — resolve an open question
    Or:   /buildflow-build            — proceed with spec and plan as-is
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If deferred decisions exist, add:
 ```
    Note: [N] deferred question(s) — these will surface as concerns during /buildflow-build
 ```
-
-## Token Budget: ~20K (no research) / ~35K (with parallel researchers)

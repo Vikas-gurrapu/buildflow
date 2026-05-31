@@ -1,6 +1,6 @@
 ﻿# {{APP_NAME}} — Claude Code Configuration
 
-This project uses **BuildFlow v7.0** for spec-driven, multi-agent development orchestration.
+This project uses **BuildFlow v8.0** for spec-driven, multi-agent development orchestration.
 
 ## Session Start Checklist (Run Every Time)
 
@@ -18,7 +18,7 @@ Before doing anything else at the start of every session:
 2. **Prune memory** — read `.buildflow/MEMORY.md`. If over 3K tokens, prune it silently:
    - Archive epic task lists and build timestamps to `.buildflow/epics/[last epic]/RETRO.md`
    - Keep: app_name, framework, language, current_epic, spec_status, style_fingerprint, last 2 decisions
-   - Do NOT report this to the user unless `verbose_context: true` in `PREFERENCES.md`. Context management is invisible by default.
+   - Context management is invisible by default — do not report pruning to the user.
 
 3. **Load state** — read `.buildflow/STATE.md` for current epic and status.
    - If `current_epic` is set (and not `none`), also read `.buildflow/epics/[current_epic]/STATE.md` if it exists.
@@ -45,17 +45,11 @@ Before doing anything else at the start of every session:
    - If no matches or file absent: proceed silently.
    - Never load more than 5 entries into context — take the 5 most recent matching ones.
 
-6. **Reset session token counter** — update `STATE.md`:
-   ```yaml
-   session_tokens_used: 0
-   session_start: [ISO datetime]
-   ```
-   This counter accumulates across every command run this session. Each command adds its cost before exiting.
-
 ---
 
-## BuildFlow v7.0 Workflow
+## BuildFlow v8.0 Workflow
 
+### Single-repo (run from inside a repo)
 ```
 /buildflow-start-epic    → capture vision
 /buildflow-think    → research (optional)
@@ -66,6 +60,19 @@ Before doing anything else at the start of every session:
 /buildflow-ship     → spec gate + security gate + context pruning
 /buildflow-deploy   → pre-flight + deploy to staging/production
 ```
+
+### Multi-repo (run from workspace root — parent folder of all repos)
+```
+/buildflow-workspace onboard   → onboard all sibling repos
+/buildflow-workspace spec      → spec each affected repo in dependency order; XPLAN.md at workspace level
+/buildflow-workspace discuss   → cross-repo clarifications; updates each repo's SPEC.md
+/buildflow-workspace build     → build each repo in dependency order; wave files stay local per repo
+/buildflow-workspace check     → aggregate AC verification across all repos
+/buildflow-workspace ship      → ship each repo in dependency order
+/buildflow-workspace complete  → archive cross-repo milestone; reset workspace state
+```
+
+Workspace state lives in `[workspace-root]/.buildflow/workspace/`. Repo artifacts (SPEC.md, PLAN.md, waves, CHECK.md, SHIPPED.md) always stay in each repo's own `.buildflow/epics/`.
 
 ## Quick Reference
 
@@ -83,9 +90,16 @@ Before doing anything else at the start of every session:
 | `/buildflow-hotfix` | Fast-path fix — no planning, no waves · `--continue` resumes interrupted sessions |
 | `/buildflow-debug` | Root-cause analysis when tests fail · `--continue` resumes interrupted sessions |
 | `/buildflow-perf` | Performance profiling — UI rendering, backend endpoints, DB queries |
+| `/buildflow-pr` | Generate PR description from completed wave tasks, ACs, and verification results |
+| `/buildflow-migrate` | Detect schema changes, generate migration files, flag destructive ops, produce rollback plan |
+| `/buildflow-observe` | Audit + set up error tracking, structured logging, health endpoints, and APM |
 | `/buildflow-onboard` | One-time analysis of existing codebase |
 | `/buildflow-modify` | Surgical change or bugfix to existing code |
-| `/buildflow-workspace` | Multi-repo/monorepo cross-service impact analysis |
+| `/buildflow-workspace` | Multi-repo/monorepo cross-service impact analysis (run from workspace root) |
+| `/buildflow-workspace spec` | Spec all affected repos from workspace root |
+| `/buildflow-workspace build` | Build all affected repos in dependency order |
+| `/buildflow-workspace check` | Aggregate AC check across all repos |
+| `/buildflow-workspace ship` | Ship all repos in dependency order |
 | `/buildflow-docker` | Docker scaffolding, build, run, push, and image security scan |
 | `/buildflow-audit` | OWASP Top 10 security scan + container CVE scan |
 | `/buildflow-ui-spec` | Generate UI design contract — colors, typography, spacing, components |
@@ -178,7 +192,6 @@ Format (printed as the very last thing before the token line):
 → Next:  /buildflow-[command] [args if needed]
    Why:  [one sentence — what this will do for you right now]
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If multiple valid paths exist (e.g., fix an AC vs ship anyway): show the recommended path first with `→ Next:`, then show the alternative as `   Or:`.
@@ -253,66 +266,6 @@ After every major phase-driving command, check the current context window/sessio
   `Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.`
 - If context is still clean and the next command is small, say:
   `Context: OK to continue without clearing.`
-
-## Token Cost Tracking
-
-Every command measures and reports its actual token usage at the end:
-
-**How it works:**
-1. At the START of a command, estimate input tokens per file using the density-adjusted formula:
-
-   `estimatedTokens = Math.ceil((chars / adjustedDivisor) × 1.05)`
-
-   Where `adjustedDivisor = baseDivisor − densityPenalty`
-
-   **Base divisor by file type:**
-   | File type | Extensions | baseDivisor |
-   |---|---|---|
-   | Prose / markdown | `.md .txt .env` and unknown | 4.0 |
-   | Standard code | `.js .ts .py .rb .php .swift .kt .java .cs .css .html .sh` | 3.5 |
-   | Terse languages | `.go .rs .c .cpp` | 3.2 |
-   | Data / config | `.json .yaml .yml .toml .xml .sql` | 3.2 |
-   | Minified | `*.min.js *.min.css` | 2.7 |
-
-   **Density penalty (subtract from baseDivisor):**
-   - `0.3` — file is notably symbol-dense (minified, deeply nested config, macro-heavy C/C++)
-   - `0.1` — standard code density (most source files)
-   - `0.0` — prose, whitespace-heavy, or sparsely structured files
-
-   Sum across all Context Packet files = **input tokens**
-
-2. At the END of a command, estimate output tokens using a command-specific output divisor (defined in each command file):
-
-   `outputTokens = Math.ceil((outputChars / outputDivisor) × 1.05)`
-
-3. **Command token cost** = input + output
-4. **Add to running total** in `STATE.md → session_tokens_used`
-5. Print the cost report at command end
-
-**Token cost report format — two modes:**
-
-**Default (minimal — one line):**
-```
-Session: ~[N]K tokens used this session
-```
-
-**Verbose (only if `verbose_context: true` in PREFERENCES.md):**
-```
-Token Cost — /buildflow-[command]
-──────────────────────────────────
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
-The session line is always shown at the end of every command output — a single number, not a breakdown. The full breakdown is available any time via `/buildflow-status`.
-
-**Why minimal is the default:**
-- Developers care that costs are measured, not that they read them after every command.
-- The number is always there when they want it. It is never in their way when they don't.
-
-**To check session total at any time:** `/buildflow-status` shows full token spend breakdown.
 
 ## Agents
 

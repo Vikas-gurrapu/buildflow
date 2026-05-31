@@ -4,16 +4,15 @@ BuildFlow is a developer workflow tool that installs project-local instructions,
 
 ## Supported Versions
 
-Security fixes are provided for the latest major version. Older major versions may receive fixes only when the issue is severe and the patch is low risk.
+Only the latest version published to npm is supported. There are no release branches or backport channels — security fixes ship as a new latest version.
 
-| Version | Supported |
-| ------- | --------- |
-| 6.x     | Yes       |
-| 5.x     | Critical fixes only |
-| 4.x     | No        |
-| 1.x     | No        |
+Upgrade before reporting:
 
-Users should upgrade to the latest published version before reporting a bug unless the vulnerability prevents upgrading.
+```bash
+npx buildflow-dev@latest update
+```
+
+If a vulnerability prevents upgrading, note that in your report.
 
 ```bash
 npx buildflow-dev@latest update

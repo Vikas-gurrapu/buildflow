@@ -79,29 +79,6 @@ Test Results
 - Warnings only: "Non-blocking. Proceed or address first — your call."
 - Unresolved after 5 attempts: "Manual intervention needed. Use /buildflow-debug for deeper analysis."
 
-## Token cost report (print at end of test)
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (mixed command): `Math.ceil((outputChars / 3.7) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's cost
-
-Default output (minimal):
-```
-Tests: [N/N] passing · [N] warnings
-Session: ~[N]K tokens
-```
-
-Verbose output (only if `verbose_context: true` in PREFERENCES.md):
-```
-Token Cost — /buildflow-test
-──────────────────────────────
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
 ## Guided Next Step
 
 ```
@@ -109,10 +86,7 @@ Session total:     ~[N]K tokens   (since [session_start])
 → Next:  /buildflow-check
    Why:  Tests passing — run full spec compliance check before shipping
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If tests failed and could not be auto-fixed: `→ Next: /buildflow-debug` (root-cause the failure).
 If this was a wave re-test: `→ Next: /buildflow-build wave [N+1]` (continue to next wave).
-
-## Token Budget: ~25K (more if fix loop runs multiple iterations)

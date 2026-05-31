@@ -519,29 +519,6 @@ Triggered by: [bug description or incident reference]
 [any risk this hotfix introduces or side-effects to watch, or NONE]
 ```
 
-## Token cost report (print at end of hotfix)
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (code-heavy command): `Math.ceil((outputChars / 3.4) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's cost
-
-Default output (minimal):
-```
-Hotfix complete — [description] · [N] files changed
-Session: ~[N]K tokens
-```
-
-Verbose output (only if `verbose_context: true` in PREFERENCES.md):
-```
-Token Cost — /buildflow-hotfix
-────────────────────────────────
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
 ## Guided Next Step
 
 ```
@@ -549,13 +526,8 @@ Session total:     ~[N]K tokens   (since [session_start])
 → Next:  /buildflow-check
    Why:  Hotfix applied — verify no regressions before resuming normal workflow
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If the hotfix was in a shipped phase: `→ Next: /buildflow-ship` (re-tag the fixed version).
 If tests failed after 3 attempts: `→ Next: /buildflow-debug --continue {ref}` (escalate to full root-cause analysis).
-
-## Token Budget: ~10K
-
-## Token Budget: ~10K
 

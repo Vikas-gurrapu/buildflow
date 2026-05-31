@@ -614,27 +614,6 @@ Save to `.buildflow/epics/[epic]/SUGGESTIONS.md` (appends, doesn't overwrite).
 
 No flag skips the test gate (Gate 2) or type errors in Gate 3. Type safety and green tests are non-negotiable.
 
-## Token cost report (print at end of ship)
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (prose-heavy command): `Math.ceil((outputChars / 3.9) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's cost
-
-```
-Token Cost — /buildflow-ship
-─────────────────────────────
-Ship complete — Phase [N]
-Gates: 0a ✓  1 ✓  2a ✓  2b ✓  3 ✓
-ACs verified: [N/N]
-Context loaded:    ~[N]K tokens   (ACCEPTANCE.md + STATE.md + MEMORY.md + changed files)
-Output generated:  ~[N]K tokens   (gates output + SHIPPED.md + retro.md)
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
-Update `MEMORY.md`: `last_ship_tokens: ~[N]K`
-
 ## Guided Next Step
 
 Before printing this block, check session context usage. Because shipping closes a phase boundary, recommend clearing the current AI session after saving `STATE.md` before starting the next phase.
@@ -647,10 +626,7 @@ The post-ship advisor (Step 6b) already surfaced the top suggestion. Close with:
    Why:  Phase [N] shipped ✓ — start defining what to build next
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 Use the suggested phase name from the post-ship advisor output as the argument.
 If debt > 5 items: `Or: /buildflow-think --debt` (address tech debt before next feature).
-
-## Token Budget: ~26K (gates) / ~40K (with post-ship market research in Step 6b)

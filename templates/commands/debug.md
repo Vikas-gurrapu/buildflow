@@ -402,29 +402,6 @@ Status: RESOLVED / UNRESOLVED
 [any lingering concerns or NONE]
 ```
 
-## Token cost report (print at end of debug)
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (mixed command): `Math.ceil((outputChars / 3.7) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's cost
-
-Default output (minimal):
-```
-Debug complete — root cause: [description] · fix applied: [yes/no]
-Session: ~[N]K tokens
-```
-
-Verbose output (only if `verbose_context: true` in PREFERENCES.md):
-```
-Token Cost — /buildflow-debug
-──────────────────────────────
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
 ## Guided Next Step
 
 ```
@@ -432,10 +409,7 @@ Session total:     ~[N]K tokens   (since [session_start])
 → Next:  /buildflow-test
    Why:  Fix applied — re-run tests to confirm the root cause is resolved
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If root cause could not be isolated: `→ Next: /buildflow-debug --continue {ref}` (resume with a narrower hypothesis).
 If the bug traced to a spec gap: `→ Next: /buildflow-spec --review` (amend the AC before proceeding).
-
-## Token Budget: ~20K

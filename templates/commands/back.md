@@ -64,5 +64,3 @@ Update `.buildflow/MEMORY.md` to match.
 ## Step 6: Confirm
 Show: "Restored to: [checkpoint name] from [date]"
 Suggest next action: "Run /buildflow-status to see current state."
-
-## Token Budget: ~3K

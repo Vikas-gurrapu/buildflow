@@ -312,7 +312,3 @@ Run /buildflow-spec to define it.
 ### 5d — Save Suggestions
 Write suggestions to `.buildflow/epics/[epic]/SUGGESTIONS.md` with date.
 These persist across sessions and update each time `/buildflow-help next` runs.
-
----
-
-## Token Budget: ~15K (diagnostic) / ~35K (with market research — /buildflow-help next)
