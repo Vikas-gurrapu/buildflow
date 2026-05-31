@@ -953,32 +953,6 @@ Knowledge files written:
 ✓ Safe to modify:  [modules with low risk scores]
 ```
 
-## Token cost report
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (prose-heavy command): `Math.ceil((outputChars / 3.9) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used`
-
-Default output (minimal):
-```
-Onboard complete — [N] files · [N] modules · [N] hotspots · 6 knowledge files written
-Session: ~[N]K tokens
-```
-
-Verbose output (only if `verbose_context: true` in PREFERENCES.md):
-```
-Token Cost — /buildflow-onboard
-────────────────────────────────
-Files analyzed: [N]  Modules: [N]  Hotspots: [N]
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens  (CODEBASE.md + PATTERNS.md + DEPENDENCIES.md + RISKS.md + TESTING.md + intel.json)
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
-Update `MEMORY.md`: `last_onboard_tokens: ~[N]K`
-
 ## Guided Next Step
 
 ```
@@ -986,7 +960,4 @@ Update `MEMORY.md`: `last_onboard_tokens: ~[N]K`
 → Next:  /buildflow-spec  (or /buildflow-modify for a targeted change)
    Why:  Codebase is now fully indexed — spec your next phase or make surgical changes with full impact tracing
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
-
-## Token Budget: ~45K (one-time — pays back on every subsequent session)

@@ -674,23 +674,6 @@ Before exiting, update `.buildflow/epics/[epic]/CHECK.md`:
 - Append any check commands to `## Test Runs`.
 - Refresh `## Summary` counts and `Last updated`.
 
-## Token cost report (print at end of check)
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (prose-heavy command): `Math.ceil((outputChars / 3.9) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's cost
-
-```
-Token Cost — /buildflow-check
-──────────────────────────────
-ACs: [N/N passing]  Schema drift: [clean/N issues]  Coverage: [N]%  Strict: [PASS/FAIL/—]
-Context loaded:    ~[N]K tokens   (ACCEPTANCE.md + PLAN.md + [N] changed files)
-Output generated:  ~[N]K tokens
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
 ## Guided Next Step
 
 Before printing this block, check session context usage. Because check results decide whether the phase can ship, recommend clearing the current AI session after saving `STATE.md` when context is large/noisy or the check has completed.
@@ -701,12 +684,9 @@ Before printing this block, check session context usage. Because check results d
    Why:  All [N] ACs passing, no blockers — ready to run ship gates
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If any AC failed: `→ Next: /buildflow-build` to fix the failing tasks (specify which wave).
 If schema drift detected: `→ Next: resolve schema drift (run pending migrations or add migration file), then re-run /buildflow-check`.
 If spec coverage below threshold and no exception recorded: the smart prompt in Step 4c already captured user decision — next step is whatever was chosen.
 If strict mode FAIL: `→ Next: fix strict violations listed in STRICT-REPORT.md, then re-run /buildflow-check --strict`.
-
-## Token Budget: ~26K standard / ~38K with --strict (adds SPEC.md + symbol grep + branch analysis)

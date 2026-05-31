@@ -31,6 +31,31 @@ Do NOT load: full specs, full codebase, research, retros, old phases.
 
 ---
 
+## Step 0: Cross-Repo Detection (workspace check)
+
+Before loading any state, check if this build should be part of a cross-repo sequence:
+
+1. Check `../.buildflow/workspace/STATE.md` — if `current_xepic` is set and the current repo appears in its `repos` list:
+   ```
+   ⚠ Active cross-repo epic detected
+
+   Workspace xepic: [slug] — [feature name]
+   Your role in build order: [N of M] ([repo-name])
+
+   For coordinated execution (recommended):
+     cd ..
+     /buildflow-workspace build
+
+   This ensures [previous-repo]'s actual output is used as your contract,
+   and the workspace STATUS.md stays in sync.
+
+   Or continue here to build [current-repo] only.
+   ```
+2. If no workspace STATE.md or no active xepic: skip silently.
+3. If the user continues in single-repo mode: proceed to Phase State Resume below.
+
+---
+
 ## Phase State Resume
 Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md` (index), `.buildflow/epics/[epic]/waves/wave-[N].md` (current wave), `.buildflow/epics/[epic]/CHECK.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
 
@@ -1158,26 +1183,8 @@ test_status: focused_passing
 waves_completed: [N]
 focused_test_count: [N]      ← focused build tests only; full regression baseline is recorded at ship
 last_build_coverage: [N]%    ← baseline for coverage drop detection
-last_build_tokens: ~[N]K     ← actual token cost of this build run
 ```
 Remove from `MEMORY.md`: per-task details from previous builds.
-
-**Token cost report (print at end of every build):**
-
-Measure actual cost:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (code-heavy command): `Math.ceil((outputChars / 3.4) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's total
-
-```
-Token Cost — /buildflow-build
-──────────────────────────────
-Waves: [N]  Tasks: [N]  ACs satisfied: [N/N]
-Context loaded:    ~[N]K tokens   ([N] context packets × [N] waves + [N] fix iterations)
-Output generated:  ~[N]K tokens   ([N] files written, [N] test runs)
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
 
 ---
 
@@ -1192,13 +1199,8 @@ After all waves complete:
    Why:  All waves complete — verify every AC is satisfied before shipping
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If a wave failed and stopped: `→ Next: /buildflow-debug` (root-cause before retrying).
 If all waves complete but tests are borderline: `→ Next: /buildflow-check` (check will surface what needs fixing).
-
-After each individual wave (not final): print only the session token line — no next step until all waves are done.
-
-## Token Budget: ~50K per wave (context packets keep individual Builder costs low)
 

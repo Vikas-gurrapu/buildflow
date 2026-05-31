@@ -223,7 +223,6 @@ If PASS or WARN:
    Why:  UI review complete — [N] minor issues logged, none blocking
    Context: Report saved to .buildflow/epics/[epic]/. OK to continue without clearing.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If FAIL:
@@ -233,7 +232,4 @@ If FAIL:
    Why:  [N] FAIL-level UI violations must be resolved before ship
    Or:   /buildflow-ui-spec --amend  — if the spec itself needs updating
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
-
-## Token Budget: ~15K (--quick) / ~25K (full audit)

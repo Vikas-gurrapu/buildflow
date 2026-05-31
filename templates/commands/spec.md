@@ -34,6 +34,40 @@ Run after `/buildflow-start-epic`. After this completes, run `/buildflow-discuss
 
 ---
 
+## Step 0: Cross-Repo Detection (workspace check)
+
+Before loading any state, check if this feature spans multiple repos:
+
+1. Check if a workspace root exists: look for `../.buildflow/workspace/WORKSPACE.md`
+2. If workspace exists, check `../.buildflow/workspace/contracts.json` for contracts involving the current repo
+3. Scan the user's feature request for signals of cross-repo scope:
+   - References to APIs, endpoints, or types owned by another repo
+   - Mentions of another repo by name
+   - Features that require both a backend change and a frontend change in separate repos
+
+If cross-repo scope is detected:
+```
+⚠ Cross-repo scope detected
+
+This feature likely spans:
+  [current-repo]/    (you are here)
+  [other-repo]/      (contract dependency detected)
+
+For coordinated cross-repo execution with full state tracking:
+  cd ..
+  /buildflow-workspace spec "[feature]"
+
+This will spec each repo in dependency order, extract the shared contract,
+and write XPLAN.md at the workspace level.
+
+Or continue here to spec [current-repo] only (single-repo mode).
+```
+
+If the user continues in single-repo mode: proceed to Epic State Resume below.
+If no workspace root found, or no cross-repo signals: skip this step silently.
+
+---
+
 ## Epic State Resume
 Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`. If a current epic exists (`current_epic` is set), read `.buildflow/epics/[epic]/STATE.md`.
 
@@ -228,6 +262,8 @@ If `PATTERNS.md` exists: components and API shapes must follow existing conventi
 | Endpoint / Function | Method | Request Shape | Response Shape | Status Codes | Auth |
 |--------------------|--------|---------------|----------------|-------------|------|
 | /api/[path] | POST | `{ field: type }` | `{ field: type }` | 200, 400, 401, 500 | yes/no |
+
+**OpenAPI generation:** If this spec defines 1 or more API endpoints, automatically generate an `openapi.yaml` file after writing SPEC.md. See Step 8b below.
 
 ## Error Response Format
 All errors follow:
@@ -432,6 +468,91 @@ If the user requests a spec change AFTER `spec_status: locked` (mid-phase amendm
 Confirm `spec_status: locked` in `MEMORY.md` and `status: LOCKED` in `ACCEPTANCE.md` frontmatter. Since we just locked the spec in Part 1, this will always pass.
 
 Record the locked `spec_version` in `PLAN.md` header — this is the version this plan was built against.
+
+### Step 8b: OpenAPI Generation (auto-runs if API endpoints defined)
+
+If the SPEC.md API Contracts table contains 1 or more endpoints: generate `openapi.yaml` in the project root (or `docs/openapi.yaml` if a `docs/` folder exists).
+
+**Format:**
+```yaml
+openapi: "3.1.0"
+info:
+  title: "[app name from MEMORY.md]"
+  version: "[spec_version from ACCEPTANCE.md frontmatter]"
+  description: "[one-sentence app description from VISION.md]"
+
+servers:
+  - url: http://localhost:[port]
+    description: Local development
+  - url: https://[domain-if-known]
+    description: Production
+
+paths:
+  /api/[path]:
+    post:
+      summary: "[AC summary that this endpoint satisfies]"
+      operationId: "[camelCase name]"
+      tags: ["[feature area]"]
+      security:
+        - bearerAuth: []   # only if auth: yes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                [field]:
+                  type: [type]
+                  description: "[from AC or spec]"
+              required: [[required fields]]
+      responses:
+        "200":
+          description: "[success outcome from AC]"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  [field]:
+                    type: [type]
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal server error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:    { type: string }
+            message: { type: string }
+            field:   { type: string }
+```
+
+Write with the **Write tool** to `openapi.yaml` (or `docs/openapi.yaml`). Print:
+```
+OpenAPI spec generated → openapi.yaml ([N] endpoints documented)
+Import into Postman: File → Import → openapi.yaml
+View in browser:     npx @redocly/cli preview-docs openapi.yaml
+```
+
+If no API endpoints in spec: skip silently.
 
 Read all ACs. Confirm: "Planning to satisfy [N] ACs across [N] features (spec v[N])."
 
@@ -882,7 +1003,6 @@ Critic: STRONG / FLAG
 **Output:**
 ```
 Spec updated to v[N+1] — [N] decisions applied · [N] ACs changed
-Session: ~[N]K tokens
 ```
 
 ---
@@ -929,32 +1049,8 @@ For single-feature additions:
 - Generate 3 ACs minimum: 1 happy + 1 error + 1 NFR
 - Skip Critic coverage check (only vague language scan)
 - Plan: 1–2 waves, no thin-slice ordering required
-- Token budget: ~12K
 
 ---
-
-## Token cost report (print at end)
-
-Measure actual cost:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (prose-heavy command): `Math.ceil((outputChars / 3.9) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's cost
-
-Default output (minimal):
-```
-Spec + plan ready — Phase [N] v[N]  ·  [N] ACs  ·  [N] waves  ·  [N] tasks
-Session: ~[N]K tokens
-```
-
-Verbose output (only if `verbose_context: true` in PREFERENCES.md):
-```
-Token Cost — /buildflow-spec
-─────────────────────────────
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens   (SPEC + ACCEPTANCE + PLAN + waves/wave-[N].md + CHECK)
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
 
 ## Guided Next Step
 
@@ -967,10 +1063,7 @@ Because spec+plan is a major phase boundary, recommend clearing the AI session b
    Or:   /buildflow-build  — skip discuss and start executing wave 1
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If spec is NOT locked yet (still in review): `→ Next: /buildflow-spec` (continue review and lock).
 If spec was amended and plan is now stale: `→ Next: /buildflow-spec --update` (regenerate plan against new decisions).
-
-## Token Budget: ~40K (full) / ~12K (--fast)

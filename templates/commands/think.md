@@ -229,29 +229,6 @@ Verdict: FEASIBLE / RISKY / OVER-SCOPED
 
 ---
 
-## Token cost report (print at end of think)
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (prose-heavy command): `Math.ceil((outputChars / 3.9) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used`
-
-Default output (minimal):
-```
-Think complete — [topic] · verdict: [FEASIBLE/RISKY/OVER-SCOPED]
-Session: ~[N]K tokens
-```
-
-Verbose (only if `verbose_context: true`):
-```
-Token Cost — /buildflow-think
-──────────────────────────────
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
 ## Guided Next Step
 
 Before printing this block, check session context usage and whether the command created meaningful new context. If context is large/noisy or the research decision is complete, recommend clearing the current AI session after saving `STATE.md`; otherwise say it is OK to continue.
@@ -262,11 +239,8 @@ Before printing this block, check session context usage and whether the command 
    Why:  Research complete — translate findings into spec ACs and constraints
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If verdict is OVER-SCOPED: `→ Next: /buildflow-start-epic` (revise the vision scope before speccing).
 If this was `--arch`: `→ Next: /buildflow-spec` (architecture decided — ready to plan implementation).
-
-## Token Budget: ~30K (standard) / ~35K (--arch or --build-vs-buy) / ~20K (--debt or --complexity)
 

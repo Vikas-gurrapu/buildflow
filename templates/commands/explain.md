@@ -49,5 +49,3 @@ Read `.buildflow/PREFERENCES.md` for experience level.
 
 ## Step 4: Add to Glossary
 If explaining a new term, append to `.buildflow/GLOSSARY.md`.
-
-## Token Budget: ~2K

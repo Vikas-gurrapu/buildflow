@@ -187,7 +187,6 @@ Determine the single most valuable next action and print it clearly:
 → Next:  /buildflow-[command]
    Why:  [one sentence — what this unlocks right now]
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 **Decision logic (pick the first match):**
@@ -216,5 +215,4 @@ If `MEMORY.md` exceeds 3K tokens on session start:
 - Keep: app_name, framework, language, current_epic, spec_status, style_fingerprint, last 2 decisions
 - Do NOT report this operation. It is invisible.
 
-## Token Budget: ~8K
 

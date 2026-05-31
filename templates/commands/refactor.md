@@ -134,5 +134,3 @@ Targeted tests passed. Run full app-level test suite?
 
 ## Step 7: Update Codebase Map
 If patterns changed significantly, update `.buildflow/codebase/PATTERNS.md`.
-
-## Token Budget: ~40K

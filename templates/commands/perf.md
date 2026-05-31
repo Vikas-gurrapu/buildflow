@@ -469,31 +469,6 @@ Status: RESOLVED
 
 ---
 
-## Token cost report (print at end of perf)
-
-Measure actual cost before printing:
-1. Estimate input tokens per file: `Math.ceil((chars / (baseDivisor − densityPenalty)) × 1.05)` — prose/md=4.0, standard code=3.5, Go/Rust/C=3.2, JSON/YAML=3.2, minified=2.7; densityPenalty: symbol-dense=0.3, normal=0.1, sparse=0.0. Sum all files = input tokens.
-2. Estimate output tokens (mixed command): `Math.ceil((outputChars / 3.7) × 1.05)` = output tokens
-3. Update `STATE.md → session_tokens_used` by adding this command's cost
-
-Default output (minimal):
-```
-Perf session complete — track: [ui/backend/db/full] · improvement: [N]%
-Session: ~[N]K tokens
-```
-
-If a session file was created: append `Session saved: {path}`
-
-Verbose output (only if `verbose_context: true` in PREFERENCES.md):
-```
-Token Cost — /buildflow-perf
-──────────────────────────────
-Context loaded:    ~[N]K tokens
-Output generated:  ~[N]K tokens
-This command:      ~[N]K tokens
-Session total:     ~[N]K tokens   (since [session_start])
-```
-
 ## Guided Next Step
 
 ```
@@ -501,11 +476,8 @@ Session total:     ~[N]K tokens   (since [session_start])
 → Next:  /buildflow-check
    Why:  Perf fix applied — verify no regressions before shipping
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If bottleneck reveals a systemic issue (no caching layer, ORM misconfiguration): `→ Next: /buildflow-think "performance architecture"` (research before fixing).
 If improvement goal not met after fix: `→ Next: /buildflow-perf --continue {ref}` (resume with a deeper hypothesis).
 If perf session traced to a spec gap (no perf AC defined): `→ Next: /buildflow-spec --review` (add perf ACs before next build).
-
-## Token Budget: ~20K

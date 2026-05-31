@@ -117,27 +117,6 @@ Run /buildflow-help next for full analysis.
 
 ---
 
-## Step 5b: Token Spend
-Read `STATE.md` for `session_tokens_used` and `session_start`. Read `MEMORY.md` for per-command costs.
-
-```
-Token Spend  Phase [N]
-──────────────────────
-/buildflow-spec:    ~[N]K   (context: [N]K, output: [N]K — includes plan generation)
-/buildflow-discuss: ~[N]K   (context: [N]K, output: [N]K — if run)
-/buildflow-build:   ~[N]K   ([N] waves — context: [N]K, output: [N]K)
-/buildflow-check:   ~[N]K   (context: [N]K, output: [N]K)
-/buildflow-onboard: ~[N]K   (one-time — context: [N]K, output: [N]K)
-                    ──────
-Phase total:        ~[N]K
-
-Current session:    ~[N]K   (since [session_start])
-```
-
-Token costs are measured from actual loaded file sizes (code ÷ 3.5, prose ÷ 4) + generated output length (÷ 3.7). Not guesses — measured.
-
----
-
 ## Step 6: Next Step (always shown last, always prominent)
 
 Determine the single most valuable next action from the state loaded in Steps 1–5. Print it as:
@@ -147,7 +126,6 @@ Determine the single most valuable next action from the state loaded in Steps 1�
 → Next:  /buildflow-[command] [args if needed]
    Why:  [one sentence — what this does right now]
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
 
 If there is a blocking issue (failing tests, schema drift, AC failures), the next step addresses the blocker — not the normal workflow step.
@@ -160,5 +138,3 @@ If debt > 4 items and user is about to start a new spec: add a second line:
 Never show a table. One recommendation. One sentence of why. That's it.
 
 ---
-
-## Token Budget: ~5K (--short: ~1K)

@@ -223,8 +223,5 @@ Update `STATE.md`:
    Why:  UI design contract locked — Builder agents will follow it automatically
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
-Session: ~[N]K tokens
 ```
-
-## Token Budget: ~12K
 
