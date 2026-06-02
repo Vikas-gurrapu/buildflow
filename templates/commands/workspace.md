@@ -30,6 +30,7 @@ Use this when:
 - `/buildflow-workspace check` — run AC verification per repo; show aggregate status across all repos
 - `/buildflow-workspace ship` — ship each repo in dependency order; update workspace STATUS.md as each completes
 - `/buildflow-workspace complete` — archive cross-repo milestone; deep-prune workspace state
+- `/buildflow-workspace debug` — triage cross-repo failures; identify whether root cause is contract mismatch or repo-internal; run targeted debug per failing repo
 
 ## Context Packet
 - `.buildflow/workspace/WORKSPACE.md` (if exists)
@@ -743,7 +744,7 @@ Failing ACs:
 ──────────────────────────────────────────────────
 → Next:  /buildflow-workspace ship
    Why:  All ACs pass — ready to ship
-   Or:   /buildflow-debug  — investigate AC-005 before shipping
+   Or:   /buildflow-workspace debug  — triage AC failures across repos before shipping
 ──────────────────────────────────────────────────
 ```
 
@@ -856,5 +857,126 @@ Milestone:    .buildflow/workspace/milestones/[slug]/MILESTONE.md
    Why:  Milestone archived. Workspace ready for next cross-repo epic.
 ──────────────────────────────────────────────────
 ```
+
+---
+
+## Workspace Debug Mode (`/buildflow-workspace debug`)
+
+Triages cross-repo failures. Determines whether a failing AC is a repo-internal bug or a contract mismatch between repos. Runs targeted debug per failing repo with shared contract context injected.
+
+Use this when:
+- `/buildflow-workspace check` reports FAIL ACs in one or more repos
+- A feature works in isolation in one repo but breaks when integrated with another
+- You suspect the root cause is in a different repo than where the failure surfaces
+
+### Step DB1: Load State & Identify Failures
+
+Read:
+- `.buildflow/workspace/STATE.md` → current xepic, repos, build order
+- `.buildflow/workspace/epics/[slug]/XPLAN.md` → cross-repo contract
+- `.buildflow/workspace/epics/[slug]/STATUS.md` → per-repo AC counts
+- For each repo with `status != checked` or known failing ACs: `[repo-path]/.buildflow/epics/[slug]/CHECK.md`
+
+Build a failure map:
+
+```
+Cross-Repo Debug: [feature]
+────────────────────────────────────────
+Failing repos:
+  react-module   — AC-005: photo upload shows no preview after upload
+  react-module   — AC-006: error toast missing on 413 response
+
+Contract defined in: api-module
+Contract status:     api-module built ✓
+
+Triage starting...
+```
+
+### Step DB2: Cross-Repo Contract Triage
+
+Before running per-repo debug, check whether the failure is a contract mismatch:
+
+1. Load the contract from XPLAN.md (endpoint shape, response fields, error codes)
+2. For each failing AC in a consuming repo: check if the failure description references a field, status code, or behavior that is defined in the contract
+3. Load the contract-defining repo's actual implementation — read the relevant route/handler/type file to confirm what it actually returns (not just what the spec says)
+4. Compare expected contract (XPLAN.md) vs. actual implementation (source file)
+
+**Contract mismatch detected — example:**
+```
+Contract Triage
+────────────────────────────────────────
+XPLAN.md contract:
+  POST /users/:id/photo → { photo_url: string, updated_at: string }
+
+api-module actual (src/routes/photo.ts):
+  returns { url: string, updatedAt: string }   ← field names differ
+
+Root cause: api-module returns `url` not `photo_url`, `updatedAt` not `updated_at`
+Affects: react-module AC-005, AC-006 (consuming `photo_url` from response)
+
+Options:
+  [A] Fix contract in api-module (rename fields to match spec)
+  [B] Update react-module to consume actual field names (update XPLAN.md to match)
+  [C] Investigate further before deciding
+```
+
+**No contract mismatch — example:**
+```
+Contract Triage
+────────────────────────────────────────
+api-module contract matches XPLAN.md ✓
+  POST /users/:id/photo → { photo_url: string, updated_at: string } ✓
+
+Failures are repo-internal to react-module.
+Proceeding to per-repo debug.
+```
+
+### Step DB3: Per-Repo Debug (failing repos only, contract-defining repo first)
+
+For each repo with failures, in build order (contract-defining repo first if it has a mismatch):
+
+1. Print: `Debugging [N/total]: [repo-path]/ ────────`
+2. Set file context to that repo's root
+3. Load context packet:
+   - `[repo-path]/.buildflow/epics/[slug]/SPEC.md` (API contracts + failing AC descriptions)
+   - `[repo-path]/.buildflow/epics/[slug]/CHECK.md` (failing AC details)
+   - `[repo-path]/.buildflow/codebase/PATTERNS.md` (if exists)
+   - Relevant XPLAN.md contract section (cross-repo boundary context)
+4. For contract mismatch root cause: fix the contract-defining repo first, then re-verify the consuming repo's ACs against the corrected output before debugging the consuming repo independently
+5. Run `/buildflow-debug` steps scoped to this repo's failing ACs — inject the cross-repo contract as fixed context so the debug session doesn't treat contract fields as unknowns
+6. On fix applied:
+   - Update `[repo-path]/.buildflow/epics/[slug]/CHECK.md`
+   - Update `.buildflow/workspace/epics/[slug]/STATUS.md`
+   - Update `.buildflow/workspace/STATE.md` → `repos.[repo].status`
+
+### Step DB4: Root Cause Report
+
+After all failing repos are debugged:
+
+```
+Cross-Repo Debug Complete — [feature]
+────────────────────────────────────────────────
+Root cause summary:
+  CONTRACT MISMATCH  api-module returned `url` instead of `photo_url`
+                     Fixed: src/routes/photo.ts updated to match XPLAN.md contract
+  REPO-INTERNAL      react-module AC-006: error toast not wired to 413 handler
+                     Fixed: src/components/PhotoUpload.tsx
+
+AC status after fixes:
+| Repo         | ACs | Pass | Fail | Unverified |
+|--------------|-----|------|------|------------|
+| api-module   | 8   | 8    | 0    | 0          |
+| react-module | 6   | 6    | 0    | 0          |
+| **Total**    | 14  | 14   | 0    | 0          |
+
+XPLAN.md contract: [updated if contract was corrected]
+
+──────────────────────────────────────────────────
+→ Next:  /buildflow-workspace check
+   Why:  Fixes applied — re-run check to confirm all ACs pass before shipping
+──────────────────────────────────────────────────
+```
+
+If contract was corrected during debug, XPLAN.md Cross-Repo Contract section is updated to reflect the actual implemented shape.
 
 ---

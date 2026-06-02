@@ -718,7 +718,7 @@ function loadCommandTemplates() {
     'debug', 'perf', 'deploy', 'docker', 'workspace', 'pr', 'migrate', 'observe',
     'status', 'explain', 'back', 'revert', 'help',
     'complete-epic', 'switch-epic', 'settings',
-    'ui-spec', 'ui-review',
+    'ui-spec', 'ui-review', 'review',
   ]
   for (const name of commandNames) {
     const filePath = join(templatesDir, `${name}.md`)

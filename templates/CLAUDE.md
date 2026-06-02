@@ -55,7 +55,9 @@ Before doing anything else at the start of every session:
 /buildflow-think    → research (optional)
 /buildflow-spec     → generate Requirements + Technical Design + Acceptance Criteria + wave plan
 /buildflow-discuss  → clarify doubts on generated spec and plan — auto-updates artifacts on confirmation (optional)
+/buildflow-review --spec-only  → parallel 4-agent spec review gate before build (AC completeness, technical design, security, plan feasibility)
 /buildflow-build    → execute waves with auto-test + auto-fix
+/buildflow-review   → parallel 4-agent code review after build (correctness, security, patterns, test coverage)
 /buildflow-check    → verify all ACs satisfied
 /buildflow-ship     → spec gate + security gate + context pruning
 /buildflow-deploy   → pre-flight + deploy to staging/production
@@ -81,6 +83,8 @@ Workspace state lives in `[workspace-root]/.buildflow/workspace/`. Repo artifact
 | `/buildflow-start-epic` | Begin or continue the project |
 | `/buildflow-spec` | Generate Requirements, Technical Design, Acceptance Criteria + wave plan in one pass |
 | `/buildflow-discuss` | Clarify doubts on the generated spec and plan — auto-updates artifacts on confirmation |
+| `/buildflow-review --spec-only` | Parallel 4-agent spec review gate before build — AC completeness, technical design, security, plan feasibility |
+| `/buildflow-review` | Parallel 4-agent code review after build — correctness, security, patterns, test coverage |
 | `/buildflow-build` | Execute plan — auto-tests and auto-fixes each wave |
 | `/buildflow-test` | Re-verify a wave or test a manual change |
 | `/buildflow-check` | Verify all ACs satisfied + code quality |
