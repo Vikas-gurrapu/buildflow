@@ -14,7 +14,7 @@ Run after `/buildflow-start-epic`. After this completes, run `/buildflow-discuss
 ## Usage
 - `/buildflow-spec` — full spec + wave plan from vision
 - `/buildflow-spec --fast` — minimal spec + plan for small features (single screen / endpoint)
-- `/buildflow-spec --review` — critique existing spec without regenerating
+- `/buildflow-spec --review` — removed; use `/buildflow-review --spec-only` for pre-build spec review (4 parallel reviewers, BLOCKED/ADVISORY/PASS verdict)
 - `/buildflow-spec --update` — apply locked decisions from CONTEXT.md to existing spec and plan (called automatically by `/buildflow-discuss`)
 - `/buildflow-spec --strict` — mark this phase as strict mode: every task must trace to a SPEC.md component or API contract; `/buildflow-check --strict` mandatory before ship
 - `/buildflow-spec --scaffold-first` — Wave 0 creates all file stubs before implementation begins
@@ -115,6 +115,105 @@ If `.buildflow/epics/*/SHIPPED.md` files exist, load the last 2. Extract:
 
 Print: "Prior epics: [N]. Already shipped: [brief list]. Open debt: [N items]."
 If no history: skip silently.
+
+---
+
+## Step 1c: Parallel Research Phase
+
+Before asking clarification questions, run focused research to reduce unknowns. This minimizes the number of clarification questions needed in Step 2 and produces a richer spec.
+
+**Default:** spawn all 3 researchers simultaneously in parallel using the Agent tool. Each agent receives a minimal scoped context packet — not the full codebase.
+
+**Fallback (only if the host tool does not support the Agent tool):** run each researcher sequentially in the same session. Same outputs, same synthesis step.
+
+---
+
+### Spawn 3 Parallel Researchers
+
+#### Agent R1 — Domain Researcher
+**Scope:** Understand what the user is trying to accomplish and what already exists.
+**Context packet:**
+- `.buildflow/VISION.md`
+- `.buildflow/MEMORY.md` (app_name, current_epic, framework only)
+- `.buildflow/epics/*/SHIPPED.md` (last 2 — already-shipped capabilities)
+- `intel.json` fields: `features[]` only
+
+**Task:** Analyze the feature request against existing shipped features. Identify:
+- What user outcome this feature enables (job-to-be-done)
+- Which existing features overlap or are adjacent
+- Likely user stories (2–4 max)
+- Any domain constraints visible from the vision (compliance, locale, accessibility)
+
+**Output:** `RESEARCH_DOMAIN.md` (temp, in-memory — not written to disk)
+
+---
+
+#### Agent R2 — Technical Researcher
+**Scope:** Understand what the codebase can and cannot do.
+**Context packet:**
+- `.buildflow/codebase/CODEBASE.md`
+- `.buildflow/codebase/PATTERNS.md`
+- `.buildflow/codebase/DEPENDENCIES.md`
+- `intel.json` fields: `local_support`, `locale_support`, `entry_points[]` only
+
+**Task:** Analyze the technical landscape for this feature. Identify:
+- Which existing patterns must be followed (component, service, repository patterns)
+- Which files will likely be touched (entry points, relevant modules)
+- External dependencies or env vars required
+- Any stack constraints (framework version locks, incompatible libraries)
+- Whether locale/local support is in scope based on existing `local_support` / `locale_support` flags
+
+**Output:** `RESEARCH_TECHNICAL.md` (temp, in-memory — not written to disk)
+
+---
+
+#### Agent R3 — Risk Researcher
+**Scope:** Surface known risks, debt, and testing constraints before planning begins.
+**Context packet:**
+- `.buildflow/codebase/RISKS.md`
+- `.buildflow/codebase/TESTING.md`
+- `.buildflow/epics/[last-epic]/SHIPPED.md` (open debt section only)
+
+**Task:** Identify risks that will constrain the spec. Produce:
+- Known hotspot files relevant to this feature (from RISKS.md)
+- Open debt from prior epics that this feature may collide with
+- Test framework constraints (what kinds of tests are feasible)
+- Non-functional requirements likely to apply (performance, security, accessibility)
+
+**Output:** `RESEARCH_RISKS.md` (temp, in-memory — not written to disk)
+
+---
+
+### Step 1d: Synthesize Research
+
+After all 3 agents complete (or after sequential execution), synthesize their outputs:
+
+```
+Research Summary
+────────────────────────────────────────
+Domain:
+  Feature type:       [new capability / enhancement / replacement]
+  User outcome:       [job-to-be-done in one line]
+  Existing overlap:   [features that partially address this, or NONE]
+  Domain constraints: [compliance / locale / accessibility — or NONE]
+
+Technical:
+  Patterns to follow: [component/service/repository pattern names]
+  Files likely touched: [list — max 5]
+  External deps needed: [env vars, services — or NONE]
+  Stack constraints:  [version locks, incompatibilities — or NONE]
+
+Risks:
+  Hotspot files:      [files with known complexity/risk — or NONE]
+  Open debt collisions: [prior epic debt items relevant here — or NONE]
+  Test constraints:   [what test types are feasible]
+  NFRs likely needed: [performance / security / accessibility — or NONE]
+
+Unknowns remaining (feed into Step 2 clarification queue):
+  - [item that research could not resolve]
+```
+
+Print the Research Summary before proceeding to Step 2. Use it to pre-fill the clarification queue — skip any topic already answered by research.
 
 ---
 
@@ -1003,41 +1102,6 @@ Critic: STRONG / FLAG
 **Output:**
 ```
 Spec updated to v[N+1] — [N] decisions applied · [N] ACs changed
-```
-
----
-
-# --review Mode (`/buildflow-spec --review`)
-
-Critiques existing specs without regenerating.
-
-**1. Load and parse current spec:**
-Read `ACCEPTANCE.md` frontmatter: `spec_version`, `status`, `changelog`.
-
-**2. Spec diff (if spec_version > 1):**
-Read the `changelog` array. For each version after v1, show what changed:
-```
-Spec Version History  Phase [N]
-────────────────────────────────
-v1 → v2  (amended [date] by user)
-  Changed ACs: AC-003, AC-007
-  Reason: "[user's stated reason]"
-```
-
-**3. Re-run full Critic pass** (vague language, coverage, testability, consistency).
-
-**4. Plan staleness check:**
-If a `PLAN.md` exists, compare its `spec_version` against current `ACCEPTANCE.md` version. If stale, list which tasks reference changed ACs.
-
-**5. Report:**
-```
-Spec Review  Phase [N]  v[N]
-─────────────────────────────
-Amendments: [N versions]
-Critic score: STRONG / NEEDS REVISION
-Plan staleness: UP TO DATE / STALE (v[plan] vs v[current])
-
-[Critic findings if any]
 ```
 
 ---
