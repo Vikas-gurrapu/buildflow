@@ -331,7 +331,16 @@ For each selected repo, in order:
 
 1. Print header: `Onboarding [N/total]: [repo-path]/ ([stack]) ────────`
 2. Set working context to `[repo-path]/`
-3. Run the equivalent of `/buildflow-onboard` (full) or `/buildflow-onboard --update` as determined in Step O2
+3. Execute the **full `/buildflow-onboard` steps** scoped to `[repo-path]/` — this is not a lightweight scan. All 6 output files must be produced in `[repo-path]/.buildflow/codebase/`:
+   ```
+   [repo-path]/.buildflow/codebase/CODEBASE.md
+   [repo-path]/.buildflow/codebase/PATTERNS.md
+   [repo-path]/.buildflow/codebase/DEPENDENCIES.md
+   [repo-path]/.buildflow/codebase/RISKS.md
+   [repo-path]/.buildflow/codebase/TESTING.md
+   [repo-path]/.buildflow/codebase/intel.json
+   ```
+   If the repo was already ONBOARDED and the user did not select [R] (full re-onboard): run `/buildflow-onboard --update` steps instead (refresh changed files only).
 4. On completion: print the one-line summary from the onboard output
 5. On failure:
    ```
@@ -344,7 +353,7 @@ For each selected repo, in order:
    ```
 6. Continue until all selected repos are processed
 
-Each repo's onboard writes to **that repo's own** `.buildflow/codebase/` directory — they do not share a codebase folder.
+Each repo's onboard writes to **that repo's own** `.buildflow/codebase/` directory — they do not share a codebase folder. Do not reuse or copy files from another repo's `.buildflow/codebase/`.
 
 ---
 
