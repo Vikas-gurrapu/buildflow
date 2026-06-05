@@ -27,30 +27,13 @@ Structured post-spec review. Run after `/buildflow-spec` when you have doubts ab
 
 ---
 
-## Phase State Resume
-
-Read `.buildflow/STATE.md`. If a current phase exists, read `.buildflow/epics/[epic]/STATE.md`.
-
-If `STATE.md` shows decisions already captured for this phase, surface them and ask:
-- "Add more decisions?" or "Review existing ones?"
-
-Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
-- Status: `decisions_captured` (if spec not yet updated) or `plan_ready` (after spec --update runs)
-- Decisions: list of decisions locked this session
-- Next Command: `/buildflow-build`
-
----
-
-## Multi-Agent Protocol
-
-Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
-
-- **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each prompt must be self-contained.
-- **Gemini CLI / Codex CLI / Cursor** — Execute each role sequentially: print `=== [Role] START ===`, complete using only that role's context, print `=== [Role] END ===`.
+**Pre-flight:** Read STATE.md + epic STATE.md. If decisions already captured: ask "Add more or review existing?" Before exiting: update STATE.md with decisions locked and next command. Agent protocol: Claude Code — parallel; other tools — sequential with `=== [Role] START/END ===`.
 
 ---
 
 ## Step 1: Surface Doubts and Open Questions
+
+> **Production-failure lens:** For every decision, ask: "Have I seen this approach fail in production?" Patterns that look clean in a spec often break under real load, concurrent writes, partial failures, or rollback scenarios. Surface the failure mode before the team commits to the approach — it is far cheaper to change a spec than to revert a shipped feature.
 
 Read SPEC.md, ACCEPTANCE.md, and PLAN.md (index + wave files as needed). Identify areas where the generated artifacts may have:
 1. **Doubts** — anything that feels wrong, underspecified, or uncertain
@@ -186,7 +169,7 @@ To revisit a locked decision: /buildflow-discuss --reopen "decision title"
 
 ---
 
-## Step 4: Decision Summary (end of session)
+## Step 3: Decision Summary & Confirm
 
 After all selected questions are processed:
 
@@ -209,7 +192,7 @@ Update `STATE.md` with all decisions locked this session.
 
 ---
 
-## Step 5: Confirmation Gate
+### Confirmation Gate
 
 After the session summary, ask:
 

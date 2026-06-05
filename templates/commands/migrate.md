@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-migrate
 description: Detect schema changes from spec, generate migration files, flag destructive operations, and produce a rollback plan
 allowed-tools: Read, Write, Bash, Grep, Glob
@@ -12,20 +12,20 @@ Database migration management. Compares the data model in your spec against the 
 Run after `/buildflow-spec` when the data model changed, or before `/buildflow-deploy` to confirm migrations are ready.
 
 ## Usage
-- `/buildflow-migrate` — detect changes and generate migration
-- `/buildflow-migrate --check` — detect only, no file writes (safe to run anytime)
-- `/buildflow-migrate --rollback` — generate rollback migration for the last applied migration
-- `/buildflow-migrate --status` — show which migrations have been applied vs pending
-- `/buildflow-migrate --safe` — add extra guards: transactions, existence checks, data backfills before NOT NULL constraints
+- `/buildflow-migrate` â€” detect changes and generate migration
+- `/buildflow-migrate --check` â€” detect only, no file writes (safe to run anytime)
+- `/buildflow-migrate --rollback` â€” generate rollback migration for the last applied migration
+- `/buildflow-migrate --status` â€” show which migrations have been applied vs pending
+- `/buildflow-migrate --safe` â€” add extra guards: transactions, existence checks, data backfills before NOT NULL constraints
 
 ## Context Packet
-- `.buildflow/epics/[epic]/SPEC.md` — data model section (source of truth for intended schema)
-- `.buildflow/epics/[epic]/ACCEPTANCE.md` — ACs that reference data/persistence
-- `.buildflow/MEMORY.md` — ORM/database detected during onboard
+- `.buildflow/epics/[epic]/SPEC.md` â€” data model section (source of truth for intended schema)
+- `.buildflow/epics/[epic]/ACCEPTANCE.md` â€” ACs that reference data/persistence
+- `.buildflow/MEMORY.md` â€” ORM/database detected during onboard
 
 ---
 
-## Step 1: Detect ORM and Migration System
+## Step 1: Detect, Parse & Diff
 
 Scan the project for schema definition files:
 
@@ -58,7 +58,7 @@ Determine:
 Print detection result:
 ```
 Migration system detected
-─────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ORM:             [name]
 Schema file:     [path]
 Migrations dir:  [path]
@@ -70,7 +70,7 @@ If no ORM detected: ask user to specify or offer to generate raw SQL migrations.
 
 ---
 
-## Step 2: Parse Current Schema
+### Parse Current Schema
 
 Read the current schema definition file in full. Extract:
 - All tables / models / entities with their fields and types
@@ -81,9 +81,9 @@ Read the current schema definition file in full. Extract:
 
 ---
 
-## Step 3: Parse Spec Data Model
+### Parse Spec Data Model
 
-Read SPEC.md — specifically the Data Model section. Extract the intended schema:
+Read SPEC.md â€” specifically the Data Model section. Extract the intended schema:
 - Tables/models the spec requires
 - Fields, types, constraints the spec defines
 - Relations and foreign keys
@@ -93,28 +93,28 @@ If SPEC.md has no explicit data model section: read ACs related to persistence a
 
 ---
 
-## Step 4: Diff — Detect Changes
+## Step 4: Diff â€” Detect Changes
 
 Compare spec model against current schema. Classify every change:
 
 ```
 Schema Diff
-───────────────────────────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ADDED (new tables/fields):
   + Table: users.email_verified   BOOLEAN  DEFAULT false  NOT NULL
-  + Table: sessions               (new table — 4 fields)
+  + Table: sessions               (new table â€” 4 fields)
   + Index: users.email            UNIQUE
 
 MODIFIED (type/constraint changes):
-  ~ users.username  VARCHAR(50) → VARCHAR(100)   SAFE (widening)
-  ~ orders.status   added NOT NULL constraint     ⚠ DESTRUCTIVE if existing rows have NULL
+  ~ users.username  VARCHAR(50) â†’ VARCHAR(100)   SAFE (widening)
+  ~ orders.status   added NOT NULL constraint     âš  DESTRUCTIVE if existing rows have NULL
 
 REMOVED (dropped tables/fields):
-  - Table: user_tokens            ⚠ DESTRUCTIVE — data loss
-  - Column: users.legacy_id       ⚠ DESTRUCTIVE — data loss
+  - Table: user_tokens            âš  DESTRUCTIVE â€” data loss
+  - Column: users.legacy_id       âš  DESTRUCTIVE â€” data loss
 
 RENAMED (detected by name similarity + type match):
-  ? users.name → users.display_name   likely rename — CONFIRM before generating
+  ? users.name â†’ users.display_name   likely rename â€” CONFIRM before generating
 ```
 
 Severity classification:
@@ -129,10 +129,10 @@ Severity classification:
 For every DESTRUCTIVE change, block and require explicit confirmation:
 
 ```
-🔴 Destructive Operations Detected
+ðŸ”´ Destructive Operations Detected
 
 [D1] DROP COLUMN users.legacy_id
-     Impact: permanent data loss — this column's data cannot be recovered after migration runs
+     Impact: permanent data loss â€” this column's data cannot be recovered after migration runs
      Safe path: deprecate first (keep column, stop writing to it), drop in a future phase
      Override: add "--allow-destructive" flag if you have confirmed data is safe to drop
 
@@ -145,7 +145,7 @@ Stop here if destructive ops are found and `--allow-destructive` was not passed.
 
 ---
 
-## Step 6: Generate Migration File
+## Step 3: Generate Migration & Rollback
 
 For each ORM, generate the appropriate migration:
 
@@ -184,26 +184,16 @@ Then write the up() and down() functions based on the diff.
 
 **Raw SQL:** Write `[timestamp]_[migration-name].up.sql` and `[timestamp]_[migration-name].down.sql`:
 
-```sql
--- UP: [timestamp]_[migration-name].up.sql
-BEGIN;
-[generated SQL from diff]
-COMMIT;
-
--- DOWN: [timestamp]_[migration-name].down.sql
-BEGIN;
-[rollback SQL]
-COMMIT;
-```
+→ **Format:** Read `.buildflow/templates/tpl-migration.md` for the migration file structure.
 
 ---
 
-## Step 7: Generate Rollback Plan
+### Rollback Plan
 
 For every migration generated, write a rollback alongside it.
 
 ```markdown
-# Rollback Plan — [migration-name]
+# Rollback Plan â€” [migration-name]
 
 ## When to rollback
 - Migration caused unexpected errors in staging/production
@@ -212,8 +202,8 @@ For every migration generated, write a rollback alongside it.
 
 ## Rollback steps
 
-1. **Check if safe to rollback** — were any new records written using the new schema after migration?
-   If yes: rollback may cause data loss for those records — assess before proceeding.
+1. **Check if safe to rollback** â€” were any new records written using the new schema after migration?
+   If yes: rollback may cause data loss for those records â€” assess before proceeding.
 
 2. **Run rollback migration:**
    [ORM-specific rollback command]
@@ -222,7 +212,7 @@ For every migration generated, write a rollback alongside it.
    [command to confirm schema is back to previous state]
 
 ## What cannot be rolled back automatically
-[list any destructive ops that dropped data — must be restored from backup]
+[list any destructive ops that dropped data â€” must be restored from backup]
 ```
 
 ---
@@ -233,26 +223,26 @@ Assess whether the new schema is safe for blue-green or rolling deploys:
 
 ```
 Backward Compatibility
-──────────────────────
-New nullable columns:        ✓ SAFE (old app ignores them)
-New tables:                  ✓ SAFE (old app ignores them)
-Removed columns:             ✗ UNSAFE — old app will crash if it tries to read [column]
-Renamed columns:             ✗ UNSAFE — old app references old name
-Type widening:               ✓ SAFE
-NOT NULL added (with default): ✓ SAFE (old app can still insert without providing the field)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+New nullable columns:        âœ“ SAFE (old app ignores them)
+New tables:                  âœ“ SAFE (old app ignores them)
+Removed columns:             âœ— UNSAFE â€” old app will crash if it tries to read [column]
+Renamed columns:             âœ— UNSAFE â€” old app references old name
+Type widening:               âœ“ SAFE
+NOT NULL added (with default): âœ“ SAFE (old app can still insert without providing the field)
 
 Deployment strategy:
-  → [SAFE for rolling deploy / REQUIRES maintenance window / REQUIRES feature-flag migration]
+  â†’ [SAFE for rolling deploy / REQUIRES maintenance window / REQUIRES feature-flag migration]
 ```
 
 ---
 
-## Step 9: Write Output
+## Step 5: Write Output
 
 Write migration summary to `.buildflow/epics/[epic]/MIGRATIONS.md`:
 
 ```markdown
-# Migration — Phase [N]
+# Migration â€” Phase [N]
 **Generated:** [timestamp]
 **ORM:** [name]
 **Status:** PENDING
@@ -279,13 +269,15 @@ Write migration summary to `.buildflow/epics/[epic]/MIGRATIONS.md`:
 
 Print summary to terminal and guided next step:
 ```
-Migration generated ✓
-──────────────────────────────────────────
+Migration generated âœ“
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 [N] changes detected  [N] files written
-Destructive ops: [N — review above / NONE]
-Backward compatible: [YES / NO — see above]
+Destructive ops: [N â€” review above / NONE]
+Backward compatible: [YES / NO â€” see above]
 
 To apply:    [command]
 To rollback: [command]
 Next step:   /buildflow-deploy staging
 ```
+
+

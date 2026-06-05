@@ -597,6 +597,10 @@ function detectAppName() {
 export async function refreshInstalledTools(opts = {}) {
   const commandFiles = loadCommandTemplates()
   const commandCount = Object.keys(commandFiles).length
+  const exampleTemplates = loadExampleTemplates()
+  if (Object.keys(exampleTemplates).length > 0) {
+    installExampleTemplates(process.cwd(), exampleTemplates)
+  }
   const results = []
 
   for (const tool of Object.values(TOOLS)) {
@@ -709,9 +713,57 @@ export function printBuildFlowBanner(subtitle = 'AI Tool Integration') {
   console.log('')
 }
 
+// Module names — loaded for assembly only, never installed as slash commands
+const MODULE_NAMES = [
+  'build-detect', 'build-execute',
+  'workspace-workflow', 'workspace-manage',
+  'spec-plan',
+  'onboard-analyze',
+  'check-strict',
+]
+
+// Inline module content at every module load marker found in a command file.
+// Marker pattern: → **Load module now:** Read `.claude/commands/buildflow-<name>.md`...
+// The assembled output is a single self-contained file — no runtime Read dependency.
+function assembleCommand(content, modules) {
+  const markerRegex = /→ \*\*Load module now:\*\* Read `\.claude\/commands\/(buildflow-[\w-]+)\.md`[^\n]*/g
+  return content.replace(markerRegex, (match, fullName) => {
+    const moduleKey = fullName.replace(/^buildflow-/, '')
+    const moduleContent = modules[moduleKey]
+    if (!moduleContent) return match
+    // Strip frontmatter block (---...---) and leading whitespace from module
+    const stripped = moduleContent.replace(/^---[\s\S]*?---\n+/, '').trim()
+    return stripped
+  })
+}
+
+// Load all example/format templates from templates/examples/
+// These are installed to .buildflow/templates/ so the AI can Read them on demand.
+function loadExampleTemplates() {
+  const examplesDir = join(__dirname, '../../templates/examples')
+  const templates = {}
+  if (!existsSync(examplesDir)) return templates
+  const files = readdirSync(examplesDir).filter(f => f.endsWith('.md'))
+  for (const file of files) {
+    templates[file] = readFileSync(join(examplesDir, file), 'utf8')
+  }
+  return templates
+}
+
+// Install format templates to .buildflow/templates/ in the project directory.
+// Called once per install regardless of which AI tool is selected.
+function installExampleTemplates(projectDir, templates) {
+  const dir = join(projectDir, '.buildflow', 'templates')
+  mkdirSync(dir, { recursive: true })
+  for (const [name, content] of Object.entries(templates)) {
+    writeFileSync(join(dir, name), content)
+  }
+  return dir
+}
+
 function loadCommandTemplates() {
   const templatesDir = join(__dirname, '../../templates/commands')
-  const commands = {}
+
   const commandNames = [
     'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship',
     'onboard', 'modify', 'refactor', 'hotfix', 'audit',
@@ -720,12 +772,26 @@ function loadCommandTemplates() {
     'complete-epic', 'switch-epic', 'settings',
     'ui-spec', 'ui-review', 'review',
   ]
+
+  // Load modules first so assembleCommand can reference them
+  const modules = {}
+  for (const name of MODULE_NAMES) {
+    const filePath = join(templatesDir, `${name}.md`)
+    if (existsSync(filePath)) {
+      modules[name] = readFileSync(filePath, 'utf8')
+    }
+  }
+
+  // Load and assemble each installable command
+  const commands = {}
   for (const name of commandNames) {
     const filePath = join(templatesDir, `${name}.md`)
     if (existsSync(filePath)) {
-      commands[name] = readFileSync(filePath, 'utf8')
+      const raw = readFileSync(filePath, 'utf8')
+      commands[name] = assembleCommand(raw, modules)
     }
   }
+
   return commands
 }
 
@@ -862,6 +928,12 @@ export async function run(opts = {}) {
 
   const commandFiles = loadCommandTemplates()
   const commandCount = Object.keys(commandFiles).length
+
+  // Install format templates to .buildflow/templates/ — available to all AI tools via Read
+  const exampleTemplates = loadExampleTemplates()
+  if (Object.keys(exampleTemplates).length > 0) {
+    installExampleTemplates(process.cwd(), exampleTemplates)
+  }
 
   console.log(chalk.dim(`\n  Installing ${commandCount} commands into ${toolsToInstall.length} tool(s)...\n`))
 

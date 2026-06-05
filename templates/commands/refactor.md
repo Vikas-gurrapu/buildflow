@@ -1,4 +1,4 @@
----
+﻿---
 name: buildflow-refactor
 description: Improve existing code quality without changing behavior
 allowed-tools: Read, Write, Grep, Glob, Bash
@@ -7,7 +7,7 @@ agents: surgeon, reviewer
 
 # /buildflow-refactor
 
-Improve code quality, readability, or performance — without changing observable behavior.
+Improve code quality, readability, or performance â€” without changing observable behavior.
 
 ## Usage
 - `/buildflow-refactor src/components/Dashboard.tsx`
@@ -18,7 +18,7 @@ Improve code quality, readability, or performance — without changing observabl
 
 Before reading or writing any source file, apply the installed **Folder Access Guard**:
 - Check `path_permissions.[folder]` in `.buildflow/PREFERENCES.md`
-- `approved` → proceed; `denied` → skip + warn; not listed → show [1]/[2]/[3] prompt once per folder
+- `approved` â†’ proceed; `denied` â†’ skip + warn; not listed â†’ show [1]/[2]/[3] prompt once per folder
 
 ---
 
@@ -34,7 +34,7 @@ Clarify what kind of improvement:
 
 ## Step 3: Behavior Contract
 Before refactoring:
-- Document current behavior (inputs → outputs)
+- Document current behavior (inputs â†’ outputs)
 - Identify existing tests
 - Note any implicit side effects
 
@@ -42,19 +42,8 @@ The refactor must NOT change this contract.
 
 ## Step 4: Restore Point
 
-Before any git command, read `.buildflow/PREFERENCES.md`.
+Apply Git Permission Guard: read `git.permission` from `PREFERENCES.md`. If not `approved`: no git commands this session.
 
-- If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
-- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
-
-**If `git.permission: approved`:**
-```bash
-git commit -m "pre-refactor restore point: [scope]"
-```
-
-**If `git.permission` is not `approved` (no-git mode):**
-Copy the files in scope into `.buildflow/snapshots/pre-refactor-[timestamp]/` before writing changes.
 
 ## Step 5: Incremental Refactor
 Small, reviewable steps:
@@ -65,10 +54,10 @@ Small, reviewable steps:
 
 After each step: verify behavior unchanged.
 
-## Step 5b: Locale Catalog Sync (runs after each rename step — only if i18n keys affected)
+## Step 5b: Locale Catalog Sync (runs after each rename step â€” only if i18n keys affected)
 
 **Triggered when Step 5 renames or moves:**
-- A symbol that is also an i18n key reference (`t('old.key')` → `t('new.key')`)
+- A symbol that is also an i18n key reference (`t('old.key')` â†’ `t('new.key')`)
 - A file that is a locale catalog or label/copy JSON
 - A string constant used as a label key
 
@@ -76,7 +65,7 @@ After each step: verify behavior unchanged.
 
 **Action:**
 
-1. Read `intel.json → locale_support` to get `catalog_files[]`, `label_catalogs[]`, `supported_locales[]`, `catalog_type`.
+1. Read `intel.json â†’ locale_support` to get `catalog_files[]`, `label_catalogs[]`, `supported_locales[]`, `catalog_type`.
 
    If intel.json absent: grep for catalog files:
    ```bash
@@ -84,7 +73,7 @@ After each step: verify behavior unchanged.
    ```
 
 2. For each renamed key:
-   - Grep ALL source files for the old key name — update every reference to the new name
+   - Grep ALL source files for the old key name â€” update every reference to the new name
    - Then rename the key in ALL catalog files, preserving values exactly
    - Format per type: JSON `"new.key": "value"`, properties `new.key=value`, XML `<string name="new_key">`, ARB `"newKey": "value"`, PO `msgid "new.key"`, `.strings` `"new.key" = "value";`
 
@@ -92,20 +81,20 @@ After each step: verify behavior unchanged.
    - Update all import paths that reference the old catalog path
    - Update `intel.json locale_support.catalog_files[]` with the new path
 
-4. Use the **Write tool** to update each affected catalog file — write to disk, not as text output.
+4. Use the **Write tool** to update each affected catalog file â€” write to disk, not as text output.
 
 5. Report:
    ```
    Locale Catalog Sync (refactor)
-   ──────────────────────────────
-   Keys renamed: [old → new] across [N] catalogs
-   Files moved:  [old path → new path]
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Keys renamed: [old â†’ new] across [N] catalogs
+   Files moved:  [old path â†’ new path]
    Source references updated: [N]
    ```
 
 ## Step 6: Quality Check (Reviewer agent)
 - Is the refactored code simpler?
-- Run targeted tests for **refactored files and their direct dependents only** — not the full suite:
+- Run targeted tests for **refactored files and their direct dependents only** â€” not the full suite:
   ```bash
   npx jest --testPathPattern="[refactored-file-name]" --no-coverage   # JS/TS
   npx vitest run [refactored-test-file] [caller-test-file]
@@ -117,20 +106,21 @@ After each step: verify behavior unchanged.
   dotnet test --filter "FullyQualifiedName~RefactoredClass"           # C#
   bundle exec rspec [refactored_spec] [caller_spec]                   # Ruby
   ```
-  **Pure style/config fast path:** if ONLY `.css`/`.scss`/`.less`/`.styl` or config files were touched — skip test run entirely.
+  **Pure style/config fast path:** if ONLY `.css`/`.scss`/`.less`/`.styl` or config files were touched â€” skip test run entirely.
 
-**After targeted tests pass — ask once:**
+**After targeted tests pass â€” ask once:**
 ```
-──────────────────────────────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Targeted tests passed. Run full app-level test suite?
-  [Y] Yes — run full suite now
-  [N] No  — skip, proceed to Update Codebase Map
-──────────────────────────────────────────────────
+  [Y] Yes â€” run full suite now
+  [N] No  â€” skip, proceed to Update Codebase Map
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ```
-- **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
+- **[Y]:** Run the full test suite. On failure: report what broke â€” do not auto-fix regressions, they may be pre-existing.
 - **[N]:** Skip. Full suite runs at `/buildflow-check`.
 - Does it match PATTERNS.md conventions?
 - Any new complexity introduced?
 
 ## Step 7: Update Codebase Map
 If patterns changed significantly, update `.buildflow/codebase/PATTERNS.md`.
+

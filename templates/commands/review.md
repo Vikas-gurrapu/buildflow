@@ -19,7 +19,8 @@ Parallel review using multiple focused reviewers. Each reviewer gets a scoped co
 - `/buildflow-review --fix` — apply low-risk findings automatically after review
 
 ## Context Packet (loaded by orchestrator before spawning)
-- `.buildflow/MEMORY.md` (app_name, current_epic, spec_version)
+- `.buildflow/MEMORY.md` (app_name, current_epic, spec_version, locale_support, local_support)
+- `.buildflow/PREFERENCES.md` (git.permission only)
 - `.buildflow/epics/[epic]/STATE.md`
 - Mode-specific context loaded per agent (see below)
 
@@ -56,7 +57,7 @@ v1 → v2  (amended [date] by user)
 
 #### Agent SR-A — AC Completeness Reviewer
 **Lens:** Are the acceptance criteria complete, unambiguous, and testable?
-**Context:** `ACCEPTANCE.md`, `SPEC.md` (Part 1: Requirements section only)
+**Context:** `ACCEPTANCE.md`, `SPEC.md` (Part 1: Requirements section only), `.buildflow/codebase/TESTING.md`
 
 Check:
 - Every feature in SPEC.md has at least 2 ACs (1 happy path + 1 failure/edge case)
@@ -64,6 +65,7 @@ Check:
 - No vague language: `correctly` `properly` `works` `fast` `good` `should` `appropriate` — flag each instance with a suggested replacement
 - Every AC is binary (pass/fail) — flag any AC with subjective or partial outcomes
 - Every AC references a specific observable outcome (not just "it works")
+- Every AC is verifiable using the test framework and conventions in `TESTING.md` — flag ACs that require test types not supported by the project's current setup
 
 Output: list of findings with AC ID, issue type, and suggested fix.
 
@@ -71,7 +73,7 @@ Output: list of findings with AC ID, issue type, and suggested fix.
 
 #### Agent SR-B — Technical Design Reviewer
 **Lens:** Is the technical design sound and buildable?
-**Context:** `SPEC.md` (Part 2: Technical Design section), `PLAN.md`, `.buildflow/codebase/PATTERNS.md`, `.buildflow/codebase/CODEBASE.md`
+**Context:** `SPEC.md` (Part 2: Technical Design section), `PLAN.md`, `.buildflow/codebase/PATTERNS.md`, `.buildflow/codebase/CODEBASE.md`, `.buildflow/codebase/DEPENDENCIES.md`
 
 Check:
 - Component map entries all map to at least one feature — flag orphaned components
@@ -80,6 +82,7 @@ Check:
 - Technology decisions don't contradict constraints from SPEC.md Part 1
 - No new patterns introduced that conflict with `PATTERNS.md`
 - No new paths/layers that conflict with `CODEBASE.md` stack section
+- New env vars, external services, or package additions in the spec don't conflict with existing contracts in `DEPENDENCIES.md`
 - Wave plan follows thin-slice order (DB → API → UI → tests)
 - File ownership map has no conflicts (no file owned by two waves)
 
@@ -89,7 +92,8 @@ Output: list of findings with location (section + line description) and severity
 
 #### Agent SR-C — Security & Edge Case Reviewer
 **Lens:** Are security requirements and edge cases represented in the spec?
-**Context:** `ACCEPTANCE.md`, `SPEC.md` (API Contracts + NFRs), `.buildflow/codebase/RISKS.md`
+**Adversarial lens:** Assume all user input is hostile and all external systems are untrusted. Think in attack vectors first, happy paths second. A missing AC for a failure case is a spec defect, not an edge case to handle later.
+**Context:** `ACCEPTANCE.md`, `SPEC.md` (API Contracts + NFRs), `.buildflow/codebase/RISKS.md`, `.buildflow/codebase/intel.json` (locale_support, local_support fields only)
 
 Check:
 - Every authenticated endpoint has an AC for the unauthenticated case (401)
@@ -98,7 +102,7 @@ Check:
 - NFR section covers security requirements relevant to the feature (auth, rate limiting, CSRF if applicable)
 - Known hotspot files from RISKS.md that this feature touches — do ACs account for their risk?
 - No secrets or credentials referenced in ACs or spec narrative
-- If locale support is flagged in MEMORY.md: ACs exist for default locale, fallback, and catalog sync
+- If `locale_support` or `local_support` is set in `intel.json`: ACs exist for default locale, fallback, and catalog sync
 
 Output: list of missing security ACs and edge cases, each with suggested AC text.
 
@@ -189,14 +193,15 @@ Run after `/buildflow-build` completes a wave or all waves. Reviews implemented 
 
 ### Step CR0: Determine Scope
 
-If `--wave <N>`: load wave-N.md tasks and the files they touched only.
-If no flag: load all waves and all files modified in this epic.
+If `--wave <N>`: scope to wave-N.md tasks and the files they touched only.
+If no flag: scope to the last completed wave by default. Loading all waves at once risks blowing the context window — only expand to all waves if the user explicitly requests a full-epic review.
 
 Read:
 - `.buildflow/epics/[epic]/ACCEPTANCE.md` (ACs to verify against)
-- `.buildflow/epics/[epic]/waves/wave-[N].md` (task list + file list)
+- `.buildflow/epics/[epic]/CHECK.md` (which ACs are already PASS — skip re-reviewing those)
+- `.buildflow/epics/[epic]/waves/wave-[N].md` (task list + file list for scoped wave)
 - `.buildflow/codebase/PATTERNS.md`
-- Source files touched in the target wave(s)
+- Source files touched in the scoped wave(s)
 
 ---
 
@@ -204,7 +209,7 @@ Read:
 
 #### Agent CR-A — Correctness Reviewer
 **Lens:** Does the implementation do what the ACs require?
-**Context:** `ACCEPTANCE.md`, wave file(s), source files touched
+**Context:** `ACCEPTANCE.md`, `SPEC.md` (Error Response Format section only), wave file(s), source files touched
 
 Check each AC:
 - Can this AC pass given the current implementation?
@@ -218,7 +223,8 @@ Flag: AC ID + what's missing or wrong in the implementation.
 
 #### Agent CR-B — Security Reviewer
 **Lens:** Does the implementation introduce security vulnerabilities?
-**Context:** source files touched, `SPEC.md` (API Contracts + auth requirements)
+**Adversarial lens:** Assume every input field is an injection attempt, every unauthenticated request is deliberate, and every error message is a potential information leak. Review as someone who has investigated production breaches — not as someone checking a compliance checklist.
+**Context:** source files touched, `SPEC.md` (API Contracts + auth requirements), `.buildflow/codebase/RISKS.md`
 
 Check (scoped to changed files only):
 - Auth middleware applied to all routes that SPEC.md marks auth: yes
@@ -235,7 +241,7 @@ Flag: file + line + OWASP category + severity (CRITICAL / HIGH / MEDIUM / LOW).
 
 #### Agent CR-C — Patterns & Architecture Reviewer
 **Lens:** Does the implementation follow established patterns and architecture?
-**Context:** `PATTERNS.md`, `CODEBASE.md`, source files touched
+**Context:** `PATTERNS.md`, `CODEBASE.md`, `DEPENDENCIES.md`, source files touched
 
 Check:
 - New files follow naming and location conventions from `PATTERNS.md`
@@ -243,7 +249,8 @@ Check:
 - No new global state introduced without an existing pattern for it
 - No new direct DB calls outside the repository layer (if one exists)
 - No new paths/layers that conflict with `CODEBASE.md` physical layout
-- Locale/local support preserved if `local_support` / `locale_support` is set in MEMORY.md
+- No new env vars, external service calls, or webhook changes without a corresponding update to `DEPENDENCIES.md`
+- Locale/local support preserved if `local_support` / `locale_support` is set in `intel.json`
 
 Flag: deviation + pattern it should follow + file reference.
 
@@ -251,7 +258,7 @@ Flag: deviation + pattern it should follow + file reference.
 
 #### Agent CR-D — Test Coverage Reviewer
 **Lens:** Are the ACs verifiable given the tests written?
-**Context:** `ACCEPTANCE.md`, wave file(s), test files in the touched scope
+**Context:** `ACCEPTANCE.md`, `CHECK.md` (skip ACs already marked PASS), wave file(s), test files in the touched scope, `.buildflow/codebase/TESTING.md`
 
 Check:
 - Every non-trivial AC has a corresponding test (unit or integration)

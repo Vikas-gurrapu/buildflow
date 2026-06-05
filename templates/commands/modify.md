@@ -39,18 +39,11 @@ Before reading or writing any source file, apply the installed **Folder Access G
 
 ---
 
-## Step 1: Understand the Change
-Parse the description. Identify:
-- **What** must change (behavior, data, interface)
-- **Where** the change originates (file, function, module)
-- **What must NOT change** (caller contracts, existing behavior outside scope)
-- Is this a feature (new capability) or a bugfix (restoring expected behavior)?
+## Step 1: Analyse Change — Understand, Impact, API Contract & Test Coverage
 
-If ambiguous: ask ONE clarifying question only.
+Parse description: what changes, where, what must NOT change, feature vs bugfix. Ask ONE clarifying question if ambiguous.
 
----
-
-## Step 2: Transitive Impact Analysis
+### Transitive Impact
 
 ### 2a: Check for Symbol-Level Data
 Read `.buildflow/codebase/intel.json`.
@@ -167,7 +160,7 @@ Locale Support Preservation
 - User-facing copy changes include locale test or snapshot updates when available
 ```
 
-### Step 2c: Locale Catalog Sync (mandatory when keys change — not optional)
+### Locale Catalog Sync (mandatory when keys change)
 
 **Triggered when any of these is true:**
 - Change adds a new label/i18n key in source code (`t('new.key')`, `getString(R.string.newKey)`, `__('new_key')`, `NSLocalizedString("key", ...)`, `I18n.t("key")`)
@@ -232,7 +225,7 @@ Locale Support Preservation
 
 ---
 
-## Step 3: API Contract Check
+### API Contract Check
 If the change modifies a function/method signature or REST endpoint:
 
 **Before (current contract):**
@@ -251,7 +244,7 @@ List all callers that pass through this contract and verify they still compile/r
 
 ---
 
-## Step 4: Test Coverage Map
+### Test Coverage Map
 For each file in the impact chain, verify:
 - Does a test file exist that imports or calls it?
 - Do those tests cover the behavior being changed?
@@ -270,7 +263,7 @@ Flag any untested file in the impact chain as a risk.
 
 ---
 
-## Step 5: Confirmation
+## Step 2: Confirm & Preserve — Confirmation & Restore Point
 Show the impact summary, contract change, and test coverage map. Ask:
 
 > "This change touches [N] files with blast radius [N]. Highest-risk: [file] ([score]).
@@ -280,29 +273,14 @@ Only proceed on explicit confirmation.
 
 ---
 
-## Step 6: Restore Point
+### Restore Point
 
-Before any git command, read `.buildflow/PREFERENCES.md`.
+Apply Git Permission Guard: read `git.permission` from `PREFERENCES.md`. If not `approved`: no git commands this session.
 
-- If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
-- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
-
-**If `git.permission: approved`:**
-```bash
-git stash push -m "pre-modify: [description]"
-# or if nothing to stash:
-git tag "pre-modify-$(date +%Y%m%d-%H%M)"
-```
-
-**If `git.permission` is not `approved` (no-git mode):**
-Copy all files in the impact chain (from Step 2) into `.buildflow/snapshots/pre-modify-[timestamp]/` before writing any changes.
-Log in `STATE.md`: `last_restore_point: .buildflow/snapshots/pre-modify-[timestamp]/`
-To roll back: copy snapshot files back to their original paths.
 
 ---
 
-## Step 7: Surgical Implementation
+## Step 3: Implement & Test — Surgical Implementation & Tests
 Make the minimum effective change:
 - Change only what the impact analysis identified
 - Follow existing code style (PATTERNS.md)
@@ -313,7 +291,7 @@ For each file modified: confirm it matches the Before → After contract.
 
 ---
 
-## Step 7b: Write / Update Tests (mandatory — part of the change, not optional)
+### Write / Update Tests (mandatory)
 
 ### First: detect test framework (if not already known from onboarding)
 ```bash
@@ -451,7 +429,7 @@ Targeted tests passed. Run full app-level test suite?
 
 ---
 
-## Step 9: Update Memory
+### Update Memory
 ```yaml
 last_modify: [today]
 change: [description]
@@ -476,3 +454,4 @@ Use this before a risky change to understand blast radius first.
 
 If this was a `--dry-run`: `→ Next: /buildflow-modify` (re-run without --dry-run to apply the change).
 If impact level was high (level2 or deeper): `→ Next: /buildflow-test` (targeted test run before full check).
+

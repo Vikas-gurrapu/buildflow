@@ -57,15 +57,15 @@ Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/
 
 ## Standard Research Mode (default)
 
-### Step 1: Clarify Research Goal
+### Step 1: Clarify, Decompose & Research
 If topic is specified, confirm understanding in one sentence.
 If open-ended: "What are you trying to decide or understand?"
 
-### Step 2: Decompose into Research Questions
+#### Decompose
 Break the topic into 2–3 specific, answerable sub-questions.
 Assign one to each Researcher agent.
 
-### Step 3: Parallel Research
+#### Parallel Research
 
 **Claude Code** — spawn all Researchers in one response (true parallel):
 ```
@@ -80,7 +80,7 @@ Spawn only as many Researchers as sub-questions (max 3). All Agent calls in one 
 `=== Researcher B START ===` → answer sub-question 2, same format → `=== Researcher B END ===`
 `=== Researcher C START ===` → answer sub-question 3 if needed → `=== Researcher C END ===`
 
-### Step 4: Synthesize
+### Step 2: Synthesize, Gate & Save
 Synthesizer combines all findings:
 - **Consensus:** what all sources agree on
 - **Conflicts:** where sources disagree — flag explicitly with each position
@@ -88,11 +88,11 @@ Synthesizer combines all findings:
 - **Recommendation:** concrete, actionable, with confidence (1–5)
 - **Risks:** what could go wrong with the recommendation
 
-### Step 5: Confidence Gate
+#### Confidence Gate
 If confidence < 3: "Low confidence. Here's what would increase it: [specific gaps to fill]"
 If confidence ≥ 4: suggest next step (spec / plan / build)
 
-### Step 6: Save
+#### Save
 Write research findings to `.buildflow/epics/[epic]/CONTEXT.md` (research section).
 Update `MEMORY.md` key decisions if a choice was made.
 
@@ -102,11 +102,11 @@ Update `MEMORY.md` key decisions if a choice was made.
 
 Triggered when: designing a new system, evaluating a proposed approach, or onboarding to a codebase.
 
-### Step 1: Load Architecture Context
+### Step 1: Load & Analyse
 Read `CODEBASE.md`, `SPEC.md` (if exists), `PATTERNS.md`.
 If greenfield: work from vision + proposed SPEC.md (technical design section).
 
-### Step 2: Structural Analysis
+#### Structural Analysis
 Evaluate:
 - **Separation of concerns** — do modules have single, clear responsibilities?
 - **Coupling** — are modules tightly bound in ways that make changes expensive?
@@ -114,17 +114,17 @@ Evaluate:
 - **Boundaries** — are module boundaries enforced or leaky?
 - **Scalability** — will this design hold under 10× the current load/data?
 
-### Step 3: Pattern Consistency
+### Step 2: Pattern, Failure & Smell Detection
 Does the proposed design follow existing patterns in the codebase?
 If introducing new patterns: is there a good reason, or is it accidental inconsistency?
 
-### Step 4: Failure Mode Analysis
+#### Failure Mode Analysis
 For each major component, ask: "What happens when this fails?"
 - Does the failure cascade?
 - Is there a recovery path?
 - Will the user see a clear error or silent corruption?
 
-### Step 5: Engineering Smell Detection
+#### Engineering Smell Detection
 Flag any of these if present:
 - **God object** — one class/module doing too many things
 - **Shotgun surgery** — a single logical change requires edits across many files
@@ -133,7 +133,7 @@ Flag any of these if present:
 - **Circular dependency** — A imports B imports A
 - **Distributed monolith** — microservices that can't deploy independently
 
-### Step 6: Architecture Report
+### Step 3: Architecture Report
 ```
 Architecture Review
 ───────────────────
@@ -151,16 +151,16 @@ Confidence:      [1–5]
 
 Triggered when evaluating whether to implement a capability in-house or use an external library/service.
 
-### Step 1: Define the Capability
+### Step 1: Define, Research & Evaluate
 Exact scope: what does this need to do? What are the boundaries?
 
-### Step 2: Research Options
+#### Research Options
 Parallel Researchers investigate:
 - **Build** — what would implementation cost? What's the maintenance burden?
 - **Buy (OSS)** — what libraries exist? License, maintenance status, community health?
 - **Buy (SaaS)** — what services exist? Cost, reliability, vendor lock-in risk?
 
-### Step 3: Evaluation Matrix
+#### Evaluation Matrix
 | Factor | Build | OSS Library | SaaS |
 |--------|-------|-------------|------|
 | Time to working | [est] | [est] | [est] |
@@ -171,7 +171,7 @@ Parallel Researchers investigate:
 | Compliance fit | full control | depends | verify |
 | Team expertise needed | yes | some | low |
 
-### Step 4: Recommendation
+### Step 2: Recommendation
 Given project constraints (team size, timeline, compliance from SPEC.md requirements section):
 - **Recommend:** [build / OSS / SaaS]
 - **Reason:** [top 2 factors that drove the decision]
@@ -182,10 +182,10 @@ Given project constraints (team size, timeline, compliance from SPEC.md requirem
 
 ## Technical Debt Mode (`--debt`)
 
-### Step 1: Load Hotspots
+### Step 1: Load, Classify & Prioritize
 Read `RISKS.md`. These are the known high-risk files.
 
-### Step 2: Debt Classification
+#### Debt Classification
 For each hotspot and any other known issues:
 
 | Item | Type | Impact | Cost to Fix | ROI |
@@ -198,7 +198,7 @@ Debt types:
 - **TEST** — missing or shallow test coverage on critical paths
 - **INFRA** — outdated deps, missing CI, manual steps that should be automated
 
-### Step 3: Priority Recommendation
+#### Priority Recommendation
 Sort by ROI (impact of fixing ÷ cost to fix). Top 3 items to address next.
 
 ---
@@ -207,10 +207,10 @@ Sort by ROI (impact of fixing ÷ cost to fix). Top 3 items to address next.
 
 Used before a plan is executed to ask: "Is this too much for the team/timeline?"
 
-### Step 1: Load Plan
+### Step 1: Load & Assess Complexity
 Read `epics/[epic]/PLAN.md`. Sum effort estimates.
 
-### Step 2: Complexity Assessment
+#### Complexity Assessment
 ```
 Complexity Budget Check
 ───────────────────────
@@ -243,4 +243,5 @@ Before printing this block, check session context usage and whether the command 
 
 If verdict is OVER-SCOPED: `→ Next: /buildflow-start-epic` (revise the vision scope before speccing).
 If this was `--arch`: `→ Next: /buildflow-spec` (architecture decided — ready to plan implementation).
+
 

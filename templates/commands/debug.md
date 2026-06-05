@@ -165,23 +165,9 @@ Update `progress` and `updated` in the session file before continuing.
 
 ---
 
-## Step 1: Collect the Error
+## Step 1: Diagnose — Collect, Reproduce & Trace Root Cause
 
-Parse `$ARGUMENTS` for subcommands first (--list, --continue, --trace). Remaining text is the description.
-
-If a description was passed, use it.
-Otherwise check for recent failure context:
-- Last test run output
-- Browser console errors
-- Terminal error logs
-- `.buildflow/epics/[epic]/PLAN.md` for what was expected
-
-## Step 2: Reproduce the Failure
-- Run the failing test or trigger the failing flow
-- Confirm the error is reproducible before investigating
-- Note: exact error message, file, line number, stack trace
-
-## Step 3: Trace to Root Cause
+Parse `$ARGUMENTS` for subcommands (--list, --continue, --trace). Use passed description or collect from last test output, console errors, terminal logs, or PLAN.md. Reproduce the failure and confirm it's repeatable before investigating.
 
 **File reading rule:** Read the full function or module block around the error — never truncate to a few lines. Use `offset` and `limit` on the Read tool to load the complete relevant section (entire function, class, or module — not just the erroring line). For large files, read the error site plus 50 lines above and below.
 
@@ -200,71 +186,29 @@ Distinguish:
 
 **If root cause is NOT found after exhausting obvious candidates**, save a partial session record now so the session is resumable. Resolve the target path using the Epic Resolution step, then determine the next sequence number. Use the Write tool to create the file:
 
-```markdown
----
-progress: investigating
-updated: {today}
-next_step: "{what to try next}"
----
-
-# Debug Session — [short description]
-Date: [ISO datetime]
-Epic: [current_epic or "none"]
-Status: UNRESOLVED
-
-## Problem
-[symptom reported — exact error message or test failure]
-
-## Root Cause
-not yet identified
-
-## Hypothesis Chain
-- H1: [hypothesis] → ELIMINATED — [reason]
-
-## Fix Applied
-none
-
-## Files Changed
-none
-
-## Test Evidence
-none yet
-
-## Remaining Risk
-investigation in progress
-```
+→ **Format:** Read `.buildflow/templates/tpl-debug-record.md` for the debug session record structure.
 
 Print: `Session saved: {path} — resume with /buildflow-debug --continue {ref}`
 
-## Step 4: Impact Check
+## Step 2: Impact & Restore Point
 Before fixing:
 - How many places does this root cause affect?
 - Is this a one-off bug or a systemic pattern?
 - Will fixing this break anything else?
 
-## Step 5: Create Restore Point
+### Create Restore Point
 
-Before any git command, read `.buildflow/PREFERENCES.md`.
+Apply Git Permission Guard: read `git.permission` from `PREFERENCES.md`. If not `approved`: no git commands this session.
 
-- If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
-- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
-If `git.permission: approved`:
-```bash
-git stash  # safe fallback before making changes
-```
-
-If `git.permission` is not `approved`, copy files likely to be changed into `.buildflow/snapshots/pre-debug-[timestamp]/`.
-
-## Step 6: Apply Fix
+## Step 3: Apply Fix
 - Fix only the root cause, not the symptom
 - Minimum footprint — do not refactor surrounding code
 - Match existing code style (PATTERNS.md)
 
 If a session file was created in Step 3, update it now: set `progress: fix-applied`, `next_step: verify fix`, and populate `## Root Cause` with one sentence.
 
-## Step 6b: Locale Catalog Sync (runs after fix — only if label/i18n keys changed)
+### Locale Catalog Sync (only if i18n keys changed)
 
 **Triggered when the fix:**
 - Adds a missing i18n key that was causing broken/undefined UI labels
@@ -353,11 +297,11 @@ Targeted tests passed. Run full app-level test suite?
 - **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
 - **[N]:** Skip. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
-## Step 8: Prevent Recurrence
+## Step 5: Harden & Record
 - Add a test that would have caught this bug
 - Note the fix in `.buildflow/epics/[epic]/CONTEXT.md` if it reveals a systemic issue
 
-## Step 9: Save Debug Record
+### Save Debug Record
 
 **If a session file was already created** (partial save from Step 3): update it in place — overwrite with the final record below. Do not create a new file or increment sequence.
 
@@ -367,40 +311,7 @@ Targeted tests passed. Run full app-level test suite?
 
 Increment sequence from existing files in that folder, starting at 001. Do not output as text — write to disk.
 
-```markdown
----
-progress: resolved
-updated: [today]
-next_step: ""
----
-
-# Debug Session — [short description]
-Date: [ISO datetime]
-Epic: [current_epic or "none"]
-Status: RESOLVED / UNRESOLVED
-
-## Problem
-[symptom reported — exact error message or test failure]
-
-## Root Cause
-[the underlying reason, not just the symptom]
-
-## Hypothesis Chain
-- H1: [hypothesis] → [result: CONFIRMED / ELIMINATED]
-- H2: [hypothesis] → [result: ...]
-
-## Fix Applied
-[what changed and why — file:line references]
-
-## Files Changed
-- [path] — [what changed]
-
-## Test Evidence
-[commands run and pass/fail results]
-
-## Remaining Risk
-[any lingering concerns or NONE]
-```
+→ **Format:** Read `.buildflow/templates/tpl-debug-record.md` for the debug session record structure.
 
 ## Guided Next Step
 
@@ -413,3 +324,5 @@ Status: RESOLVED / UNRESOLVED
 
 If root cause could not be isolated: `→ Next: /buildflow-debug --continue {ref}` (resume with a narrower hypothesis).
 If the bug traced to a spec gap: `→ Next: /buildflow-spec --review` (amend the AC before proceeding).
+
+

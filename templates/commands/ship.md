@@ -20,27 +20,7 @@ Finalize current phase. Three gates run before shipping: spec compliance, securi
 
 ---
 
-## Phase State Resume
-Read `.buildflow/STATE.md`, `.buildflow/MEMORY.md`, `.buildflow/epics/[epic]/PLAN.md` (index), `.buildflow/epics/[epic]/CHECK.md`, and `.buildflow/epics/[epic]/STATE.md` if it exists.
-
-Use `STATE.md` to confirm the latest build/check status, risks, skipped tests, and intended ship path. If it says `Status: shipped` and `SHIPPED.md` exists, summarize the shipped state and continue to the next-phase recommendation instead of re-shipping unless the user explicitly asks.
-
-Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
-- Current State: `Status: shipped`, `Wave: complete`
-- Decisions: ship gate outcomes, accepted debt, post-ship advisor choice
-- Files That Matter: `SHIPPED.md`, `RETRO.md`, snapshots/tags, and key shipped files
-- Next Command: `/buildflow-spec "[suggested phase name]"`
-- Risks / Open Questions: open debt, deferred checks, follow-up work
-- Test Strategy: ship tests/regression results and baseline counts/coverage
-
----
-
-## Multi-Agent Protocol
-
-Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
-
-- **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each prompt must be self-contained.
-- **Gemini CLI / Codex CLI / Cursor** — Execute each role sequentially: print `=== [Role] START ===`, complete using only that role's context, print `=== [Role] END ===`.
+**Pre-flight:** Read STATE.md + MEMORY.md + PLAN.md + CHECK.md + epic STATE.md. If `Status: shipped` + SHIPPED.md exists → summarize and recommend next phase instead of re-shipping. Before exiting: update epic STATE.md with shipped status, decisions, key files, next command, open debt. Agent protocol: Claude Code — parallel; other tools — sequential.
 
 ---
 
@@ -452,74 +432,26 @@ context_pruned: [today]
 
 Write `.buildflow/epics/[epic]/SHIPPED.md` — a compact, permanent record future phases can load as context:
 
-```markdown
-# Phase [N] — Shipped [date]
-
-## What was built
-[2–3 sentences. What the user can now DO that they couldn't before this phase.]
-
-## ACs satisfied
-[N] total: AC-001 (login), AC-002 (invalid password), AC-003 (password reset), ...
-
-## Key files changed
-| File | What changed | AC |
-|------|--------------|----|
-| src/auth/service.ts | new — JWT login logic | AC-001, AC-002 |
-| src/routes/auth.ts | new — /login, /reset endpoints | AC-001, AC-003 |
-
-## Architecture decisions made
-- [decision]: [why — one line]
-
-## Technical debt opened this phase
-[N items — brief list from DEBT.md entries added this phase]
-
-## Spec version shipped
-v[N] (approved [date])
-
-## Coverage at ship
-[N]% ([N] passing tests)
-```
+→ **Format:** Read `.buildflow/templates/tpl-shipped.md` for the SHIPPED.md structure.
 
 This file is ≤500 tokens. It is the only cross-phase context future `/buildflow-start-epic` sessions load — not the full plan or spec.
 
 ---
 
-## Step 5: Update Docs
+## Step 5: Finalize — Update Docs & Tag Release
 - README if public-facing features shipped
 - `VISION.md` if pivots occurred during the phase
 
 ---
 
-## Step 5: Tag Release
+### Tag Release
 
-Before any git command, read `.buildflow/PREFERENCES.md`.
+Apply Git Permission Guard: read `git.permission` from `PREFERENCES.md`. If not `approved`: no git commands this session.
 
-- If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use no-git snapshot mode, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
-- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
-
-**If `git.permission: approved`:**
-```bash
-git add .
-git commit -m "ship: phase [N] complete"
-git tag "phase-[N]-complete"
-```
-
-**If `git.permission` is not `approved` (no-git mode):**
-Take a full snapshot of `src/` into `.buildflow/snapshots/phase-[N]-shipped/`.
-Record phase completion in `STATE.md`:
-```yaml
-phase_[N]_status: shipped
-phase_[N]_shipped_at: [ISO datetime]
-phase_[N]_snapshot: .buildflow/snapshots/phase-[N]-shipped/
-phase_[N]_ac_count: [N]
-phase_[N]_spec_version: v[N]
-```
-This snapshot is the authoritative record of what was shipped — equivalent to a git tag.
 
 ---
 
-## Step 6a: Git Status Message (always shown at ship time)
+## Step 6: Ship Report & Post-Ship Advisor
 
 **If `git_permission: denied` or `git_permission: denied_permanent` (no-git mode):**
 ```
@@ -560,7 +492,7 @@ Clear resolved entries from `parked_changes` in `MEMORY.md` after the user commi
 
 ---
 
-## Step 6b: Post-Ship Advisor
+### Post-Ship Advisor
 
 After shipping, automatically run the feature advisor from `/buildflow-help next` — no need for the user to ask separately.
 
@@ -630,3 +562,5 @@ The post-ship advisor (Step 6b) already surfaced the top suggestion. Close with:
 
 Use the suggested phase name from the post-ship advisor output as the argument.
 If debt > 5 items: `Or: /buildflow-think --debt` (address tech debt before next feature).
+
+

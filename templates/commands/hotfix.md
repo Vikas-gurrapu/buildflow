@@ -180,52 +180,22 @@ Update `progress` and `updated` in session file before continuing.
 
 ---
 
-## Step 1: Understand the Fix
+## Step 1: Assess & Preserve — Understand, Scope & Restore Point
 
-Parse `$ARGUMENTS` for subcommands first (--list, --continue). Remaining text is the description.
+Parse `$ARGUMENTS` (--list, --continue). Identify: what's broken, files involved, expected behavior after fix. Ask ONE clarifying question if ambiguous.
 
-Parse the description. Identify:
-- What is broken?
-- What file(s) are likely involved?
-- What is the expected behavior after the fix?
-
-If the description is ambiguous, ask ONE clarifying question only.
-
-## Step 2: Scope Check
+### Scope Check
 Count files that need to change.
 - 1–5 files: proceed
 - 6+ files: warn — "This looks larger than a hotfix. Consider /buildflow-spec instead."
   - Ask: "Proceed as hotfix anyway? (yes/no)"
 
-## Step 3: Create Restore Point
+### Create Restore Point
 
-Before any git command, read `.buildflow/PREFERENCES.md`.
+Apply Git Permission Guard: read `git.permission` from `PREFERENCES.md`. If not `approved`: no git commands this session.
 
-- If `git.permission` is `approved`: git operations are allowed.
-- If `git.permission` is `denied`, `denied_permanent`, or `unavailable`: **do not run git commands**. Use file snapshots, even if `.git/` exists or `MEMORY.md` says `git_available: true`.
-- If `PREFERENCES.md` is missing or `git.permission` is absent: ask the user before running any git command.
 
-**If `git.permission: approved`:**
-```bash
-git stash push -m "hotfix restore point: [description]"
-# or if clean working tree:
-git tag "pre-hotfix-[timestamp]"
-```
-
-**If `git.permission` is not `approved` (no-git mode):**
-Copy every file that will be modified into `.buildflow/snapshots/pre-hotfix-[timestamp]/`:
-```
-.buildflow/snapshots/pre-hotfix-20240115-143200/
-└── src/auth/service.ts   ← copy of file BEFORE the fix
-```
-Log in `STATE.md`:
-```yaml
-last_restore_point: .buildflow/snapshots/pre-hotfix-20240115-143200/
-last_restore_reason: "hotfix: [description]"
-```
-To roll back: copy files from the snapshot back to their original paths.
-
-## Step 4: Apply Fix
+## Step 2: Fix, Sync & Test — Apply Fix, Locale Sync & Regression Test
 
 **File reading rule:** When reading files to apply the fix, load the full relevant function or module block — not just the affected line. Use `offset` and `limit` to get at least 50 lines of surrounding context.
 
@@ -236,7 +206,7 @@ Make the minimal change:
 
 If this is a `--continue` resuming from `tests-failed`: log the previous failed approach under `## Eliminated Approaches` in the session file before applying the new fix.
 
-## Step 4c: Locale Catalog Sync (runs after fix — only if label/i18n keys changed)
+### Locale Catalog Sync (only if i18n keys changed)
 
 **Triggered when the fix:**
 - Adds a new label/i18n key in source code (`t('new.key')`, `getString(R.string.newKey)`, `__('new_key')`, `NSLocalizedString("key", ...)`, `I18n.t("key")`)
@@ -295,7 +265,7 @@ If this is a `--continue` resuming from `tests-failed`: log the previous failed 
    [TRANSLATE] placeholders: [N] — require human translation
    ```
 
-## Step 4b: Write Regression Test (always — even in hotfix mode)
+### Write Regression Test (always — even in hotfix mode)
 
 **Catalog-only fast path:** If ALL files changed by the fix are pure data files — locale catalogs, label/copy JSON, `.properties`, `strings.xml`, `.arb`, `.po` — skip Steps 4b and 5 entirely. Static data files have no logic to regression test. Go directly to Step 6.
 
@@ -391,37 +361,7 @@ sbt "testOnly *.AuthServiceSpec"
 
 If tests fail: fix and re-run. Max 3 attempts. On each failure, save/update the session file (create if not exists) using the Epic Resolution path and next available sequence number:
 
-```markdown
----
-progress: tests-failed
-updated: {today}
-next_step: "re-apply fix with new approach"
-attempts: {N}
----
-
-# Hotfix — [short description]
-Date: [ISO datetime]
-Epic: [current_epic or "none"]
-Triggered by: [description]
-
-## Fix
-[what was attempted]
-
-## Files Changed
-- [path] — [what changed]
-
-## Eliminated Approaches
-- attempt {N}: [what was tried] — [why it failed]
-
-## Restore Point
-[snapshot path or git stash ref]
-
-## Test Results
-[commands run and failures]
-
-## Risk
-investigation in progress
-```
+→ **Format:** Read `.buildflow/templates/tpl-shipped.md` for the hotfix SHIPPED.md structure.
 
 Print: `Session saved: {path} — resume with /buildflow-hotfix --continue {ref}`
 
@@ -438,7 +378,7 @@ Targeted tests passed. Run full app-level test suite?
 - **[Y]:** Run the full test suite. On failure: report what broke — do not auto-fix regressions, they may be pre-existing.
 - **[N]:** Skip. Full suite runs at `/buildflow-check` and `/buildflow-ship`.
 
-## Step 6: Ship
+## Step 4: Ship & Report
 
 **If `git.permission: approved`:**
 ```bash
@@ -462,7 +402,7 @@ last_hotfix: [today]
 last_hotfix_desc: [description]
 ```
 
-## Step 7: Report
+### Report
 ```
 Hotfix complete
 ───────────────
@@ -487,37 +427,7 @@ Increment sequence from existing files in that folder, starting at 001. Do not o
 
 Single-pass hotfixes that complete without test failures skip file I/O entirely until this final step — zero overhead on the fast path.
 
-```markdown
----
-progress: shipped
-updated: [today]
-next_step: ""
-attempts: [N]
----
-
-# Hotfix — [short description]
-Date: [ISO datetime]
-Epic: [current_epic or "none"]
-Triggered by: [bug description or incident reference]
-
-## Problem
-[what was broken and why it needed an immediate fix — not a planned wave]
-
-## Fix
-[what was changed and why this approach was chosen]
-
-## Files Changed
-- [path] — [what changed]
-
-## Restore Point
-[snapshot path if created, or "git restore point: [commit hash]", or NONE]
-
-## Test Results
-[focused test commands run and pass/fail results]
-
-## Risk
-[any risk this hotfix introduces or side-effects to watch, or NONE]
-```
+→ **Format:** Read `.buildflow/templates/tpl-shipped.md` for the hotfix SHIPPED.md structure.
 
 ## Guided Next Step
 
@@ -530,4 +440,6 @@ Triggered by: [bug description or incident reference]
 
 If the hotfix was in a shipped phase: `→ Next: /buildflow-ship` (re-tag the fixed version).
 If tests failed after 3 attempts: `→ Next: /buildflow-debug --continue {ref}` (escalate to full root-cause analysis).
+
+
 
