@@ -77,19 +77,8 @@ Classify the error:
 
 ### Safe abandon (current phase only):
 
-Before any git command, read `.buildflow/PREFERENCES.md`.
+Apply Git Permission Guard: read `git.permission` from `PREFERENCES.md`. If not `approved`: no git commands this session.
 
-**If `git.permission: approved`:**
-```bash
-git stash push -m "abandoned phase [N] work"
-```
-
-**If `git.permission` is not `approved` (no-git mode):**
-The last wave snapshot in `.buildflow/snapshots/phase-[N]-wave-[M]-complete/` is your restore point.
-To roll back to before the current wave: copy files from that snapshot back to their original paths.
-To see what snapshots exist: `ls .buildflow/snapshots/`
-
-In both modes: reset `plan_status: none` in `MEMORY.md`. The spec remains — restart from `/buildflow-spec`.
 
 ### Full reset (destructive — asks for confirmation):
 Removes `.buildflow/` entirely. Requires typing "RESET" to confirm.
@@ -312,3 +301,4 @@ Run /buildflow-spec to define it.
 ### 5d — Save Suggestions
 Write suggestions to `.buildflow/epics/[epic]/SUGGESTIONS.md` with date.
 These persist across sessions and update each time `/buildflow-help next` runs.
+

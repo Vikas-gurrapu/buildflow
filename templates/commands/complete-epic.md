@@ -28,9 +28,8 @@ Do NOT load: full phase PLAN.md files, spec files, retros, codebase maps.
 ---
 
 ## Git Permission Guard
-Before any git command, read `.buildflow/PREFERENCES.md`.
-- `git.permission: approved` → git tagging is allowed
-- Anything else → skip tagging; record milestone version in STATE.md only
+Apply Git Permission Guard: read `git.permission` from `PREFERENCES.md`. If not `approved`: no git commands this session.
+
 
 ---
 
@@ -75,7 +74,7 @@ If any epic is excluded or incomplete, note it in the milestone summary.
 
 ---
 
-## Step 2: Collect Milestone Content
+## Step 2: Collect, Prompt & Write MILESTONE.md
 
 Load every `SHIPPED.md` from epics in this milestone (already in context packet).
 
@@ -91,7 +90,7 @@ From `MEMORY.md`:
 
 ---
 
-## Step 3: Prompt for Milestone Metadata
+### Milestone Metadata
 
 If not provided via flags, ask:
 
@@ -107,51 +106,11 @@ If the user presses enter on Version: proceed with `--no-tag` behavior.
 
 ---
 
-## Step 4: Write MILESTONE.md
+### Write MILESTONE.md
 
 Use the **Write tool** to create `.buildflow/milestones/[slug]/MILESTONE.md`:
 
-```markdown
-# Milestone: [Name]
-
-**Version:** [tag or untagged]
-**Completed:** [today]
-**Phases:** [N] shipped[, N incomplete/deferred]
-
----
-
-## What Was Built
-
-[3–8 bullet points summarizing the features shipped across all phases in this milestone]
-
----
-
-## Epics
-
-| Epic     | Description | ACs | Coverage | Shipped |
-|----------|-------------|-----|----------|---------|
-| 1-auth   | [name]      | N/N | N%       | [date]  |
-| 2-payment| [name]      | N/N | N%       | [date]  |
-
----
-
-## Key Decisions
-
-[Architectural and technology decisions made during this milestone — extracted from SHIPPED.md files]
-
----
-
-## Inherited Debt
-
-[Deferred items, open debt entries — extracted from SHIPPED.md files]
-[If none: "None — clean milestone."]
-
----
-
-## Notes
-
-[User-provided release notes, or empty]
-```
+→ **Format:** Read `.buildflow/templates/tpl-milestone.md` for the MILESTONE.md structure.
 
 ---
 
@@ -202,7 +161,7 @@ Version recorded in STATE.md (no git tag — use 'git tag [version]' later if ne
 
 ---
 
-## Step 7: Fallback Prune (if any epic was not shipped via /buildflow-ship)
+## Step 5: Reset, Learn & Report
 
 Check: did every epic in this milestone have a `SHIPPED.md`?
 
@@ -231,7 +190,7 @@ If all epics had `SHIPPED.md`: skip this step entirely.
 
 ---
 
-## Step 7b: Reset State for Next Milestone
+### Reset State
 
 Use the **Write tool** to update `.buildflow/STATE.md`:
 - Set `Epic: none` (cleared — ready for next epic)
@@ -251,7 +210,7 @@ Use the **Write tool** to update `.buildflow/MEMORY.md`:
 
 ---
 
-## Step 7c: Write to Global Learnings Store
+### Write Global Learnings
 
 Extract 2–4 cross-project insights from this milestone — things that would be useful in a future project using the same framework or language.
 
@@ -285,7 +244,7 @@ Rules:
 
 ---
 
-## Step 8: Print Milestone Summary
+### Milestone Summary
 
 ```
 Milestone Complete — [Name] [version]
@@ -306,3 +265,6 @@ Archived to: .buildflow/milestones/[slug]/MILESTONE.md
 ```
 
 ---
+
+
+
