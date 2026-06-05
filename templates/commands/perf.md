@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-perf
+max_context_kb: 40
 description: Performance profiling â€” UI rendering, backend endpoints, and database queries
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: surgeon
@@ -481,4 +482,5 @@ Status: RESOLVED
 If bottleneck reveals a systemic issue (no caching layer, ORM misconfiguration): `â†’ Next: /buildflow-think "performance architecture"` (research before fixing).
 If improvement goal not met after fix: `â†’ Next: /buildflow-perf --continue {ref}` (resume with a deeper hypothesis).
 If perf session traced to a spec gap (no perf AC defined): `â†’ Next: /buildflow-spec --review` (add perf ACs before next build).
+
 

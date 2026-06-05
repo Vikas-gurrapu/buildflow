@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-check
+max_context_kb: 50
+model_tier: light
 description: Verify quality and spec compliance with parallel Reviewer agents
 allowed-tools: Read, Bash, Grep, Glob
 agent: reviewer
@@ -51,15 +53,26 @@ Read all ACs from ACCEPTANCE.md — primary verification target. Read CHECK.md; 
 
 ## Step 2: Parallel Review (4 reviewers)
 
-**Claude Code** — spawn all 4 Reviewers in one response:
+**Shared preamble — extract once, include in every reviewer prompt:**
 ```
-Agent({ description: "Reviewer A: Spec Compliance", prompt: "You are a BuildFlow Reviewer checking spec compliance. For each AC in ACCEPTANCE.md, verify the code satisfies it. Score each: AC-ID ✓ PASS / ✗ FAIL / ⚠ PARTIAL with brief evidence. Files to read: ACCEPTANCE.md, CHECK.md, changed source files." })
-Agent({ description: "Reviewer B: Correctness",     prompt: "You are a BuildFlow Reviewer checking correctness. Does the code do what was specified? Are edge cases handled? Are there logical errors? Read changed source files and PLAN.md task descriptions." })
-Agent({ description: "Reviewer C: Code Quality",    prompt: "You are a BuildFlow Reviewer checking code quality. Check: readability, unnecessary duplications, pattern compliance vs PATTERNS.md, module fit vs CODEBASE.md, fragile areas per RISKS.md, function size." })
-Agent({ description: "Reviewer D: Security",        prompt: "You are a BuildFlow Reviewer checking security. Check: no hardcoded secrets, no injection risks (SQL/command/XSS), no sensitive data in logs, DEPENDENCIES.md coverage for external changes, auth/security ACs satisfied." })
+app_name: [from MEMORY.md]
+current_epic: [from epic STATE.md]
+spec_version: v[from ACCEPTANCE.md frontmatter]
+changed_files: [list from git diff or wave task files]
 ```
 
-**Gemini CLI / Codex CLI / Cursor** — sequential:
+**Claude Code** — spawn all 4 Reviewers in one response (each prompt includes shared preamble above + task-specific context only):
+```
+Agent({ description: "Reviewer A: Spec Compliance", prompt: "[shared preamble]\nTask: For each AC in ACCEPTANCE.md, verify the code satisfies it. Score each: AC-ID ✓ PASS / ✗ FAIL / ⚠ PARTIAL with brief evidence.\nRead: ACCEPTANCE.md, CHECK.md, changed source files." })
+Agent({ description: "Reviewer B: Correctness",     prompt: "[shared preamble]\nTask: Does the code do what was specified? Are edge cases handled? Are there logical errors?\nRead: changed source files, PLAN.md task descriptions." })
+Agent({ description: "Reviewer C: Code Quality",    prompt: "[shared preamble]\nTask: Check readability, duplications, pattern compliance vs PATTERNS.md, module fit vs CODEBASE.md, fragile areas per RISKS.md, function size.\nRead: PATTERNS.md, CODEBASE.md, RISKS.md, changed source files." })
+Agent({ description: "Reviewer D: Security",        prompt: "[shared preamble]\nTask: Check no hardcoded secrets, no injection risks (SQL/command/XSS), no sensitive data in logs, DEPENDENCIES.md coverage for external changes, auth/security ACs satisfied.\nRead: DEPENDENCIES.md, changed source files." })
+```
+
+**Gemini CLI / Codex CLI / Cursor** — print shared preamble once at top, then sequential:
+```
+Shared context: app=[app_name] epic=[epic] spec=v[N] changed=[files]
+```
 `=== Reviewer A: Spec Compliance START ===` → check all ACs → `=== Reviewer A END ===`
 `=== Reviewer B: Correctness START ===` → check logic/edge cases → `=== Reviewer B END ===`
 `=== Reviewer C: Code Quality START ===` → check patterns/structure → `=== Reviewer C END ===`
@@ -351,4 +364,6 @@ Update `CHECK.md` after the full UAT run: add a `## Test Runs` row with `Scope: 
 → **Load module now:** Read .claude/commands/buildflow-check-strict.md and execute Step 5c through the final ship readiness report. Return with PASS/FAIL/STRICT-FAIL verdict.
 
 **If neither --strict nor strict_mode: true:** skip this step and proceed directly to the ship readiness summary in the guided next step.
+
+
 

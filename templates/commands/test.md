@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-test
+max_context_kb: 20
 description: Run tests, verify UI flow, and auto-fix failures until all pass
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: reviewer
@@ -90,3 +91,4 @@ Test Results
 
 If tests failed and could not be auto-fixed: `→ Next: /buildflow-debug` (root-cause the failure).
 If this was a wave re-test: `→ Next: /buildflow-build wave [N+1]` (continue to next wave).
+

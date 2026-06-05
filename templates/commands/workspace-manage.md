@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-workspace-manage
+max_context_kb: 40
 description: Module — workspace management subcommands (debug, pause, resume, switch, revert). Loaded by /buildflow-workspace.
 allowed-tools: Read, Write, Bash, Grep, Glob
 ---
@@ -478,4 +479,5 @@ Revert log: .buildflow/workspace/milestones/REVERT_LOG.md
 ```
 
 ---
+
 

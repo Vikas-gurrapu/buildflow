@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-hotfix
+max_context_kb: 20
 description: Fast-path fix for production incidents and small patches — no planning, no waves
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: surgeon
@@ -440,6 +441,7 @@ Single-pass hotfixes that complete without test failures skip file I/O entirely 
 
 If the hotfix was in a shipped phase: `→ Next: /buildflow-ship` (re-tag the fixed version).
 If tests failed after 3 attempts: `→ Next: /buildflow-debug --continue {ref}` (escalate to full root-cause analysis).
+
 
 
 

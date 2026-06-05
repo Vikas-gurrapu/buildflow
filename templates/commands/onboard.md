@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-onboard
+max_context_kb: 30
+model_tier: heavy
 description: Deep codebase analysis â€” maps modules, patterns, hotspots, features, import graph, and writes all knowledge files to .buildflow/codebase/
 allowed-tools: Read, Write, Bash, Glob, Grep
 agent: cartographer
@@ -125,3 +127,5 @@ Structural analysis feeds into CODEBASE.md (written in Step 12 after all analysi
 ## Step 4 onwards: Deep Analysis Module
 
 → **Load module now:** Read .claude/commands/buildflow-onboard-analyze.md and execute Steps 4–12. Return when all 6 knowledge files are written to .buildflow/codebase/.
+
+

@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-workspace-workflow
+max_context_kb: 50
+model_tier: heavy
 description: Module — workspace workflow subcommands (onboard, spec, discuss, build, check, ship, complete). Loaded by /buildflow-workspace.
 allowed-tools: Read, Write, Bash, Grep, Glob, Agent
 ---
@@ -591,5 +593,7 @@ Milestone:    .buildflow/workspace/milestones/[slug]/MILESTONE.md
 ```
 
 ---
+
+
 
 

@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-check-strict
+max_context_kb: 30
+model_tier: light
 description: Module — strict mode structural spec-to-code mirroring, ship readiness gate, and final report. Loaded by /buildflow-check when --strict flag is active.
 allowed-tools: Read, Write, Bash, Grep, Glob
 ---
@@ -275,3 +277,5 @@ If any AC failed: `→ Next: /buildflow-build` to fix the failing tasks (specify
 If schema drift detected: `→ Next: resolve schema drift (run pending migrations or add migration file), then re-run /buildflow-check`.
 If spec coverage below threshold and no exception recorded: the smart prompt in Step 4c already captured user decision — next step is whatever was chosen.
 If strict mode FAIL: `→ Next: fix strict violations listed in STRICT-REPORT.md, then re-run /buildflow-check --strict`.
+
+

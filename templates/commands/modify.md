@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-modify
+max_context_kb: 40
+model_tier: heavy
 description: Surgical code change with transitive impact analysis, risk scoring, and test coverage verification
 allowed-tools: Read, Write, Grep, Glob, Bash
 agent: surgeon
@@ -454,4 +456,6 @@ Use this before a risky change to understand blast radius first.
 
 If this was a `--dry-run`: `→ Next: /buildflow-modify` (re-run without --dry-run to apply the change).
 If impact level was high (level2 or deeper): `→ Next: /buildflow-test` (targeted test run before full check).
+
+
 

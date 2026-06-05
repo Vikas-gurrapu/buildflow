@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-help
+max_context_kb: 20
 description: Diagnostic help, recovery paths, and feature suggestions after milestone completion
 allowed-tools: Read, Bash, WebSearch
 agent: strategist
@@ -301,4 +302,5 @@ Run /buildflow-spec to define it.
 ### 5d — Save Suggestions
 Write suggestions to `.buildflow/epics/[epic]/SUGGESTIONS.md` with date.
 These persist across sessions and update each time `/buildflow-help next` runs.
+
 

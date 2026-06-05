@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-migrate
+max_context_kb: 30
 description: Detect schema changes from spec, generate migration files, flag destructive operations, and produce a rollback plan
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: surgeon
@@ -279,5 +280,6 @@ To apply:    [command]
 To rollback: [command]
 Next step:   /buildflow-deploy staging
 ```
+
 
 

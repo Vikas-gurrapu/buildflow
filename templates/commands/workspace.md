@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-workspace
+max_context_kb: 40
+model_tier: heavy
 description: Multi-repo awareness â€” map cross-repo dependencies, detect interface contracts, coordinate changes across services
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: cartographer
@@ -229,4 +231,6 @@ For each changed repo: update its summary in WORKSPACE.md and refresh `contracts
 ## Management Subcommands (debug, pause, resume, switch, revert)
 
 → **Load module now:** Read `.claude/commands/buildflow-workspace-manage.md` and execute the relevant subcommand mode. Return here when complete.
+
+
 

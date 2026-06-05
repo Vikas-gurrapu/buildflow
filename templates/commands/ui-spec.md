@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-ui-spec
+max_context_kb: 30
 description: Generate a UI design contract — color system, typography, spacing, components, and responsive rules — before building frontend phases
 allowed-tools: Read, Write, WebSearch
 agent: strategist
@@ -224,4 +225,5 @@ Update `STATE.md`:
    Context: Saved to .buildflow/epics/[epic]/STATE.md. Recommended: run /clear, then run the next command.
 ──────────────────────────────────────────────────
 ```
+
 

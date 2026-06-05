@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-settings
+max_context_kb: 15
 description: Interactive settings configurator — view and update BuildFlow preferences without editing markdown
 allowed-tools: Read, Write
 agent: strategist
@@ -46,6 +47,7 @@ BuildFlow Settings
   [9] Learning aids           [on / off]                        current: [value]
  [10] Undo / restore points   [on / off]                        current: [value]
  [11] Workflow toggles        [require_think / require_check / skip_prompts / research_depth] current: [summary]
+ [12] Model routing           [light / heavy / security tiers]              current: [summary]
 ──────────────────────────────────────────────────────────
 Type one or more numbers to change settings (comma-separated, e.g. "1,3,7"), or "done" to finish.
 ```
@@ -278,6 +280,48 @@ Update the corresponding `workflow.*` keys in `PREFERENCES.md`.
 
 ---
 
+### [12] Model Routing
+
+Route different command types to different AI models based on task complexity. Only takes effect on tools that support per-agent model selection (Claude Code today). On other tools, all commands use the host's active model regardless of these settings.
+
+```
+Model Routing
+──────────────────────────────────────────────────
+Each command declares a model_tier in its frontmatter. Map each tier to a model:
+
+  Light tasks   (check, review, status, pr)        current: [value]
+      → fast, cheap model — high volume, low cognitive load
+  Heavy tasks   (spec, plan, think, onboard)       current: [value]
+      → capable model — architecture, reasoning, generation
+  Security tasks (audit, ship gate)                current: [value]
+      → strongest model — security analysis, final gates
+
+Options per tier:
+  default  — use the host's active model (no routing, current behavior)
+  fast     — Haiku (Claude) / Flash (Gemini) / mini (GPT)
+  capable  — Sonnet (Claude) / Pro (Gemini) / standard (GPT)
+  max      — Opus (Claude) / Ultra (Gemini) / full (GPT)
+
+Your selection (e.g. "light=fast heavy=capable security=max" or "back"):
+```
+
+Map the user's choice to actual model IDs based on the host tool. For Claude Code:
+- `fast` → `claude-haiku-4-5`
+- `capable` → `claude-sonnet-4-6`
+- `max` → `claude-opus-4-8`
+
+Update `model_routing.*` keys in `PREFERENCES.md`:
+```yaml
+model_routing:
+  light_tasks: default      # or fast / capable / max
+  heavy_tasks: default
+  security_tasks: default
+```
+
+When a command runs, BuildFlow reads the command's `model_tier` frontmatter, looks up the matching `model_routing.[tier]` value, and passes the resolved model to `Agent({ model: "..." })` calls. If set to `default`, no model param is passed.
+
+---
+
 ### Reset to Defaults
 
 ```
@@ -316,4 +360,5 @@ Changes take effect in your next AI session.
 ```
 
 If no changes were made, print: "No changes made."
+
 

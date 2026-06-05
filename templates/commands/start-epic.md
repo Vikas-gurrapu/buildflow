@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-start-epic
+max_context_kb: 20
 description: Start a project with BuildFlow's Strategist agent
 allowed-tools: Read, Write, WebSearch
 agent: strategist
@@ -32,14 +33,32 @@ Do NOT load: specs, epics, codebase files — this is vision only.
 | `notifications` | Notifications | Email, in-app alerts, push, preferences, read/unread state |
 | `api` | REST API layer | Endpoints, auth middleware, rate limiting, versioning, error handling |
 | `dashboard` | Analytics UI | Data visualization, filters, date ranges, export, real-time updates |
+| `mobile` | Mobile app | Navigation, push notifications, offline sync, deep links, biometrics |
+| `search` | Search & discovery | Full-text search, faceted filters, autocomplete, ranking, analytics |
+| `file-upload` | File/media management | Upload, processing pipeline, CDN delivery, previews, retry logic |
+| `realtime` | Live data / collaboration | WebSockets/SSE, presence, optimistic updates, reconnection |
+| `admin` | Admin panel | RBAC, audit logs, bulk operations, user management, reporting |
+| `onboarding` | User onboarding | Multi-step wizard, progress persistence, email sequences, completion |
 
 When `--template <name>` is passed:
 
 1. Validate the template name. If unknown: list available templates and stop.
-2. Skip the vision questions (Step 2 prompts) — template provides the foundation.
+2. Ask 2–3 template-specific clarifying questions (listed per template below) — do NOT ask the full vision questionnaire.
 3. Pre-populate `.buildflow/VISION.md` with the template's domain description and the app name from MEMORY.md.
-4. Print the template's pre-built spec outline so the user can review and adjust before speccing:
+4. Write pre-locked decisions to `.buildflow/epics/[epic]/CONTEXT.md` — these will not be re-debated during spec.
+5. Print the template's pre-built spec outline so the user can review and adjust before speccing.
+6. Update MEMORY.md with `current_epic: none`, `spec_status: none`.
+7. Go directly to Step 4 (Guided Next Step) — suggest `/buildflow-spec` as the next command.
 
+---
+
+### Template: `auth`
+
+**Questions:** (skip vision questionnaire, ask only these)
+1. OAuth providers needed? (Google / GitHub / Microsoft / None)
+2. Session storage: JWT stateless or server-side sessions?
+
+**Outline:**
 ```
 Template: auth
 ─────────────────────────────────────────────
@@ -51,7 +70,7 @@ Pre-built focus areas:
   • Session management + secure logout
   • Rate limiting on auth endpoints
 
-Acceptance Criteria hints (will be expanded by /buildflow-spec):
+AC hints:
   AC-001  User can register with email + password
   AC-002  Email verification required before first login
   AC-003  Login returns JWT (15min) + refresh token (7d)
@@ -59,12 +78,448 @@ Acceptance Criteria hints (will be expanded by /buildflow-spec):
   AC-005  Password reset link expires in 1 hour
   AC-006  OAuth login creates or links existing account
   AC-007  Failed login rate-limited after 5 attempts
+
+Wave order: DB schema → auth service → routes → email flow → OAuth → rate limiting → E2E tests
+
+Pre-locked decisions:
+  • Password hashing: bcrypt (cost factor 12)
+  • JWT: short-lived access + rotating refresh tokens
+  • Never store plaintext passwords or tokens
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `payments`
+
+**Questions:**
+1. Payment provider? (Stripe / Paddle / Braintree / Other)
+2. Subscription or one-time payments?
+3. Need refund/dispute handling?
+
+**Outline:**
+```
+Template: payments
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • Checkout flow with payment intent
+  • Webhook handling (payment success, failure, refund)
+  • Receipt generation and email delivery
+  • Subscription lifecycle (create, upgrade, cancel)
+  • Refund processing
+  • Idempotency on all payment operations
+
+AC hints:
+  AC-001  User can complete checkout with valid card
+  AC-002  Failed payment shows specific error (not generic)
+  AC-003  Webhook verifies Stripe signature before processing
+  AC-004  Receipt email sent within 30s of successful payment
+  AC-005  Subscription cancels at period end, not immediately
+  AC-006  Duplicate webhook events are idempotent
+
+Wave order: DB schema → payment service → webhook handler → checkout UI → receipt email → subscription management
+
+Pre-locked decisions:
+  • Webhooks verified via provider signature — no exceptions
+  • Idempotency keys on all payment API calls
+  • Never log full card numbers or CVVs
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `crud`
+
+**Questions:**
+1. What entity is this CRUD for? (e.g., "products", "articles", "tasks")
+2. Need soft delete or hard delete?
+3. Who can perform each operation? (owner-only / admin / any authenticated)
+
+**Outline:**
+```
+Template: crud — [entity]
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • List with pagination, sorting, and filtering
+  • Create with validation
+  • Read (single item) with ownership check
+  • Update (full + partial)
+  • Delete with confirmation
+  • Search within entity
+
+AC hints:
+  AC-001  List returns paginated results (default 20 per page)
+  AC-002  Invalid filter values return 400, not 500
+  AC-003  Create validates all required fields before DB write
+  AC-004  Read returns 404 for non-existent ID
+  AC-005  Update returns 403 if user does not own the resource
+  AC-006  Soft delete sets deleted_at, hard delete removes record
+
+Wave order: DB schema → repository layer → service layer → API routes → pagination/filtering → E2E tests
+
+Pre-locked decisions:
+  • Ownership checks on every read/update/delete
+  • Pagination via cursor or offset — decide before wave 1
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `notifications`
+
+**Questions:**
+1. Channels needed? (Email / In-app / Push / SMS — select all that apply)
+2. Need user notification preferences (opt-in/opt-out per type)?
+
+**Outline:**
+```
+Template: notifications
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • In-app notification feed (read/unread state)
+  • Email notifications (transactional)
+  • Push notifications (FCM/APNs)
+  • User preferences (opt-in/opt-out per type)
+  • Notification batching (digest mode)
+  • Mark all as read
+
+AC hints:
+  AC-001  Unread count updates without page refresh
+  AC-002  User can opt out of each notification type independently
+  AC-003  Email notifications respect user's unsubscribe preference
+  AC-004  Push notification delivered within 5s of trigger event
+  AC-005  Marking notification as read is idempotent
+
+Wave order: DB schema → notification service → in-app feed → email integration → push setup → preferences UI
+
+Pre-locked decisions:
+  • Soft-delete notifications (never hard-delete — audit trail)
+  • Email unsubscribe must be one-click (CAN-SPAM compliance)
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `api`
+
+**Questions:**
+1. Auth mechanism? (JWT Bearer / API Key / OAuth2)
+2. Need versioning? (v1/v2 URL prefix or header-based)
+3. Expected consumers? (internal frontend / third-party / both)
+
+**Outline:**
+```
+Template: api
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • Endpoint structure with versioning
+  • Auth middleware (JWT / API key)
+  • Rate limiting per consumer
+  • Consistent error response format
+  • Request validation (input schemas)
+  • OpenAPI spec generation
+
+AC hints:
+  AC-001  All endpoints return consistent error format { code, message, field }
+  AC-002  Unauthenticated requests return 401, not 403
+  AC-003  Rate limit exceeded returns 429 with Retry-After header
+  AC-004  Invalid request body returns 400 with field-level errors
+  AC-005  API version in URL — old version returns deprecation warning header
+
+Wave order: Auth middleware → error handler → rate limiter → base router → endpoint implementations → OpenAPI spec
+
+Pre-locked decisions:
+  • Error format: { error: { code, message, field? } } — consistent across all endpoints
+  • Rate limiting at middleware level, not per-route
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `dashboard`
+
+**Questions:**
+1. Data source? (own DB / external API / mixed)
+2. Need real-time updates or periodic refresh?
+3. Export formats needed? (CSV / PDF / None)
+
+**Outline:**
+```
+Template: dashboard
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • KPI metrics with time-range filter
+  • Charts (line, bar, pie) with data aggregation
+  • Date range picker
+  • Data table with sorting and filtering
+  • CSV/PDF export
+  • Auto-refresh or real-time updates
+
+AC hints:
+  AC-001  Dashboard loads in < 2s for 90-day date range
+  AC-002  Date range change refreshes all charts without page reload
+  AC-003  Empty state shown when no data exists for selected range
+  AC-004  Export includes exactly the filtered/sorted data visible on screen
+  AC-005  Charts are accessible (keyboard navigable, ARIA labels)
+
+Wave order: Data aggregation queries → API endpoints → chart components → filters/date picker → export → real-time (if needed)
+
+Pre-locked decisions:
+  • Aggregate at query time, not client-side (performance)
+  • Cache heavy aggregations with TTL matching refresh frequency
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `mobile`
+
+**Questions:**
+1. Platforms? (iOS only / Android only / Both)
+2. Need offline support? (Y/N)
+3. Auth method? (use existing `auth` epic / new / none)
+
+**Outline:**
+```
+Template: mobile
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • Navigation structure (stack, tab, drawer)
+  • Push notifications (FCM/APNs setup)
+  • Offline-first data with sync conflict resolution
+  • Deep linking and universal links
+  • Biometric authentication (FaceID/TouchID)
+  • App state persistence across backgrounding
+
+AC hints:
+  AC-001  App works without network — queues actions for sync
+  AC-002  Conflicting offline changes resolved with last-write-wins + user prompt
+  AC-003  Push notification opens correct screen when tapped
+  AC-004  Deep link from external URL navigates to correct in-app screen
+  AC-005  Biometric auth falls back to PIN/password if unavailable
+  AC-006  App state fully restored after OS kills background process
+
+Wave order: Navigation scaffold → auth integration → core screens → offline storage + sync → push notifications → deep links → biometrics
+
+Dependencies to verify before building:
+  - [ ] Apple Developer account (for iOS push + TestFlight)
+  - [ ] Firebase project (for FCM push notifications)
+  - [ ] React Native / Expo setup confirmed
+
+Pre-locked decisions:
+  • Offline queue: append-only log, sync on reconnect
+  • Push tokens refreshed on every app launch
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `search`
+
+**Questions:**
+1. Search backend? (Elasticsearch / Algolia / PostgreSQL full-text / SQLite FTS / Other)
+2. Need faceted filters? (Y/N)
+3. Need search analytics (track queries, click-through)? (Y/N)
+
+**Outline:**
+```
+Template: search
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • Full-text search with relevance ranking
+  • Faceted filters (multi-select, range, boolean)
+  • Autocomplete / search suggestions
+  • Pagination of results
+  • Result highlighting (match terms in snippet)
+  • Search analytics (query volume, zero-result rate)
+
+AC hints:
+  AC-001  Search returns results within 200ms (p95) for typical query
+  AC-002  Typo tolerance: "authantication" returns auth results
+  AC-003  Selecting a filter updates results without full page reload
+  AC-004  Zero results state shows related suggestions, not just empty
+  AC-005  Autocomplete appears within 100ms of 2+ characters typed
+  AC-006  Search query is debounced — no request on every keystroke
+
+Wave order: Index setup + mapping → search API → filter logic → UI search input + results → autocomplete → analytics (optional)
+
+Dependencies to verify before building:
+  - [ ] Search index created and accessible
+  - [ ] Initial data indexed (or indexing pipeline ready)
+
+Pre-locked decisions:
+  • Debounce search input: 300ms
+  • Index updates: async (eventual consistency acceptable)
+  • Never expose raw index config to client
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `file-upload`
+
+**Questions:**
+1. Storage provider? (AWS S3 / Google Cloud Storage / Azure Blob / Local filesystem)
+2. Need processing pipeline? (resize, compress, transcode) — Y/N
+3. Upload method? (Direct-to-storage via presigned URL / Server relay)
+
+**Outline:**
+```
+Template: file-upload
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • Single and multi-file upload with progress
+  • Direct-to-storage upload via presigned URLs (no server bandwidth)
+  • File type and size validation (client + server)
+  • Processing pipeline (resize, compress, format conversion)
+  • CDN delivery of processed files
+  • Upload retry on failure (without re-selecting file)
+  • Preview generation (images, PDFs, video thumbnails)
+
+AC hints:
+  AC-001  Upload progress shows real-time percentage
+  AC-002  File type validation rejects disallowed types with specific error message
+  AC-003  Files over size limit show warning before upload begins
+  AC-004  Failed upload can be retried without re-selecting the file
+  AC-005  Processed file available via CDN URL within 10s of upload completion
+  AC-006  Server validates file type from content (not just extension)
+
+Wave order: DB schema (File entity) → presigned URL API → upload tracking → processing worker → CDN config → UI dropzone + progress → retry logic
+
+Dependencies to verify before building:
+  - [ ] Storage bucket created with correct permissions
+  - [ ] CORS policy on bucket allows app domain
+  - [ ] CDN configured and pointed at bucket
+  - [ ] Processing library installed (sharp / ffmpeg / etc.)
+
+Pre-locked decisions:
+  • Direct-to-storage via presigned URLs (avoids server bandwidth)
+  • Server validates file content type — never trust file extension alone
+  • Virus scan before making file publicly accessible (if handling user uploads)
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `realtime`
+
+**Questions:**
+1. Transport? (WebSocket / Server-Sent Events / Both)
+2. Need presence indicators (who's online)? (Y/N)
+3. Need rooms/channels (multi-room support)? (Y/N)
+
+**Outline:**
+```
+Template: realtime
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • WebSocket / SSE connection lifecycle management
+  • Event broadcasting to connected clients
+  • Presence indicators (join, leave, online list)
+  • Optimistic UI updates with server confirmation
+  • Reconnection with exponential backoff
+  • Room/channel management (if needed)
+  • Message ordering guarantee (sequence numbers)
+
+AC hints:
+  AC-001  Client reconnects automatically after network drop (max 5 attempts)
+  AC-002  Presence list updates within 2s of user joining or leaving
+  AC-003  Optimistic update rolls back if server rejects the action
+  AC-004  Messages delivered in order (no reordering on reconnect)
+  AC-005  Connection works behind proxies / load balancers (sticky sessions or stateless)
+
+Wave order: Connection layer (WS/SSE server) → event system (emit/subscribe) → presence → optimistic UI → reconnection logic → rooms (if needed)
+
+Dependencies to verify before building:
+  - [ ] Load balancer supports WebSocket / sticky sessions (or use stateless SSE)
+  - [ ] Redis pub/sub (if multi-instance deployment needed)
+
+Pre-locked decisions:
+  • Reconnection: exponential backoff (1s → 2s → 4s → max 30s)
+  • Sequence numbers on all messages for ordering guarantee
+  • Optimistic updates always — roll back on server rejection
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `admin`
+
+**Questions:**
+1. Who can access admin? (specific roles / any staff / superadmin only)
+2. Need audit logging? (Y/N — logs every admin action)
+3. Need bulk operations (batch delete/update)? (Y/N)
+
+**Outline:**
+```
+Template: admin
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • Role-based access control (RBAC) from day one
+  • Admin-only routes with middleware guard
+  • Audit log (who did what, when, to which record)
+  • User management (list, view, suspend, delete)
+  • Data tables with sorting, filtering, pagination
+  • Bulk operations (select all, batch update/delete)
+  • System health/metrics overview
+
+AC hints:
+  AC-001  Non-admin user accessing admin route returns 403
+  AC-002  Every admin action logged: actor, action, target, timestamp
+  AC-003  Audit log is append-only — no admin can delete their own log entries
+  AC-004  Bulk delete requires explicit confirmation with record count shown
+  AC-005  Suspended user cannot log in immediately (not on next session)
+  AC-006  Admin can impersonate user only if impersonation role is explicitly granted
+
+Wave order: RBAC schema + middleware → user management → audit log → data tables → bulk operations → metrics overview
+
+Pre-locked decisions:
+  • RBAC: roles + permissions table (not boolean flags per user)
+  • Audit log: immutable append-only (no UPDATE or DELETE on audit records)
+  • Admin routes: separate route prefix + auth middleware — never share with user routes
+─────────────────────────────────────────────
+```
+
+---
+
+### Template: `onboarding`
+
+**Questions:**
+1. How many steps in the onboarding flow? (rough count)
+2. Need to resume incomplete onboarding across sessions? (Y/N)
+3. Send onboarding emails? (Y/N)
+
+**Outline:**
+```
+Template: onboarding
+─────────────────────────────────────────────
+Pre-built focus areas:
+  • Multi-step wizard with progress indicator
+  • Step validation before advancing
+  • Back navigation without losing data
+  • Progress persistence (resume incomplete onboarding)
+  • Skip option for optional steps
+  • Welcome email + drip sequence
+  • Profile completion prompts (after initial onboarding)
+  • Feature discovery tooltips on first use
+
+AC hints:
+  AC-001  User can return to incomplete onboarding and resume from last completed step
+  AC-002  Navigating back does not clear already-entered data
+  AC-003  Skipping an optional step does not block progression
+  AC-004  Welcome email sent within 60s of completing onboarding
+  AC-005  Progress percentage shown and updates on each step completion
+  AC-006  Onboarding considered complete only after mandatory steps are done
+
+Wave order: DB schema (onboarding_progress) → step validation logic → wizard UI shell → individual step components → progress persistence → email sequence → tooltips
+
+Pre-locked decisions:
+  • Persist each step's data on advance (not just at final submit)
+  • Mandatory vs optional steps defined in config, not hardcoded
+  • Email sequence uses delay-based triggers (Day 0, Day 3, Day 7)
 ─────────────────────────────────────────────
 These are starting points — /buildflow-spec will expand, refine, and add project-specific ACs.
 ```
-
-5. Update MEMORY.md with `current_epic: none`, `spec_status: none`.
-6. Go directly to Step 4 (Guided Next Step) — suggest `/buildflow-spec` as the next command.
 
 ---
 
@@ -214,5 +669,6 @@ If `MEMORY.md` exceeds 3K tokens on session start:
 - Archive these to the most recent `epics/[epic]/RETRO.md`
 - Keep: app_name, framework, language, current_epic, spec_status, style_fingerprint, last 2 decisions
 - Do NOT report this operation. It is invisible.
+
 
 

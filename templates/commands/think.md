@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-think
+max_context_kb: 50
+model_tier: heavy
 description: Deep research, architecture review, build-vs-buy reasoning, and engineering cognition
 allowed-tools: Read, Write, WebSearch
 agents: strategist, researcher, synthesizer
@@ -243,5 +245,7 @@ Before printing this block, check session context usage and whether the command 
 
 If verdict is OVER-SCOPED: `→ Next: /buildflow-start-epic` (revise the vision scope before speccing).
 If this was `--arch`: `→ Next: /buildflow-spec` (architecture decided — ready to plan implementation).
+
+
 
 

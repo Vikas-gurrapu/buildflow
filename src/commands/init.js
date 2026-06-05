@@ -510,6 +510,22 @@ parallel:
 
 ---
 
+## Model Routing
+
+\`\`\`yaml
+model_routing:
+  light_tasks:    default   # check, review, status, pr — fast/cheap model
+  heavy_tasks:    default   # spec, plan, think, onboard — capable model
+  security_tasks: default   # audit, ship gate — strongest model
+# Values: default | fast | capable | max
+# Each command declares a model_tier in frontmatter. BuildFlow maps the tier to a
+# model and passes it to Agent({ model: ... }) calls. Only effective on tools with
+# per-agent model selection (Claude Code). "default" = use host's active model.
+# Claude mapping: fast→haiku, capable→sonnet, max→opus
+\`\`\`
+
+---
+
 ## Security
 
 \`\`\`yaml
@@ -594,6 +610,11 @@ token_tracking:
   enabled:          true    # Track token usage per command and session
   report_at_end:    true    # Print token cost at end of each command
   session_running_total: true  # Accumulate session total in STATE.md
+
+knowledge_staleness_days: 14
+# Days before knowledge files (CODEBASE.md, PATTERNS.md, RISKS.md, TESTING.md) are
+# considered stale. If files are older than this AND the project has new commits,
+# BuildFlow warns at session start and before build. Set to 0 to disable.
 
 verbose_context: false
 # false (default) — context management is invisible:

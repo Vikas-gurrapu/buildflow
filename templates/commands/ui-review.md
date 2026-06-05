@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-ui-review
+max_context_kb: 30
 description: Retroactive UI audit — scores implementation against the UI design contract across 6 quality dimensions
 allowed-tools: Read, Write, Bash, Glob
 agent: strategist
@@ -233,3 +234,4 @@ If FAIL:
    Or:   /buildflow-ui-spec --amend  — if the spec itself needs updating
 ──────────────────────────────────────────────────
 ```
+

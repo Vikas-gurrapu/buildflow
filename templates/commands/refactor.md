@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-refactor
+max_context_kb: 40
+model_tier: heavy
 description: Improve existing code quality without changing behavior
 allowed-tools: Read, Write, Grep, Glob, Bash
 agents: surgeon, reviewer
@@ -123,4 +125,6 @@ Targeted tests passed. Run full app-level test suite?
 
 ## Step 7: Update Codebase Map
 If patterns changed significantly, update `.buildflow/codebase/PATTERNS.md`.
+
+
 

@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-complete-epic
+max_context_kb: 30
 description: Archive a completed milestone, tag the release, and prepare state for the next version cycle
 allowed-tools: Read, Write, Bash, Glob
 agent: strategist
@@ -265,6 +266,7 @@ Archived to: .buildflow/milestones/[slug]/MILESTONE.md
 ```
 
 ---
+
 
 
 
