@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-discuss
+max_context_kb: 40
+model_tier: heavy
 description: Post-spec clarification workshop — review doubts about the generated spec and plan, auto-updates artifacts on confirmation
 allowed-tools: Read, Write, WebSearch
 agent: strategist
@@ -249,3 +251,5 @@ If deferred decisions exist, add:
 ```
    Note: [N] deferred question(s) — these will surface as concerns during /buildflow-build
 ```
+
+

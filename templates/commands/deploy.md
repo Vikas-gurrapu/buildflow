@@ -1,5 +1,6 @@
----
+﻿---
 name: buildflow-deploy
+max_context_kb: 20
 description: Deploy to staging or production with pre-flight checks
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: strategist
@@ -10,10 +11,10 @@ agent: strategist
 Pre-flight checks and deployment orchestration. Ensures the build is safe to deploy before pushing to any environment.
 
 ## Usage
-- `/buildflow-deploy` — deploy to default environment
-- `/buildflow-deploy staging` — deploy to staging
-- `/buildflow-deploy production` — deploy to production (stricter gate)
-- `/buildflow-deploy --dry-run` — show what would happen without deploying
+- `/buildflow-deploy` â€” deploy to default environment
+- `/buildflow-deploy staging` â€” deploy to staging
+- `/buildflow-deploy production` â€” deploy to production (stricter gate)
+- `/buildflow-deploy --dry-run` â€” show what would happen without deploying
 
 ## Step 1: Load Context
 Read `.buildflow/STATE.md` for current phase and status.
@@ -54,7 +55,7 @@ Classify the deploy path:
 | `railway.json` or `railway` CLI | Railway |
 | `Dockerfile` + registry configured | Docker image push + remote pull |
 | `docker-compose.yml` on remote host | Docker Compose remote deploy |
-| `.github/workflows/` with deploy job | CI/CD managed — guide user to trigger |
+| `.github/workflows/` with deploy job | CI/CD managed â€” guide user to trigger |
 | None detected | Manual guidance |
 
 ## Step 4: Environment Confirmation
@@ -77,24 +78,24 @@ railway up
 
 ### Docker image deploy path (when `container_runtime: docker`):
 
-**5a — Build and tag:**
+**5a â€” Build and tag:**
 ```bash
 docker build -t [app_name]:[tag] .
 docker tag [app_name]:[tag] [registry]/[app_name]:[tag]
 ```
 
-**5b — Security scan before push (run `/buildflow-docker scan` inline):**
+**5b â€” Security scan before push (run `/buildflow-docker scan` inline):**
 ```bash
 docker scout cves [app_name]:[tag] --exit-code 2>/dev/null || trivy image --severity CRITICAL --exit-code 1 [app_name]:[tag] 2>/dev/null
 ```
-Critical CVEs found → BLOCK push. High CVEs → WARN, ask confirmation.
+Critical CVEs found â†’ BLOCK push. High CVEs â†’ WARN, ask confirmation.
 
-**5c — Push to registry:**
+**5c â€” Push to registry:**
 ```bash
 docker push [registry]/[app_name]:[tag]
 ```
 
-**5d — Deploy on target host (choose method):**
+**5d â€” Deploy on target host (choose method):**
 
 SSH + docker-compose pull:
 ```bash
@@ -112,7 +113,7 @@ Fly.io with Docker:
 flyctl deploy --image [registry]/[app_name]:[tag]
 ```
 
-**5e — Run database migrations (if schema changed this phase):**
+**5e â€” Run database migrations (if schema changed this phase):**
 ```bash
 # Docker exec migration
 docker compose exec app [migration command]
@@ -144,16 +145,17 @@ docker_image: [registry/app_name:tag if Docker deploy]
 ```
 
 ## --dry-run Flag
-Shows the pre-flight checklist results and what deploy command would run — without deploying.
+Shows the pre-flight checklist results and what deploy command would run â€” without deploying.
 
 ## Guided Next Step
 
 ```
-──────────────────────────────────────────────────
-→ Next:  /buildflow-spec "[next phase name]"
-   Why:  Phase [N] is live — start the next phase with a fresh spec
-──────────────────────────────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+â†’ Next:  /buildflow-spec "[next phase name]"
+   Why:  Phase [N] is live â€” start the next phase with a fresh spec
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ```
 
-If deployed to staging only: `→ Next: /buildflow-deploy production` (promote after smoke-test).
-If deploy failed: `→ Next: /buildflow-debug` (diagnose the failure, check deploy logs).
+If deployed to staging only: `â†’ Next: /buildflow-deploy production` (promote after smoke-test).
+If deploy failed: `â†’ Next: /buildflow-debug` (diagnose the failure, check deploy logs).
+

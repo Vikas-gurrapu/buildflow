@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-status
+max_context_kb: 15
+model_tier: light
 description: Rich project dashboard — phase progress, AC coverage, debt summary, and next-action recommendations
 allowed-tools: Read, Bash
 agent: strategist
@@ -138,3 +140,5 @@ If debt > 4 items and user is about to start a new spec: add a second line:
 Never show a table. One recommendation. One sentence of why. That's it.
 
 ---
+
+

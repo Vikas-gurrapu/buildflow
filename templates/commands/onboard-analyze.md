@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-onboard-analyze
+max_context_kb: 60
+model_tier: heavy
 description: Module — deep codebase analysis (module mapping, load-bearing identification, risk scoring, patterns, dependencies, features, testing, knowledge file writing). Loaded by /buildflow-onboard.
 allowed-tools: Read, Write, Bash, Glob, Grep
 ---
@@ -847,3 +849,5 @@ Knowledge files written:
    Why:  Codebase is now fully indexed â€” spec your next phase or make surgical changes with full impact tracing
 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ```
+
+

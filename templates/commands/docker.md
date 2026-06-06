@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-docker
+max_context_kb: 30
 description: Docker scaffolding, container management, and image lifecycle for any project
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: architect
@@ -675,3 +676,4 @@ After `scaffold`:
 After `build`: `→ Next: /buildflow-docker run` (start container locally).
 After `scan` with findings: `→ Next: fix CVEs listed in DEBT.md, then re-run /buildflow-docker scan`.
 After `push`: `→ Next: /buildflow-deploy` (image is in registry — trigger deployment).
+

@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-spec
+max_context_kb: 60
+model_tier: heavy
 description: Generate Requirements, Technical Design, Acceptance Criteria, and wave plan in one pass — with optional post-discuss update mode
 allowed-tools: Read, Write, WebSearch
 agent: architect
@@ -370,6 +372,8 @@ If the user requests a spec change AFTER `spec_status: locked` (mid-phase amendm
 4. If a PLAN.md exists: flag as stale — "⚠ PLAN STALE — spec amended to v[N+1]. Run `/buildflow-spec --update` to regenerate affected waves."
 
 ---
+
+
 
 
 

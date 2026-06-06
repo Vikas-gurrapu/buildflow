@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-spec-plan
+max_context_kb: 50
+model_tier: heavy
 description: Module — wave planning, dependency reasoning, effort estimation, engineering review, wave file writing. Loaded by /buildflow-spec after spec approval.
 allowed-tools: Read, Write, Bash, Grep, Glob
 ---
@@ -402,5 +404,7 @@ Because spec+plan is a major phase boundary, recommend clearing the AI session b
 
 If spec is NOT locked yet (still in review): `→ Next: /buildflow-spec` (continue review and lock).
 If spec was amended and plan is now stale: `→ Next: /buildflow-spec --update` (regenerate plan against new decisions).
+
+
 
 

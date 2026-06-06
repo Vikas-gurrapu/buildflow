@@ -39,6 +39,8 @@ Before doing anything else at the start of every session:
 
 5. **Drift check** — if `onboard_status: yes` in `MEMORY.md`, run the fast drift check from `/buildflow-start-epic` Step 1b against `.buildflow/codebase/intel.json`. Report warnings if schema files or load-bearing files changed since last onboard. Silent if no drift.
 
+   **Staleness check (runs alongside drift check):** Read the last-modified timestamp of `.buildflow/codebase/CODEBASE.md`. If older than `knowledge_staleness_days` in PREFERENCES.md (default 14 days) AND git shows commits since that date: surface once — `"⚠ CODEBASE.md last updated [N] days ago. Consider /buildflow-onboard --update before building."` Silent if within threshold or no new commits.
+
 5b. **Global learnings check** — read `~/.buildflow/learnings/global.md` if it exists (cross-project insights written by `/buildflow-complete-epic`).
    - Filter entries matching the current framework or language (from `MEMORY.md`).
    - If 1–3 relevant entries exist, surface them silently as a one-line note: `💡 [N] global insight(s) from past projects — relevant to [framework]. Read with /buildflow-help.`
@@ -105,7 +107,7 @@ Workspace state lives in `[workspace-root]/.buildflow/workspace/`. Repo artifact
 | `/buildflow-workspace check` | Aggregate AC check across all repos |
 | `/buildflow-workspace ship` | Ship all repos in dependency order |
 | `/buildflow-docker` | Docker scaffolding, build, run, push, and image security scan |
-| `/buildflow-audit` | OWASP Top 10 security scan + container CVE scan |
+| `/buildflow-audit` | Deep security audit — threat model, attack surface, 4 parallel specialists, find-fix-verify loop · `--verify` re-checks fixes |
 | `/buildflow-ui-spec` | Generate UI design contract — colors, typography, spacing, components |
 | `/buildflow-ui-review` | Audit UI implementation against design contract across 6 dimensions |
 | `/buildflow-status` | See current phase and progress |
@@ -118,6 +120,8 @@ Workspace state lives in `[workspace-root]/.buildflow/workspace/`. Repo artifact
 
 - Each agent receives a **minimal context packet** — only what it needs, nothing else
 - `MEMORY.md` must stay under 3K tokens — prune silently at session start if over
+- **Context budget** — each command declares `max_context_kb` in its frontmatter. Before loading context, estimate total size. If estimated load would exceed the declared budget: warn once `"⚠ Context budget [N]KB declared, ~[M]KB to load. Trim to essentials or proceed? [Y/trim]"`. Trimming means loading summary sections only, not full files.
+- **Model routing** — if `model_routing` is set in `PREFERENCES.md` (not all `default`) AND the host tool supports per-agent model selection: read the running command's `model_tier` frontmatter, map it via `model_routing.[tier]`, and pass the resolved model to `Agent({ model: "..." })` calls. Claude mapping: `fast`→`claude-haiku-4-5`, `capable`→`claude-sonnet-4-6`, `max`→`claude-opus-4-8`. If the tier maps to `default` or the tool lacks model selection: pass no model param (host default). This is silent — never announce routing unless asked.
 - Ask confidence (1-5) before locking major decisions
 - Run `/buildflow-spec` before `/buildflow-build` — no spec, no build
 - `/buildflow-ship` blocks if any Acceptance Criterion is unsatisfied

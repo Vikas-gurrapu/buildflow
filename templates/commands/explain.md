@@ -1,5 +1,7 @@
----
+﻿---
 name: buildflow-explain
+max_context_kb: 10
+model_tier: light
 description: Explain code, concepts, or terms in plain language
 allowed-tools: Read, WebSearch
 agent: strategist
@@ -31,10 +33,10 @@ Read `.buildflow/PREFERENCES.md` for experience level.
 ## Step 3: Explain
 
 **For files:**
-1. Purpose — what problem does this solve?
-2. How it works — key logic in plain English
-3. How it connects — what calls this, what does it call?
-4. Gotchas — anything non-obvious to watch out for
+1. Purpose â€” what problem does this solve?
+2. How it works â€” key logic in plain English
+3. How it connects â€” what calls this, what does it call?
+4. Gotchas â€” anything non-obvious to watch out for
 
 **For concepts/terms:**
 1. One-sentence definition
@@ -49,3 +51,5 @@ Read `.buildflow/PREFERENCES.md` for experience level.
 
 ## Step 4: Add to Glossary
 If explaining a new term, append to `.buildflow/GLOSSARY.md`.
+
+

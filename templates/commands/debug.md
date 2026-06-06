@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-debug
+max_context_kb: 30
 description: Systematic debugging when a test fails or something breaks
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: surgeon
@@ -324,5 +325,6 @@ Increment sequence from existing files in that folder, starting at 001. Do not o
 
 If root cause could not be isolated: `→ Next: /buildflow-debug --continue {ref}` (resume with a narrower hypothesis).
 If the bug traced to a spec gap: `→ Next: /buildflow-spec --review` (amend the AC before proceeding).
+
 
 

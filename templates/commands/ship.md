@@ -1,5 +1,7 @@
 ﻿---
 name: buildflow-ship
+max_context_kb: 60
+model_tier: security
 description: Finalize phase with spec gate, security gate, build telemetry gate, and context pruning
 allowed-tools: Read, Write, Bash
 agents: strategist, security-auditor, researcher
@@ -562,5 +564,7 @@ The post-ship advisor (Step 6b) already surfaced the top suggestion. Close with:
 
 Use the suggested phase name from the post-ship advisor output as the argument.
 If debt > 5 items: `Or: /buildflow-think --debt` (address tech debt before next feature).
+
+
 
 

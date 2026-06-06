@@ -1,6 +1,8 @@
----
+﻿---
 name: buildflow-build-detect
-description: Module — test framework detection, build toolchain detection, style fingerprint. Loaded by /buildflow-build on first wave.
+max_context_kb: 30
+model_tier: light
+description: Module â€” test framework detection, build toolchain detection, style fingerprint. Loaded by /buildflow-build on first wave.
 allowed-tools: Read, Write, Bash, Grep, Glob
 ---
 
@@ -10,37 +12,37 @@ Loaded by `/buildflow-build` before the first wave. Writes profiles to `.buildfl
 
 ---
 
-## Fast Path (onboarded project — runs in most cases)
+## Fast Path (onboarded project â€” runs in most cases)
 
 **Check in this order:**
 
-**1. BUILD_SESSION.md cache hit** — if `.buildflow/epics/[epic]/BUILD_SESSION.md` exists and `spec_version` matches current `ACCEPTANCE.md` version: load profiles from it directly. Skip everything below. Return immediately.
+**1. BUILD_SESSION.md cache hit** â€” if `.buildflow/epics/[epic]/BUILD_SESSION.md` exists and `spec_version` matches current `ACCEPTANCE.md` version: load profiles from it directly. Skip everything below. Return immediately.
 
-**2. Knowledge files exist (onboard already ran)** — if ALL three exist:
+**2. Knowledge files exist (onboard already ran)** â€” if ALL three exist:
 - `.buildflow/codebase/TESTING.md`
 - `.buildflow/codebase/CODEBASE.md`
 - `.buildflow/codebase/PATTERNS.md`
 
-Extract profiles directly from those files — no shell detection needed:
+Extract profiles directly from those files â€” no shell detection needed:
 
-- **Test Framework Profile** → read from `TESTING.md`: framework name, config file, test location, naming convention, mocking library, coverage tool, existing test count
-- **Build Toolchain Profile** → read from `CODEBASE.md`: language, type-check command, lint command, build command, bundle tool
-- **Style Fingerprint** → read the top 5 conventions from `PATTERNS.md`
-- **Hotspot Files** → read from `RISKS.md`: high-risk files relevant to this epic's wave file lists
-- **Locale Flags** → read from `intel.json`: `locale_support`, `local_support`, `catalog_files`
+- **Test Framework Profile** â†’ read from `TESTING.md`: framework name, config file, test location, naming convention, mocking library, coverage tool, existing test count
+- **Build Toolchain Profile** â†’ read from `CODEBASE.md`: language, type-check command, lint command, build command, bundle tool
+- **Style Fingerprint** â†’ read the top 5 conventions from `PATTERNS.md`
+- **Hotspot Files** â†’ read from `RISKS.md`: high-risk files relevant to this epic's wave file lists
+- **Locale Flags** â†’ read from `intel.json`: `locale_support`, `local_support`, `catalog_files`
 
-Write `BUILD_SESSION.md` with the extracted profiles (see format at bottom of this file). Return immediately — do not run any shell commands below.
+Write `BUILD_SESSION.md` with the extracted profiles (see format at bottom of this file). Return immediately â€” do not run any shell commands below.
 
-**3. Shell detection (greenfield or pre-onboard)** — only if knowledge files are missing or incomplete. Continue to Step 2 below.
+**3. Shell detection (greenfield or pre-onboard)** â€” only if knowledge files are missing or incomplete. Continue to Step 2 below.
 
 ---
 
 ## Shell Command Note
-All shell commands below use Bash/POSIX syntax. On Windows, prefer PowerShell equivalents unless Bash is available. Adjust `grep` → `Select-String`, `find` → `Get-ChildItem`, `cat` → `Get-Content`, `2>/dev/null` → `2>$null`.
+All shell commands below use Bash/POSIX syntax. On Windows, prefer PowerShell equivalents unless Bash is available. Adjust `grep` â†’ `Select-String`, `find` â†’ `Get-ChildItem`, `cat` â†’ `Get-Content`, `2>/dev/null` â†’ `2>$null`.
 
 ---
 
-## Step 2: Detect Test Framework (shell fallback — only if fast path failed)
+## Step 2: Detect Test Framework (shell fallback â€” only if fast path failed)
 
 Before writing a single test line, identify what testing infrastructure exists.
 
@@ -120,12 +122,12 @@ find . -path "*/src/test/*" -name "*Spec.scala" -o -name "*Test.scala" | head -5
 | Framework found + config exists + test files exist | Use it. Infer conventions from existing test files. |
 | Framework in package.json/pom/build.gradle but no test files yet | Use it. Write tests following framework docs conventions. |
 | No framework found, greenfield project | Ask: "No test framework detected. Recommend [Jest/Vitest for TS, pytest for Python, JUnit 5 for Java/Kotlin, xUnit for C#, RSpec for Ruby, PHPUnit for PHP, flutter_test for Flutter, XCTest for Swift, ScalaTest for Scala, built-in for Go/Rust]. Set it up now?" |
-| No framework, existing project with no tests | Warn: "⚠ No test framework found. Proceeding without tests — recommend adding [framework] before shipping." Log to `epics/[epic]/DEBT.md`: "No test framework — zero coverage." |
+| No framework, existing project with no tests | Warn: "âš  No test framework found. Proceeding without tests â€” recommend adding [framework] before shipping." Log to `epics/[epic]/DEBT.md`: "No test framework â€” zero coverage." |
 
 ### Capture test profile:
 ```
 Test Framework Profile
-──────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Language:      TypeScript / Python / Java / Kotlin / C# / Ruby / PHP / Dart / Swift / Scala / Go / Rust
 Framework:     Jest / pytest / JUnit 5 / Kotest / xUnit / RSpec / PHPUnit / flutter_test / XCTest / ScalaTest / go test / cargo test
 Config file:   jest.config.ts / pytest.ini / build.gradle / .csproj / .rspec / phpunit.xml / N/A
@@ -138,7 +140,7 @@ Existing tests: [N] files, [N] total cases
 
 ---
 
-## Step 2b: Detect Build Toolchain (shell fallback — only if fast path failed)
+## Step 2b: Detect Build Toolchain (shell fallback â€” only if fast path failed)
 
 Before the first wave, identify what static analysis and build tools are available.
 
@@ -191,7 +193,7 @@ cat build.sbt 2>/dev/null | grep -E "scalafmt|scalafix|wartremover"
 ### Build Toolchain Profile:
 ```
 Build Toolchain Profile
-───────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Language:        [detected language]
 Type-check cmd:  tsc --noEmit / mypy . / go vet ./... / cargo check / mvn compile -q / dotnet build / flutter analyze / swift build / sbt compile
 Lint cmd:        eslint / ruff / golangci-lint / cargo clippy / ./gradlew detekt / dotnet format / rubocop / phpstan analyse / swiftlint / sbt scalafmt
@@ -203,12 +205,12 @@ Has config:      YES / NO
 
 | Result | Action |
 |--------|--------|
-| Type-check found | Run before each wave commit — type errors BLOCK the commit |
-| Lint found | Run before each wave commit — errors BLOCK, warnings non-blocking |
-| Build cmd found | Run before ship — compile failure BLOCKS |
-| None found | Warn once: "⚠ No build toolchain detected." Log to `epics/[epic]/DEBT.md`. |
+| Type-check found | Run before each wave commit â€” type errors BLOCK the commit |
+| Lint found | Run before each wave commit â€” errors BLOCK, warnings non-blocking |
+| Build cmd found | Run before ship â€” compile failure BLOCKS |
+| None found | Warn once: "âš  No build toolchain detected." Log to `epics/[epic]/DEBT.md`. |
 
-**Test command shapes (scoped — not whole-suite):**
+**Test command shapes (scoped â€” not whole-suite):**
 ```bash
 npx jest [specific-test-file] / npx vitest run [specific-test-file]   # JS/TS
 pytest [specific-test-file]                                             # Python
@@ -232,7 +234,7 @@ cargo test specific_test_name                                           # Rust
 
 ---
 
-## Step 3: Establish Style Fingerprint (shell fallback — only if fast path failed)
+## Step 3: Establish Style Fingerprint (shell fallback â€” only if fast path failed)
 
 If `PATTERNS.md` exists: extract the 5 most important conventions and hold them in scope.
 If not: read 2 existing source files and infer:
@@ -265,15 +267,45 @@ Use the **Write tool** to save the detected profiles to `.buildflow/epics/[epic]
 ## Style Fingerprint
 [5 key conventions]
 
-## Hotspot Files (from RISKS.md — relevant to this epic's touched paths)
-[list of high-risk files relevant to current epic's wave files — or NONE]
+## Hotspot Files (from RISKS.md â€” relevant to this epic's touched paths)
+[list of high-risk files relevant to current epic's wave files â€” or NONE]
 
 ## Locale Flags (from intel.json)
 locale_support: [true/false]
 local_support: [true/false]
 catalog_files: [list or NONE]
+
+## Knowledge File Timestamps
+CODEBASE.md: [ISO datetime of file last-modified, or MISSING]
+PATTERNS.md: [ISO datetime of file last-modified, or MISSING]
+RISKS.md:    [ISO datetime of file last-modified, or MISSING]
+TESTING.md:  [ISO datetime of file last-modified, or MISSING]
 ```
 
-**Subsequent waves** load only `BUILD_SESSION.md` — no re-reading of TESTING.md, CODEBASE.md, PATTERNS.md, RISKS.md, or intel.json needed.
+**Subsequent waves** load only `BUILD_SESSION.md` â€” no re-reading of TESTING.md, CODEBASE.md, PATTERNS.md, RISKS.md, or intel.json needed.
 
-Return to `/buildflow-build` — the multi-agent protocol and wave execution loop continue from here.
+## Staleness Check
+
+After writing BUILD_SESSION.md, compare each knowledge file's timestamp against today:
+
+- If any file is **older than `knowledge_staleness_days` from PREFERENCES.md** (default: 14 days):
+  - Check if git is available: `git log --since="[file-date]" --oneline | wc -l`
+  - If commits exist since the file was written (project has changed): surface a warning once:
+    ```
+    âš  Stale knowledge files detected
+    â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    CODEBASE.md   last updated [N] days ago ([date])
+    PATTERNS.md   last updated [N] days ago ([date])
+
+    Project has [N] commits since last onboard. AI context may be outdated.
+    Recommended: /buildflow-onboard --update  (takes ~2 min)
+    Continue anyway? [Y/n]
+    ```
+  - If no commits since the file (project hasn't changed): skip silently.
+  - If git unavailable: warn only if file age > 30 days.
+
+- If all files are within the staleness window: proceed silently.
+
+Return to `/buildflow-build` â€” the multi-agent protocol and wave execution loop continue from here.
+
+

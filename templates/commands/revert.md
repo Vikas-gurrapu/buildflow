@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-revert
+max_context_kb: 20
 description: Revert the current or a named phase's spec and plan artifacts safely
 allowed-tools: Read, Write, Bash, Glob
 agent: strategist
@@ -292,5 +293,6 @@ Next: /buildflow-status
 
 If context is large after the revert, recommend:
 `/clear`, then `/buildflow-status`.
+
 
 

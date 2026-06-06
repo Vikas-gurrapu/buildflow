@@ -1,30 +1,31 @@
----
+﻿---
 name: buildflow-observe
-description: Audit and set up production observability — error tracking, structured logging, health checks, and APM
+max_context_kb: 30
+description: Audit and set up production observability â€” error tracking, structured logging, health checks, and APM
 allowed-tools: Read, Write, Bash, Grep, Glob
 agent: surgeon
 ---
 
 # /buildflow-observe
 
-Production observability setup. Audits the codebase for four pillars of production readiness — error tracking, structured logging, health endpoints, and APM/metrics — then generates the missing pieces. A production app with no observability is flying blind; this command eliminates that.
+Production observability setup. Audits the codebase for four pillars of production readiness â€” error tracking, structured logging, health endpoints, and APM/metrics â€” then generates the missing pieces. A production app with no observability is flying blind; this command eliminates that.
 
 Run after `/buildflow-ship` or before `/buildflow-deploy production`.
 
 ## Usage
-- `/buildflow-observe` — full audit across all four pillars + generate missing pieces
-- `/buildflow-observe --audit` — audit only, report gaps, no code changes
-- `/buildflow-observe --error-tracking` — error tracking pillar only
-- `/buildflow-observe --logging` — structured logging pillar only
-- `/buildflow-observe --health` — health check endpoint only
-- `/buildflow-observe --apm` — APM and metrics pillar only
-- `/buildflow-observe --stack <name>` — target a specific stack (e.g., `next`, `express`, `fastapi`, `rails`, `django`, `go`)
+- `/buildflow-observe` â€” full audit across all four pillars + generate missing pieces
+- `/buildflow-observe --audit` â€” audit only, report gaps, no code changes
+- `/buildflow-observe --error-tracking` â€” error tracking pillar only
+- `/buildflow-observe --logging` â€” structured logging pillar only
+- `/buildflow-observe --health` â€” health check endpoint only
+- `/buildflow-observe --apm` â€” APM and metrics pillar only
+- `/buildflow-observe --stack <name>` â€” target a specific stack (e.g., `next`, `express`, `fastapi`, `rails`, `django`, `go`)
 
 ## Context Packet
-- `.buildflow/MEMORY.md` — framework, language, stack
-- `.buildflow/codebase/CODEBASE.md` — entry points, module layout, existing middleware
-- `.buildflow/codebase/DEPENDENCIES.md` — existing external integrations, env vars
-- `.buildflow/codebase/PATTERNS.md` — established code patterns to follow
+- `.buildflow/MEMORY.md` â€” framework, language, stack
+- `.buildflow/codebase/CODEBASE.md` â€” entry points, module layout, existing middleware
+- `.buildflow/codebase/DEPENDENCIES.md` â€” existing external integrations, env vars
+- `.buildflow/codebase/PATTERNS.md` â€” established code patterns to follow
 
 ---
 
@@ -51,15 +52,15 @@ grep -r "opentelemetry\|datadog\|newrelic\|prometheus\|statsd" package.json requ
 Print detection report:
 ```
 Observability Audit
-────────────────────────────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Framework:       [Next.js / Express / FastAPI / Django / Rails / Go/Gin / ...]
 
-Error tracking:  [Sentry detected / Bugsnag detected / ✗ MISSING]
-Logging:         [Winston (structured) / pino / ✗ console.log only (N occurrences)]
-Health endpoint: [/health found at src/... / ✗ MISSING]
-APM / metrics:   [OpenTelemetry / DataDog / ✗ MISSING]
+Error tracking:  [Sentry detected / Bugsnag detected / âœ— MISSING]
+Logging:         [Winston (structured) / pino / âœ— console.log only (N occurrences)]
+Health endpoint: [/health found at src/... / âœ— MISSING]
+APM / metrics:   [OpenTelemetry / DataDog / âœ— MISSING]
 
-console.log occurrences in src/: [N] — should be replaced with structured logger
+console.log occurrences in src/: [N] â€” should be replaced with structured logger
 ```
 
 ---
@@ -98,7 +99,7 @@ Sentry.init({
   environment: process.env.NODE_ENV,
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
   beforeSend(event) {
-    // Strip PII — never send passwords or tokens
+    // Strip PII â€” never send passwords or tokens
     if (event.request?.data) {
       delete event.request.data.password
       delete event.request.data.token
@@ -159,9 +160,9 @@ export const logger = pino({
 Generate a codemod hint for replacing `console.log`:
 ```
 Replace console.log with structured logger:
-  console.log("msg", data)   →  logger.info({ ...data }, "msg")
-  console.error("err", e)    →  logger.error({ err }, "msg")
-  console.warn("msg")        →  logger.warn("msg")
+  console.log("msg", data)   â†’  logger.info({ ...data }, "msg")
+  console.error("err", e)    â†’  logger.error({ err }, "msg")
+  console.warn("msg")        â†’  logger.warn("msg")
 
 Found [N] console.log occurrences. Replace the highest-traffic paths first:
   [top 5 files by occurrence count]
@@ -212,7 +213,7 @@ healthRouter.get("/health", async (req, res) => {
   })
 })
 
-// Liveness probe — just confirms process is alive
+// Liveness probe â€” just confirms process is alive
 healthRouter.get("/ready", (_req, res) => res.json({ status: "ok" }))
 ```
 
@@ -283,7 +284,7 @@ OTEL_SERVICE_NAME=your-app-name
 
 For simpler setups (single service, no tracing needed): recommend **Prometheus** metrics endpoint:
 ```typescript
-// src/routes/metrics.ts — expose /metrics for Prometheus scraping
+// src/routes/metrics.ts â€” expose /metrics for Prometheus scraping
 import { register, collectDefaultMetrics } from "prom-client"
 collectDefaultMetrics()
 metricsRouter.get("/metrics", async (_req, res) => {
@@ -299,7 +300,7 @@ metricsRouter.get("/metrics", async (_req, res) => {
 Use the **Write tool** to save to `.buildflow/OBSERVE.md`:
 
 ```markdown
-# Observability Setup — [app name]
+# Observability Setup â€” [app name]
 **Audited:** [timestamp]
 **Framework:** [name]
 
@@ -321,14 +322,14 @@ Use the **Write tool** to save to `.buildflow/OBSERVE.md`:
 [anything that requires a third-party account, dashboard config, or infra change]
 
 ## console.log debt
-[N] occurrences in [N] files — replace with logger.[level]() over time
+[N] occurrences in [N] files â€” replace with logger.[level]() over time
 Priority files: [top 3 by occurrence]
 ```
 
 Print terminal summary:
 ```
-Observability audit complete ✓
-──────────────────────────────────────────────────
+Observability audit complete âœ“
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Error tracking:  [status]
 Logging:         [status]
 Health endpoint: [/health generated at src/routes/health.ts / already present]
@@ -339,3 +340,4 @@ Env vars added to .env.example: [N]
 
 Next step: /buildflow-deploy staging
 ```
+

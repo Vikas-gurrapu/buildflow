@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-build
+max_context_kb: 80
 description: Spec-traced wave execution with pattern-matched Builders, auto-test, auto-fix, and PR-ready commits
 allowed-tools: Read, Write, Bash, Grep, Glob
 agents: builder, reviewer
@@ -177,4 +178,5 @@ After all waves complete:
 
 If a wave failed and stopped: `→ Next: /buildflow-debug` (root-cause before retrying).
 If all waves complete but tests are borderline: `→ Next: /buildflow-check` (check will surface what needs fixing).
+
 

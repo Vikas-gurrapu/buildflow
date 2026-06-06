@@ -1,5 +1,6 @@
----
+﻿---
 name: buildflow-switch-epic
+max_context_kb: 15
 description: Pause the current epic and switch to another, or resume a paused epic
 allowed-tools: Read, Write, Bash, Glob
 agent: strategist
@@ -7,21 +8,21 @@ agent: strategist
 
 # /buildflow-switch-epic
 
-Pause the active epic and activate a different one, or resume a previously paused epic. Epic context is fully preserved — the paused epic picks up exactly where it left off.
+Pause the active epic and activate a different one, or resume a previously paused epic. Epic context is fully preserved â€” the paused epic picks up exactly where it left off.
 
 ## Usage
-- `/buildflow-switch-epic` — show active + paused epics, prompt to switch
-- `/buildflow-switch-epic 2-payments` — switch directly to a named epic
-- `/buildflow-switch-epic --list` — list all epics (active, paused, not started)
-- `/buildflow-switch-epic --resume` — list paused epics and pick one to resume
+- `/buildflow-switch-epic` â€” show active + paused epics, prompt to switch
+- `/buildflow-switch-epic 2-payments` â€” switch directly to a named epic
+- `/buildflow-switch-epic --list` â€” list all epics (active, paused, not started)
+- `/buildflow-switch-epic --resume` â€” list paused epics and pick one to resume
 
 ## Step 1: Load Current State
 
 Read `.buildflow/STATE.md` and `.buildflow/MEMORY.md`.
 
 Identify:
-- `current_epic` — the active epic
-- `paused_epics[]` — any previously paused epics
+- `current_epic` â€” the active epic
+- `paused_epics[]` â€” any previously paused epics
 - All epic directories under `.buildflow/epics/`
 
 ## Step 2: Show Epic Status
@@ -30,12 +31,12 @@ Print the current state:
 
 ```
 Epic Status
-───────────────────────────────────────────────────
-● Active:   [current_epic] — "[name]"  ([last_status], wave [N])
-○ Paused:   [epic-slug] — "[name]"     ([last_status], wave [N])  paused [date]
-○ Paused:   [epic-slug] — "[name]"     ([last_status])            paused [date]
-○ Pending:  [epic-slug] — "[name]"     (not started)
-───────────────────────────────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+â— Active:   [current_epic] â€” "[name]"  ([last_status], wave [N])
+â—‹ Paused:   [epic-slug] â€” "[name]"     ([last_status], wave [N])  paused [date]
+â—‹ Paused:   [epic-slug] â€” "[name]"     ([last_status])            paused [date]
+â—‹ Pending:  [epic-slug] â€” "[name]"     (not started)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ```
 
 If no target was passed via args, prompt:
@@ -46,7 +47,7 @@ Switch to which epic? (enter slug or press Enter to cancel):
 
 ## Step 3: Validate Target
 
-If the target epic slug is the current active epic: print "Already active — no switch needed." and exit.
+If the target epic slug is the current active epic: print "Already active â€” no switch needed." and exit.
 
 If the target epic directory does not exist under `.buildflow/epics/`: print "Epic '[slug]' not found. Run /buildflow-start-epic to create it." and exit.
 
@@ -70,7 +71,7 @@ Use the **Write tool** to update `.buildflow/epics/[current_epic]/STATE.md`:
 
 Print:
 ```
-⏸ Paused: [current_epic] at [last_status] (wave [N])
+â¸ Paused: [current_epic] at [last_status] (wave [N])
 ```
 
 ## Step 5: Activate Target Epic
@@ -82,7 +83,7 @@ Check if the target epic is in `paused_epics[]`:
 - Update `.buildflow/epics/[target]/STATE.md`: remove `paused: true`, set `last_resumed: [today]`
 - Load the epic's STATE.md and print the resume summary:
   ```
-  ▶ Resumed: [target] — picking up from [last_status]
+  â–¶ Resumed: [target] â€” picking up from [last_status]
      Last command: [last_command]
      Next command: [next_command from STATE.md]
   ```
@@ -91,7 +92,7 @@ Check if the target epic is in `paused_epics[]`:
 - Set `current_epic: [target]` in STATE.md
 - Print:
   ```
-  ▶ Activated: [target] — ready to start
+  â–¶ Activated: [target] â€” ready to start
      Run /buildflow-spec to generate requirements and plan.
   ```
 
@@ -105,13 +106,14 @@ Use the **Write tool** to update `.buildflow/MEMORY.md`:
 
 ```
 Switch Complete
-──────────────────────────────────────────────────
-Paused:   [previous_epic] — [last_status]
-Active:   [target_epic] — [status]
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Paused:   [previous_epic] â€” [last_status]
+Active:   [target_epic] â€” [status]
 
-──────────────────────────────────────────────────
-→ Next:  [next_command from target epic's STATE.md]
-   Why:  [resume context — what was happening when this epic was last active]
-──────────────────────────────────────────────────
-Context: Saved to STATE.md. Run /clear before continuing — switching epics is a context boundary.
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+â†’ Next:  [next_command from target epic's STATE.md]
+   Why:  [resume context â€” what was happening when this epic was last active]
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Context: Saved to STATE.md. Run /clear before continuing â€” switching epics is a context boundary.
 ```
+

@@ -1,5 +1,7 @@
----
+﻿---
 name: buildflow-back
+max_context_kb: 10
+model_tier: light
 description: Undo recent changes and restore to a safe state
 allowed-tools: Read, Write, Bash
 agent: strategist
@@ -10,10 +12,10 @@ agent: strategist
 Undo recent changes and restore to a known-good state.
 
 ## Usage
-- `/buildflow-back` — undo last action
-- `/buildflow-back 3` — undo last 3 actions
-- `/buildflow-back --list` — show available restore points
-- `/buildflow-back phase-1-complete` — restore to named checkpoint
+- `/buildflow-back` â€” undo last action
+- `/buildflow-back 3` â€” undo last 3 actions
+- `/buildflow-back --list` â€” show available restore points
+- `/buildflow-back phase-1-complete` â€” restore to named checkpoint
 
 ## Step 1: List Restore Points
 
@@ -37,7 +39,7 @@ Show what will be LOST if they go back.
 ## Step 3: Safety Check
 If there are uncommitted changes:
 ```
-⚠️  You have uncommitted changes.
+âš ï¸  You have uncommitted changes.
     These will be lost: [list files]
     Type "yes, discard changes" to continue.
 ```
@@ -64,3 +66,5 @@ Update `.buildflow/MEMORY.md` to match.
 ## Step 6: Confirm
 Show: "Restored to: [checkpoint name] from [date]"
 Suggest next action: "Run /buildflow-status to see current state."
+
+

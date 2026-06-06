@@ -1,5 +1,6 @@
 ﻿---
 name: buildflow-plan
+max_context_kb: 10
 description: Redirects to /buildflow-spec — wave planning is now part of the unified spec command
 allowed-tools: Read
 agent: strategist
@@ -42,3 +43,4 @@ Then proceed to:
 ```
 /buildflow-build
 ```
+
