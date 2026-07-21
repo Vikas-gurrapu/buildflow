@@ -24,7 +24,7 @@ labels: bug
 ## Environment
 
 - buildflow-dev version: <!-- run `npx buildflow-dev --version` -->
-- AI tool: <!-- Claude Code / Gemini CLI / Cursor / Cline / Codex / Continue -->
+- AI tool: <!-- Claude Code / Gemini CLI / Cursor / Cline / Codex / OpenCode / Continue -->
 - Node version: <!-- run `node --version` -->
 - OS: <!-- macOS / Windows / Linux -->
 

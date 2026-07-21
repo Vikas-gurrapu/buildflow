@@ -69,6 +69,8 @@ Agent({ description: "Reviewer C: Code Quality",    prompt: "[shared preamble]\n
 Agent({ description: "Reviewer D: Security",        prompt: "[shared preamble]\nTask: Check no hardcoded secrets, no injection risks (SQL/command/XSS), no sensitive data in logs, DEPENDENCIES.md coverage for external changes, auth/security ACs satisfied.\nRead: DEPENDENCIES.md, changed source files." })
 ```
 
+**OpenCode** — spawn all 4 Reviewers as subagent tasks in one response (true parallel), same principle as Claude Code above.
+
 **Gemini CLI / Codex CLI / Cursor** — print shared preamble once at top, then sequential:
 ```
 Shared context: app=[app_name] epic=[epic] spec=v[N] changed=[files]

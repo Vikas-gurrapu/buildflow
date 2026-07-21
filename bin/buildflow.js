@@ -36,7 +36,7 @@ program
   .command('install')
   .description('Install BuildFlow slash commands into an AI tool')
   .option('-y, --yes', 'Skip prompts, use defaults')
-  .option('--tool <name>', 'AI tool to install into (claude|gemini|codex|cursor|all)')
+  .option('--tool <name>', 'AI tool to install into (claude|gemini|codex|opencode|cursor|cline|continue|all)')
   .option('--global', 'Install globally (available in all projects)')
   .option('--local', 'Install locally (current project only)')
   .action(async (opts) => {
@@ -48,7 +48,7 @@ program
   .command('uninstall')
   .description('Remove BuildFlow commands from AI tools')
   .option('-y, --yes', 'Skip confirmation')
-  .option('--tool <name>', 'AI tool to remove from (claude|gemini|codex|cursor|cline|continue|all)')
+  .option('--tool <name>', 'AI tool to remove from (claude|gemini|codex|opencode|cursor|cline|continue|all)')
   .option('--global', 'Remove global installation')
   .option('--local', 'Remove local installation (default)')
   .option('--project-data', 'Also remove .buildflow project data from the current directory')

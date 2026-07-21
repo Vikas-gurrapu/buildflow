@@ -83,6 +83,8 @@ Skip worktree isolation. Use Step 3a serialization as the sole safety net.
 Agent({ description: "Builder: [task name]", model: [from model_routing.heavy_tasks if set], prompt: "You are a BuildFlow Builder. Your context packet:\n---\nTask: [task name]\nAC refs: [AC-001, AC-003]\nBefore: [what currently exists]\nAfter: [what must be true when done]\nFiles allowed: [list]\nFiles forbidden: [list]\nClosest existing example: [path/to/file]\nKey pattern: [convention]\nApproach: [from wave file â€” follow exactly unless a blocker is found]\nDefinition of done: [linked ACs]\n---\nWrite code satisfying the Beforeâ†’After contract. Follow the planned approach and closest example exactly. Write focused tests in the same task." })
 ```
 
+**OpenCode** — spawn one Builder per non-overlapping task as a subagent, all in a single response (true parallel), same principle as Claude Code above.
+
 **Gemini CLI / Codex CLI / Cursor** â€” sequential:
 `=== Builder: [task name] START ===` â†’ execute using only this task's packet â†’ `=== Builder: [task name] END ===`
 

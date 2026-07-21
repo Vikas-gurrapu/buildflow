@@ -190,6 +190,8 @@ Agent({ description: "SA-3: Dependency & Supply Chain", model: [...], prompt: "[
 Agent({ description: "SA-4: Business Logic & State", model: [...], prompt: "[shared preamble]\nAnalyze business logic flaws: race conditions (check-then-act without locks), state machine bypass (skipping required states), price/quantity manipulation, negative values, integer overflow on money/counts. Trace critical flows (payment, ordering, permissions). Output each with the exploit scenario and severity." })
 ```
 
+**OpenCode** — spawn all 4 as subagent tasks in one response (true parallel), same principle as Claude Code above.
+
 **Gemini CLI / Codex CLI / Cursor** — print shared preamble once, then sequential:
 `=== SA-1: Auth & Access Control START ===` → ... → `=== END ===` (repeat per specialist)
 
