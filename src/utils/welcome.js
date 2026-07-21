@@ -33,6 +33,7 @@ export async function showWelcome() {
     chalk.hex('#8B5CF6')('Claude Code') + '  ' +
     chalk.hex('#4285F4')('Gemini CLI') + '  ' +
     chalk.hex('#10A37F')('Codex CLI') + '  ' +
+    chalk.hex('#FB923C')('OpenCode') + '  ' +
     chalk.white('Cursor') + '  ' +
     chalk.hex('#007AFF')('Cline') + '  ' +
     chalk.hex('#F59E0B')('Continue')
@@ -97,7 +98,7 @@ export async function showWelcome() {
     console.log(chalk.dim('  What this does:'))
     console.log(chalk.dim('    1. Detects your project (framework, language, existing code)'))
     console.log(chalk.dim('    2. Sets up .buildflow/ with agents, memory, security rules'))
-    console.log(chalk.dim('    3. Detects Claude Code, Gemini CLI, Codex CLI, Cursor, etc.'))
+    console.log(chalk.dim('    3. Detects Claude Code, Gemini CLI, Codex CLI, OpenCode, Cursor, etc.'))
     console.log(chalk.dim('    4. Installs /buildflow-* slash commands into each detected tool'))
     console.log(chalk.dim('    5. Type "/" in your AI tool to start'))
     console.log('')
@@ -105,6 +106,7 @@ export async function showWelcome() {
     console.log(chalk.white('    buildflow install --tool claude'))
     console.log(chalk.white('    buildflow install --tool gemini'))
     console.log(chalk.white('    buildflow install --tool codex'))
+    console.log(chalk.white('    buildflow install --tool opencode'))
     console.log(chalk.white('    buildflow install --tool cursor'))
     console.log(chalk.white('    buildflow install --tool all'))
   }

@@ -110,6 +110,8 @@ No override flag exists for strict violations. Strict mode means the spec is law
 Agent({ description: "Security Auditor: pre-ship scan", prompt: "You are a BuildFlow Security Auditor running a pre-ship scan. Scan changed files only (from git diff HEAD~1..HEAD -- src/ if git is approved, otherwise from wave task file lists). Check for: secrets exposure, critical injection patterns (SQL/command/XSS), auth bypass risks, critical dependency CVEs. Output: CLEAN or list of findings with severity (CRITICAL/HIGH) and file:line location." })
 ```
 
+**OpenCode** — spawn Security Auditor as a subagent task, same principle as Claude Code above.
+
 **Gemini CLI / Codex CLI / Cursor:**
 `=== Security Auditor: pre-ship START ===` → scan changed files for secrets, injection, auth bypass, CVEs → `=== Security Auditor END ===`
 
@@ -509,6 +511,8 @@ If `VISION.md` contains a roadmap or future features list: surface the next 2–
 Agent({ description: "Researcher A: competitor features",   prompt: "You are a BuildFlow Researcher. Search for the top 3–5 apps in the same category as [app type from VISION.md]. List: standard features users expect in this category, differentiating features, features this app is missing. Max 3–5 queries. Be concise." })
 Agent({ description: "Researcher B: engineering standards", prompt: "You are a BuildFlow Researcher. Search for engineering standards and best practices for [app type from VISION.md]. List protocols/standards missing from this project. Max 3–5 queries. Be concise." })
 ```
+
+**OpenCode** — spawn both Researchers as subagent tasks in one response (true parallel), same principle as Claude Code above.
 
 **Gemini CLI / Codex CLI / Cursor:**
 `=== Researcher A: Competitor Features START ===` → research → `=== Researcher A END ===`

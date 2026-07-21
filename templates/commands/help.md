@@ -214,6 +214,8 @@ Agent({ description: "Researcher A: competitor features",   prompt: "You are a B
 Agent({ description: "Researcher B: engineering standards", prompt: "You are a BuildFlow Researcher. Search for engineering standards and best practices for [app type]. List protocols/patterns/standards this project is missing. Max 3–5 queries. Be concise." })
 ```
 
+**OpenCode** — spawn both Researchers as subagent tasks in one response (true parallel), same principle as Claude Code above.
+
 **Gemini CLI / Codex CLI / Cursor:**
 `=== Researcher A: Competitor Features START ===` → research → `=== Researcher A END ===`
 `=== Researcher B: Engineering Standards START ===` → research → `=== Researcher B END ===`

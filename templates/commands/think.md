@@ -53,6 +53,7 @@ Before exiting, update `.buildflow/epics/[epic]/STATE.md` with:
 Parallel agents run by default when `parallel.enabled: true` in `.buildflow/you/PREFERENCES.md`.
 
 - **Claude Code** — Issue all `Agent({...})` calls in a **single response** for true parallel execution. Each agent prompt must be fully self-contained (no shared state, no cross-references).
+- **OpenCode** — Spawn each role as a subagent task in a **single response** for true parallel execution, same principle as Claude Code above. Each subagent prompt must be fully self-contained.
 - **Gemini CLI / Codex CLI / Cursor** — Execute each role sequentially with context isolation: print `=== [Role] START ===`, complete that role's task using only its context packet, print `=== [Role] END ===`. Do not carry state between roles.
 
 ---
@@ -76,6 +77,8 @@ Agent({ description: "Researcher B: [sub-question 2]", prompt: "You are a BuildF
 Agent({ description: "Researcher C: [sub-question 3]", prompt: "You are a BuildFlow Researcher. Research this question: [sub-question 3]. Find 2–3 sources. Rate each trust 1–5 (1=blog opinion, 5=official docs/peer-reviewed). Return: sources with trust scores, then bullet-point key findings. Be concise." })
 ```
 Spawn only as many Researchers as sub-questions (max 3). All Agent calls in one message = parallel execution.
+
+**OpenCode** — spawn all Researchers as subagent tasks in one response (true parallel), same principle as Claude Code above.
 
 **Gemini CLI / Codex CLI / Cursor** — sequential with context isolation:
 `=== Researcher A START ===` → answer sub-question 1, find sources, rate trust → `=== Researcher A END ===`

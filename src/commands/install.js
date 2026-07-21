@@ -128,7 +128,7 @@ const TOOLS = {
         writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
         writeCodexSkill(skillsDir, name, content)
       }
-      patchAgentsMd(join(homedir(), '.codex', 'AGENTS.md'), 'global')
+      patchCodexAgentsMd(join(homedir(), '.codex', 'AGENTS.md'), 'global', commandFiles)
       return `${dir} + ${skillsDir}`
     },
 
@@ -140,11 +140,50 @@ const TOOLS = {
         writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
         writeCodexSkill(skillsDir, name, content)
       }
-      patchAgentsMd(join(process.cwd(), 'AGENTS.md'), 'local')
+      patchCodexAgentsMd(join(process.cwd(), 'AGENTS.md'), 'local', commandFiles)
       return `${dir} + ${skillsDir}`
     },
 
     triggerNote: 'In Codex CLI, use $buildflow-start-epic or say "use buildflow-start-epic". Slash menu commands are not exposed by Codex.',
+  },
+
+  opencode: {
+    id: 'opencode',
+    name: 'OpenCode',
+    description: 'Open-source AI coding agent for the terminal',
+    icon: '🟠',
+    docsUrl: 'https://opencode.ai/docs',
+
+    detect() {
+      const hasCli = (() => { try { which.sync('opencode'); return true } catch { return false } })()
+      const hasConfigDir = existsSync(join(homedir(), '.config', 'opencode'))
+      return hasCli || hasConfigDir
+    },
+
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.opencode', 'command', 'buildflow-start-epic.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.config', 'opencode', 'command', 'buildflow-start-epic.md')) },
+
+    installGlobal(commandFiles) {
+      const dir = join(homedir(), '.config', 'opencode', 'command')
+      mkdirSync(dir, { recursive: true })
+      for (const [name, content] of Object.entries(commandFiles)) {
+        writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
+      }
+      patchOpencodeAgentsMd(join(homedir(), '.config', 'opencode', 'AGENTS.md'), 'global', commandFiles)
+      return dir
+    },
+
+    installLocal(commandFiles) {
+      const dir = join(process.cwd(), '.opencode', 'command')
+      mkdirSync(dir, { recursive: true })
+      for (const [name, content] of Object.entries(commandFiles)) {
+        writeFileSync(join(dir, `buildflow-${name}.md`), guardedCommandContent(content))
+      }
+      patchOpencodeAgentsMd(join(process.cwd(), 'AGENTS.md'), 'local', commandFiles)
+      return dir
+    },
+
+    triggerNote: 'In OpenCode, type "/buildflow-start-epic" in the TUI or @mention the command.',
   },
 
   cursor: {
@@ -322,19 +361,36 @@ function writeGeminiCommand(commandsDir, name, commandContent) {
   writeFileSync(join(commandsDir, `${commandName}.toml`), toml)
 }
 
-function patchAgentsMd(filePath, scope) {
+// Generic AGENTS.md patcher — shared by any tool that reads AGENTS.md for context
+// (Codex CLI, OpenCode). `heading` must be unique per tool so blocks from
+// different tools coexist in the same file without clobbering each other.
+function patchAgentsMd(filePath, heading, body) {
   const existing = readFileSafe(filePath)
-  const dir = scope === 'global' ? '~/.codex/instructions/' : '.codex/instructions/'
-  const block = `## BuildFlow Instructions\n\nWhen the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: start, think, spec, plan, build, test, check, ship, onboard, modify, refactor, hotfix, audit, debug, deploy, docker, workspace, status, explain, back, revert, help\n${UPDATE_CHECK_INSTRUCTION}${FOLDER_ACCESS_GUARD}`
-  if (existing.includes('## BuildFlow Instructions')) {
+  const block = `${heading}\n\n${body}\n${UPDATE_CHECK_INSTRUCTION}${FOLDER_ACCESS_GUARD}`
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (existing.includes(heading)) {
     const updated = existing.replace(
-      /## BuildFlow Instructions[\s\S]*?(?=\n## (?!BuildFlow Update Check|Folder Access Guard)|\n# |$)/,
+      new RegExp(`${escaped}[\\s\\S]*?(?=\\n## (?!BuildFlow Update Check|Folder Access Guard)|\\n# |$)`),
       block
     )
     writeFileSync(filePath, updated)
   } else {
     writeFileSync(filePath, existing + (existing ? '\n\n' : '') + block)
   }
+}
+
+function patchCodexAgentsMd(filePath, scope, commandFiles) {
+  const dir = scope === 'global' ? '~/.codex/instructions/' : '.codex/instructions/'
+  const commandList = Object.keys(commandFiles).map(name => `buildflow-${name}`).join(', ')
+  const body = `When the user types $buildflow-<command> or /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: ${commandList}`
+  patchAgentsMd(filePath, '## BuildFlow Instructions', body)
+}
+
+function patchOpencodeAgentsMd(filePath, scope, commandFiles) {
+  const dir = scope === 'global' ? '~/.config/opencode/command/' : '.opencode/command/'
+  const commandList = Object.keys(commandFiles).map(name => `buildflow-${name}`).join(', ')
+  const body = `When the user types /buildflow-<command>, load the matching file from ${dir} and follow those instructions.\n\nAvailable commands: ${commandList}`
+  patchAgentsMd(filePath, '## BuildFlow OpenCode Instructions', body)
 }
 
 function writeCodexSkill(skillsDir, name, commandContent) {
@@ -526,7 +582,16 @@ function refreshProjectLocal(projectPath, commandFiles) {
       writeFileSync(join(codexDir, `buildflow-${name}.md`), guardedCommandContent(content))
       writeCodexSkill(join(projectPath, '.codex', 'skills'), name, content)
     }
-    patchAgentsMd(join(projectPath, 'AGENTS.md'), 'local')
+    patchCodexAgentsMd(join(projectPath, 'AGENTS.md'), 'local', commandFiles)
+    refreshed = true
+  }
+
+  const opencodeDir = join(projectPath, '.opencode', 'command')
+  if (existsSync(opencodeDir)) {
+    for (const [name, content] of Object.entries(commandFiles)) {
+      writeFileSync(join(opencodeDir, `buildflow-${name}.md`), guardedCommandContent(content))
+    }
+    patchOpencodeAgentsMd(join(projectPath, 'AGENTS.md'), 'local', commandFiles)
     refreshed = true
   }
 
@@ -695,7 +760,7 @@ export function printBuildFlowBanner(subtitle = 'AI Tool Integration') {
   console.log(chalk.bold.white(`  BuildFlow ${chalk.dim(`v${pkg.version}`)}`))
   console.log(chalk.dim(`  Developed by ${author}`))
   console.log(chalk.white('  Spec-driven, multi-agent AI development orchestration.'))
-  console.log(chalk.dim('  Works with Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.'))
+  console.log(chalk.dim('  Works with Claude Code, Gemini CLI, Codex CLI, OpenCode, Cursor, Cline, and Continue.'))
   console.log('')
   console.log(chalk.bold.white('  Status'))
   console.log(chalk.green('  ✓ Commands') + chalk.dim('        BuildFlow workflows for supported AI tools'))

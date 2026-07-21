@@ -1,11 +1,12 @@
 ﻿# BuildFlow
 
-> From epic to ship — spec-driven, multi-agent AI development with epics, planning, build, test, debug, perf, security audit, and deploy — for Claude Code, Gemini CLI, Codex CLI, Cursor, Cline, and Continue.
+> From epic to ship — spec-driven, multi-agent AI development with epics, planning, build, test, debug, perf, security audit, and deploy — for Claude Code, Gemini CLI, Codex CLI, OpenCode, Cursor, Cline, and Continue.
 > **v8.0** — Session continuity, epic templates, performance profiling, multi-agent execution, PR generation, database migration management, production observability, and OpenAPI generation from spec.
 
 [![npm version](https://badge.fury.io/js/buildflow-dev.svg)](https://www.npmjs.com/package/buildflow-dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![Socket Badge](https://socket.dev/api/badge/npm/package/buildflow-dev)](https://socket.dev/npm/package/buildflow-dev)
 
 ---
 
@@ -96,6 +97,7 @@ Codebase drift is automatically detected at every session start — schema chang
 | **Claude Code** | `claude` CLI or `~/.claude/` | `~/.claude/commands/buildflow-*.md` | `.claude/commands/buildflow-*.md` | `/buildflow-*` |
 | **Gemini CLI** | `gemini` CLI | `~/.gemini/commands/*.md` + `GEMINI.md` | `.gemini/commands/*.md` + `GEMINI.md` | `/buildflow-*` |
 | **Codex CLI** | `codex` CLI | `~/.codex/instructions/` + `skills/` | `.codex/instructions/` + `skills/` | `$buildflow-*` |
+| **OpenCode** | `opencode` CLI or `~/.config/opencode/` | `~/.config/opencode/command/` + `AGENTS.md` | `.opencode/command/` + `AGENTS.md` | `/buildflow-*` |
 | **Cursor** | `~/.cursor/` or app dir | (falls back to local) | `.cursor/rules/buildflow.mdc` | `@buildflow-*` |
 | **Cline** | VS Code extension `saoudrizwan.claude-dev` | (falls back to local) | `.clinerules` | `/buildflow-*` |
 | **Continue** | `~/.continue/config.json` | `~/.continue/buildflow/*.md` + config patch | `.continue/buildflow/*.md` | `/buildflow-*` |
@@ -1047,8 +1049,8 @@ buildflow-dev/
 │   │   ├── install.js            TOOLS object: one entry per supported AI tool.
 │   │   │                         Each tool has: detect(), installGlobal(), installLocal().
 │   │   │                         Adds update checks, Folder Access Guard, and STATE.md
-│   │   │                         resume rules to Claude, Gemini, Codex, Cursor, Cline,
-│   │   │                         and Continue command surfaces.
+│   │   │                         resume rules to Claude, Gemini, Codex, OpenCode, Cursor,
+│   │   │                         Cline, and Continue command surfaces.
 │   │   │                         loadCommandTemplates() reads all 28 .md files from
 │   │   │                         templates/commands/ and returns them as a map.
 │   │   │                         commandNames array drives which templates are installed.

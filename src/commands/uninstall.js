@@ -12,10 +12,10 @@ const COMMAND_NAMES = [
   'debug', 'perf', 'deploy', 'docker', 'workspace', 'pr', 'migrate', 'observe',
   'status', 'explain', 'back', 'revert', 'help',
   'complete-epic', 'switch-epic', 'settings',
-  'ui-spec', 'ui-review',
+  'ui-spec', 'ui-review', 'review',
 ]
 
-const TOOL_IDS = ['claude', 'gemini', 'codex', 'cursor', 'cline', 'continue']
+const TOOL_IDS = ['claude', 'gemini', 'codex', 'opencode', 'cursor', 'cline', 'continue']
 
 function readFileSafe(filePath) {
   try { return readFileSync(filePath, 'utf8') } catch { return '' }
@@ -33,7 +33,7 @@ function removeBuildFlowBlock(filePath, heading, removed) {
 
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const updated = existing
-    .replace(new RegExp(`\\n*${escaped}[\\s\\S]*?(?=\\n## |\\n# |$)`, 'g'), '')
+    .replace(new RegExp(`\\n*${escaped}[\\s\\S]*?(?=\\n## (?!BuildFlow Update Check|Folder Access Guard)|\\n# |$)`, 'g'), '')
     .trimStart()
 
   if (updated.trim() === '') {
@@ -90,6 +90,19 @@ function uninstallCodex(scope, removed) {
   }
   const agentsPath = scope === 'global' ? join(base, '.codex', 'AGENTS.md') : join(base, 'AGENTS.md')
   removeBuildFlowBlock(agentsPath, '## BuildFlow Instructions', removed)
+}
+
+function uninstallOpencode(scope, removed) {
+  const dir = scope === 'global'
+    ? join(homedir(), '.config', 'opencode', 'command')
+    : join(process.cwd(), '.opencode', 'command')
+  for (const name of COMMAND_NAMES) {
+    removePath(join(dir, `buildflow-${name}.md`), removed)
+  }
+  const agentsPath = scope === 'global'
+    ? join(homedir(), '.config', 'opencode', 'AGENTS.md')
+    : join(process.cwd(), 'AGENTS.md')
+  removeBuildFlowBlock(agentsPath, '## BuildFlow OpenCode Instructions', removed)
 }
 
 function uninstallCursor(scope, removed) {
@@ -188,6 +201,7 @@ export async function run(opts = {}) {
     claude: uninstallClaude,
     gemini: uninstallGemini,
     codex: uninstallCodex,
+    opencode: uninstallOpencode,
     cursor: uninstallCursor,
     cline: uninstallCline,
     continue: uninstallContinue,
@@ -206,6 +220,7 @@ export async function run(opts = {}) {
   pruneEmptyDirs(join(process.cwd(), '.claude'))
   pruneEmptyDirs(join(process.cwd(), '.gemini'))
   pruneEmptyDirs(join(process.cwd(), '.codex'))
+  pruneEmptyDirs(join(process.cwd(), '.opencode'))
   pruneEmptyDirs(join(process.cwd(), '.cursor'))
   pruneEmptyDirs(join(process.cwd(), '.continue'))
 

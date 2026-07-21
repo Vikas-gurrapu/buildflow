@@ -88,6 +88,8 @@ If this is a factual/technical question with meaningful tradeoffs:
   Agent({ description: "Researcher: [option C]", prompt: "You are a BuildFlow Researcher. Research option: [option C] for [project type]. Find: key strengths, key risks, best fit for this project type, source trust score 1–5. Be concise." })
   ```
 
+  **OpenCode** — spawn all Researchers as subagent tasks in one response (true parallel), same principle as Claude Code above.
+
   **Gemini CLI / Codex CLI / Cursor** — sequential:
   `=== Researcher [A]: [option A] START ===` → strengths, risks, fit, trust score → `=== END ===` (repeat per option)
 
