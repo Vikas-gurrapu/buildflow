@@ -1,6 +1,6 @@
 {
   "name": "buildflow-dev",
-  "version": "8.0.7",
+  "version": "8.0.9",
   "description": "From epic to ship — spec-driven, multi-agent AI development with epics, planning, build, test, debug, perf, security audit, and deploy. Works with Claude Code, Gemini CLI, Codex CLI, OpenCode, Cursor, Cline, and Continue.",
   "keywords": [
     "ai",
@@ -53,6 +53,9 @@
     "enquirer": "^2.4.1",
     "ora": "^8.0.1",
     "which": "^4.0.0"
+  },
+  "overrides": {
+    "is-interactive": "npm:@socketregistry/is-interactive@^1.0.6"
   },
   "devDependencies": {
     "eslint": "^8.56.0"
