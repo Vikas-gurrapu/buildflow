@@ -54,6 +54,9 @@
     "ora": "^8.0.1",
     "which": "^4.0.0"
   },
+  "overrides": {
+    "is-interactive": "npm:@socketregistry/is-interactive@^1.0.6"
+  },
   "devDependencies": {
     "eslint": "^8.56.0"
   },
