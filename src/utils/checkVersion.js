@@ -3,7 +3,7 @@ import { join } from 'path'
 import { homedir } from 'os'
 
 const REGISTRY_URL   = 'https://registry.npmjs.org/buildflow-dev/latest'
-const UPDATE_FILE    = '.buildflow/core/UPDATE.md'
+const UPDATE_FILE    = '.buildflow/UPDATE.md'
 const REGISTRY_PATH  = join(homedir(), '.buildflow', 'projects.json')
 
 function getProjectRegistry() {
@@ -16,7 +16,7 @@ function allProjectPaths() {
   if (!projects.includes(cwd) && existsSync(join(cwd, '.buildflow'))) {
     projects.push(cwd)
   }
-  return projects.filter(p => existsSync(join(p, '.buildflow', 'core')))
+  return projects.filter(p => existsSync(join(p, '.buildflow')))
 }
 
 export async function checkVersion(currentVersion) {

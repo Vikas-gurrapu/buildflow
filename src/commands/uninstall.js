@@ -1,13 +1,13 @@
 import chalk from 'chalk'
 import enquirer from 'enquirer'
-import { existsSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'fs'
+import { existsSync, rmSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
 
 const { prompt } = enquirer
 
 const COMMAND_NAMES = [
-  'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship',
+  'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship', 'auto',
   'onboard', 'modify', 'refactor', 'hotfix', 'audit',
   'debug', 'perf', 'deploy', 'docker', 'workspace', 'pr', 'migrate', 'observe',
   'status', 'explain', 'back', 'revert', 'help',
@@ -108,13 +108,29 @@ function uninstallOpencode(scope, removed) {
 function uninstallCursor(scope, removed) {
   if (scope === 'global') return
   removePath(join(process.cwd(), '.cursor', 'rules', 'buildflow.mdc'), removed)
+  for (const name of COMMAND_NAMES) {
+    removePath(join(process.cwd(), '.cursor', 'commands', `buildflow-${name}.md`), removed)
+  }
 }
 
 function uninstallCline(scope, removed) {
   if (scope === 'global') return
   const rulesPath = join(process.cwd(), '.clinerules')
-  if (readFileSafe(rulesPath).includes('BuildFlow')) {
-    removePath(rulesPath, removed)
+  if (!existsSync(rulesPath)) return
+
+  // Old format: a single .clinerules file authored entirely by BuildFlow — safe to remove outright.
+  if (statSync(rulesPath).isFile()) {
+    if (readFileSafe(rulesPath).includes('BuildFlow')) {
+      removePath(rulesPath, removed)
+    }
+    return
+  }
+
+  // New format: .clinerules/ is a directory that may hold the user's own rules/workflows
+  // alongside BuildFlow's — remove only BuildFlow's own files, never the whole directory.
+  removePath(join(rulesPath, 'buildflow.md'), removed)
+  for (const name of COMMAND_NAMES) {
+    removePath(join(rulesPath, 'workflows', `buildflow-${name}.md`), removed)
   }
 }
 
@@ -222,6 +238,7 @@ export async function run(opts = {}) {
   pruneEmptyDirs(join(process.cwd(), '.codex'))
   pruneEmptyDirs(join(process.cwd(), '.opencode'))
   pruneEmptyDirs(join(process.cwd(), '.cursor'))
+  pruneEmptyDirs(join(process.cwd(), '.clinerules'))
   pruneEmptyDirs(join(process.cwd(), '.continue'))
 
   if (removed.length === 0) {

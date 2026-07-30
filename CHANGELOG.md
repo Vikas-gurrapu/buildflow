@@ -4,6 +4,26 @@ All notable changes to buildflow-dev are documented here.
 
 ---
 
+## [8.1.0] — 2026-07-30
+
+### Added
+
+- **`/buildflow-auto`** — autopilot command that chains `/buildflow-discuss` → `/buildflow-build` (all remaining waves) → `/buildflow-check` → `/buildflow-ship` without requiring you to re-type each command or answer every prompt. Auto-locks open discuss questions using the same recommendation logic `/buildflow-discuss` would show you (deferring instead to a human on low-confidence 1–2/5 recommendations), drives every remaining build wave back-to-back using each gate's existing recommended resolution, then runs check and ship unattended. Always stops for HARD/SCOPE deviations, real coverage/bundle regressions, git failures, a check FAIL, or a blocked ship gate — and never runs `/buildflow-deploy` regardless of how far it's told to go. Supports `--stop-at build`, `--stop-at check`, and `--dry-run`. Every auto-decision is logged (`Auto-decided: true` in `CONTEXT.md`) so it's reviewable after the run.
+
+### Fixed
+
+- **`update --check` no longer prints anything when already up to date.** This command runs at the start of every AI session (Claude Code, Gemini CLI, Codex CLI, OpenCode, Cline, Continue) to silently check for a new version. It previously printed a "BuildFlow Update Check ✓ Up to date" block unconditionally on every run — some AI tools (Gemini CLI in particular) surface that raw output to the user regardless of what the AI is instructed to do with it, so users saw an update-check notice every single session even with nothing to report. Now it's a true no-op unless a newer version genuinely exists.
+- **Update-notice path mismatch** — `checkVersion.js` wrote to `.buildflow/core/UPDATE.md`, but no code path (including `init.js`'s scaffolder) ever creates a `.buildflow/core/` directory, and `templates/CLAUDE.md`'s session-start check looked for the flat `.buildflow/UPDATE.md`. Both the write path and the cross-project registry filter (`allProjectPaths()`) are now aligned to the real flat `.buildflow/` layout, so the update notice actually persists and is found.
+- **`welcome.js` project banner always showed `? (?)`** — it read `.buildflow/core/state.md` (never created) and matched a plain-text `Project:`/`Type:` format against what's actually a markdown table in `STATE.md`. Fixed to read `.buildflow/STATE.md` and match the real `| **Project** | ... |` table format — running bare `buildflow` in an initialized project now shows the actual app name and type.
+- **Cursor and Cline rules always displayed "BuildFlow v8.0"** regardless of actual installed version — both hardcoded `v${major}.0` instead of the real version. Now show the real `pkg.version` (e.g. `v8.1.0`); same fix applied to the bare `buildflow` CLI welcome banner (`welcome.js`), which had the identical bug.
+- **Continue's install detection always reported "not installed."** `isInstalledLocal()`/`isInstalledGlobal()` checked for a file named `start.md`, but the installer actually writes `start-epic.md` (from the `start-epic` command name) — the check now matches what's actually written.
+- **Cursor and Cline rules referenced a nonexistent `.buildflow/you/preferences.md` and `.buildflow/memory/light.md`** (also present in the shared `FOLDER_ACCESS_GUARD` instruction block used by Gemini/Codex/OpenCode) instead of the real `.buildflow/PREFERENCES.md` and `.buildflow/MEMORY.md`. Cline's rules also said to keep memory under 5K tokens, inconsistent with the 3K-token convention used everywhere else. All aligned to the real paths and threshold.
+- **Cursor and Cline installs never actually delivered any command content.** `cursorRulesContent()` and `clineRulesContent()` only ever listed command *names* in the single rules file (`buildflow.mdc` / `.clinerules`) — neither wrote the real step-by-step instructions anywhere, and both files falsely claimed the content lived in a `.buildflow/commands/` directory that nothing ever creates. Every other supported tool (Claude Code, Gemini CLI, Codex CLI, OpenCode, Continue) writes real per-command content; Cursor and Cline now do too, using each tool's own native mechanism:
+  - **Cursor** — real content written to `.cursor/commands/buildflow-<name>.md`, Cursor's own custom-slash-command feature (`/buildflow-build`). `.cursor/rules/buildflow.mdc` stays a short, always-loaded context file as it should be.
+  - **Cline** — real content written to `.clinerules/workflows/buildflow-<name>.md`, Cline's own Workflows feature, invoked as `/buildflow-build.md` (the `.md` suffix is part of Cline's own trigger syntax). `.clinerules` moves from a single file to a directory (`.clinerules/buildflow.md` holds the short always-loaded context) so workflows can live alongside it — any pre-existing file-based `.clinerules` install is migrated automatically on the next `buildflow install`/`update`. Uninstall now removes only BuildFlow's own files from `.clinerules/`, never the directory itself, so any of the user's own Cline rules or workflows are left untouched.
+
+---
+
 ## [7.1.0] — 2026-05-29
 
 ### Added
