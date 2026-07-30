@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 import enquirer from 'enquirer'
 import which from 'which'
-import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, rmSync } from 'fs'
 import { join, dirname } from 'path'
 import { homedir } from 'os'
 import { fileURLToPath } from 'url'
@@ -201,7 +201,7 @@ const TOOLS = {
       return hasCursorApp || hasCursorDir
     },
 
-    isInstalledLocal()  { return existsSync(join(process.cwd(), '.cursor', 'rules', 'buildflow.mdc')) },
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.cursor', 'commands', 'buildflow-start-epic.md')) },
     isInstalledGlobal() { return this.isInstalledLocal() },
 
     installGlobal(commandFiles) {
@@ -212,10 +212,16 @@ const TOOLS = {
       const rulesDir = join(process.cwd(), '.cursor', 'rules')
       mkdirSync(rulesDir, { recursive: true })
       writeFileSync(join(rulesDir, 'buildflow.mdc'), cursorRulesContent(commandFiles))
-      return rulesDir
+
+      const commandsDir = join(process.cwd(), '.cursor', 'commands')
+      mkdirSync(commandsDir, { recursive: true })
+      for (const [name, content] of Object.entries(commandFiles)) {
+        writeCursorCommand(commandsDir, name, content)
+      }
+      return commandsDir
     },
 
-    triggerNote: 'In Cursor Chat, type @BuildFlow or reference rules using # in composer',
+    triggerNote: 'In Cursor, type /buildflow-start-epic in chat to run a command',
   },
 
   cline: {
@@ -237,7 +243,9 @@ const TOOLS = {
     },
 
     isInstalledLocal() {
-      return readFileSafe(join(process.cwd(), '.clinerules')).includes('BuildFlow')
+      const clinerules = join(process.cwd(), '.clinerules')
+      return readFileSafe(join(clinerules, 'buildflow.md')).includes('BuildFlow')
+        || readFileSafe(clinerules).includes('BuildFlow')
     },
     isInstalledGlobal() { return this.isInstalledLocal() },
 
@@ -246,11 +254,19 @@ const TOOLS = {
     },
 
     installLocal(commandFiles) {
-      writeFileSync(join(process.cwd(), '.clinerules'), clineRulesContent(commandFiles))
-      return process.cwd()
+      const clinerulesDir = migrateClineRulesToDirectory(process.cwd())
+      mkdirSync(clinerulesDir, { recursive: true })
+      writeFileSync(join(clinerulesDir, 'buildflow.md'), clineRulesContent(commandFiles))
+
+      const workflowsDir = join(clinerulesDir, 'workflows')
+      mkdirSync(workflowsDir, { recursive: true })
+      for (const [name, content] of Object.entries(commandFiles)) {
+        writeClineWorkflow(workflowsDir, name, content)
+      }
+      return clinerulesDir
     },
 
-    triggerNote: 'Cline reads .clinerules automatically. Type "use /buildflow-start-epic" in Cline chat.',
+    triggerNote: 'In Cline chat, type /buildflow-start-epic.md to run a workflow',
   },
 
   continue: {
@@ -264,8 +280,8 @@ const TOOLS = {
       return existsSync(join(homedir(), '.continue', 'config.json'))
     },
 
-    isInstalledLocal()  { return existsSync(join(process.cwd(), '.continue', 'buildflow', 'start.md')) },
-    isInstalledGlobal() { return existsSync(join(homedir(), '.continue', 'buildflow', 'start.md')) },
+    isInstalledLocal()  { return existsSync(join(process.cwd(), '.continue', 'buildflow', 'start-epic.md')) },
+    isInstalledGlobal() { return existsSync(join(homedir(), '.continue', 'buildflow', 'start-epic.md')) },
 
     installGlobal(commandFiles) {
       const dir = join(homedir(), '.continue', 'buildflow')
@@ -296,7 +312,7 @@ const UPDATE_CHECK_INSTRUCTION = `
 
 At the very start of every session, before anything else:
 1. Run this shell command silently: \`npx buildflow-dev@latest update --check\`
-2. If \`.buildflow/core/UPDATE.md\` exists after the check, notify the user:
+2. If \`.buildflow/UPDATE.md\` exists after the check, notify the user:
    > "BuildFlow update available — run \`npx buildflow-dev@latest update\` to upgrade."
    Then show the contents of UPDATE.md so the user sees the version details.
 3. If the file does not exist, proceed silently.
@@ -305,7 +321,7 @@ At the very start of every session, before anything else:
 const FOLDER_ACCESS_GUARD = `
 ## Folder Access Guard
 
-Before reading or writing any file outside \`.buildflow/\`, check \`.buildflow/you/preferences.md\` → \`path_permissions\`:
+Before reading or writing any file outside \`.buildflow/\`, check \`.buildflow/PREFERENCES.md\` → \`path_permissions\`:
 
 1. Extract the top-level folder of the target path — e.g., \`src/auth/service.ts\` → \`src/\`, \`tests/auth/\` → \`tests/\`
 2. Look up that folder in \`path_permissions\`:
@@ -323,8 +339,8 @@ BuildFlow needs access to [folder]/
 \`\`\`
 
    - **[1]**: proceed, cache approval for this session only
-   - **[2]**: add \`  [folder]/: approved\` under \`path_permissions\` in \`.buildflow/you/preferences.md\`, then proceed
-   - **[3]**: add \`  [folder]/: denied\` under \`path_permissions\` in \`.buildflow/you/preferences.md\`, skip this path
+   - **[2]**: add \`  [folder]/: approved\` under \`path_permissions\` in \`.buildflow/PREFERENCES.md\`, then proceed
+   - **[3]**: add \`  [folder]/: denied\` under \`path_permissions\` in \`.buildflow/PREFERENCES.md\`, skip this path
 
 **Rules:**
 - Ask once per folder per session — cache the response, never ask again for the same folder this session
@@ -414,9 +430,17 @@ function escapeYamlString(value) {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
+// Writes the real, full guarded instructions for one command as a native
+// Cursor custom slash command (.cursor/commands/buildflow-<name>.md).
+// Typing /buildflow-<name> in Cursor chat inserts this file's content directly —
+// unlike the always-loaded buildflow.mdc rule, which stays deliberately short.
+function writeCursorCommand(commandsDir, name, commandContent) {
+  writeFileSync(join(commandsDir, `buildflow-${name}.md`), guardedCommandContent(commandContent))
+}
+
 function cursorRulesContent(commandFiles) {
   const commandDescriptions = Object.keys(commandFiles)
-    .map(name => `- @buildflow-${name}`)
+    .map(name => `- /buildflow-${name}`)
     .join('\n')
   return `---
 description: BuildFlow development orchestration commands
@@ -424,24 +448,25 @@ globs: ["**/*"]
 alwaysApply: false
 ---
 
-# BuildFlow v${pkg.version.split('.')[0]}.0
+# BuildFlow v${pkg.version}
 
 You are integrated with BuildFlow, an adaptive development orchestration system.
 ${UPDATE_CHECK_INSTRUCTION}
 ${FOLDER_ACCESS_GUARD}
 ## Available Commands
 
-When the user types @buildflow-<command> or references a buildflow command, execute the corresponding workflow:
+Each command below is a real Cursor custom command in \`.cursor/commands/\` — typing it in chat
+loads and executes that command's full instructions:
 
 ${commandDescriptions}
 
 ## Core Rules
 
-1. Load .buildflow/memory/light.md at session start
+1. Load .buildflow/MEMORY.md at session start
 2. Ask confidence (1-5) on major decisions
 3. Show alternatives before locking choices
 4. Add LEARN: comments for new concepts
-5. Respect \`.buildflow/you/preferences.md\` git.permission before any git command
+5. Respect \`.buildflow/PREFERENCES.md\` git.permission before any git command
 6. Create restore points before destructive changes (file snapshot unless git.permission is approved)
 7. Run security checks before shipping
 8. Cite sources with trust scores
@@ -461,34 +486,57 @@ Use these specialized agents based on context:
 `
 }
 
+// Cline's Rules feature supports `.clinerules` as either a single file or a
+// directory of multiple files. BuildFlow needs the directory form so real
+// per-command content can live in workflows/ alongside it — if an older
+// install left `.clinerules` as a plain file, remove it first so the
+// directory can take its place. Returns the `.clinerules` directory path.
+function migrateClineRulesToDirectory(projectDir) {
+  const clinerulesPath = join(projectDir, '.clinerules')
+  if (existsSync(clinerulesPath) && statSync(clinerulesPath).isFile()) {
+    rmSync(clinerulesPath)
+  }
+  return clinerulesPath
+}
+
+// Writes the real, full guarded instructions for one command as a Cline
+// Workflow (.clinerules/workflows/buildflow-<name>.md). Cline invokes these
+// on-demand, injecting the file's content only when the user types
+// /buildflow-<name>.md — unlike .clinerules/buildflow.md, which is loaded
+// into every message and stays deliberately short.
+function writeClineWorkflow(workflowsDir, name, commandContent) {
+  writeFileSync(join(workflowsDir, `buildflow-${name}.md`), guardedCommandContent(commandContent))
+}
+
 function clineRulesContent(commandFiles) {
   const commandList = Object.keys(commandFiles)
-    .map(name => `- /buildflow-${name}`)
+    .map(name => `- /buildflow-${name}.md`)
     .join('\n')
-  return `# BuildFlow v${pkg.version.split('.')[0]}.0 Rules for Cline
+  return `# BuildFlow v${pkg.version} Rules for Cline
 ${UPDATE_CHECK_INSTRUCTION}
 ${FOLDER_ACCESS_GUARD}
-## Slash Commands
+## Workflows
 
-When the user types any of the following commands, load the corresponding instruction file from .buildflow/commands/:
+Each command below is a real Cline Workflow in \`.clinerules/workflows/\` — typing it in chat
+(including the .md suffix) injects that workflow's full instructions on-demand:
 
 ${commandList}
 
 ## Core Behavior
 
-- Always load .buildflow/memory/light.md first
+- Always load .buildflow/MEMORY.md first
 - Ask confidence (1-5) on major architectural decisions
 - Show alternatives before making choices
 - Generate LEARN: comments for unfamiliar concepts
 - Run /buildflow-audit before shipping
 - Cite all research sources with trust scores (1-5)
-- Respect \`.buildflow/you/preferences.md\` git.permission before any git command
+- Respect \`.buildflow/PREFERENCES.md\` git.permission before any git command
 - Create restore points before destructive operations (file snapshot unless git.permission is approved)
 
 ## Memory
 
-Light memory is stored in .buildflow/memory/light.md.
-Keep it under 5K tokens. Distill insights, don't log events.
+Persistent memory is stored in .buildflow/MEMORY.md.
+Keep it under 3K tokens. Distill insights, don't log events.
 `
 }
 
@@ -595,15 +643,29 @@ function refreshProjectLocal(projectPath, commandFiles) {
     refreshed = true
   }
 
-  const cursorDir = join(projectPath, '.cursor', 'rules')
-  if (existsSync(join(cursorDir, 'buildflow.mdc'))) {
-    writeFileSync(join(cursorDir, 'buildflow.mdc'), cursorRulesContent(commandFiles))
+  const cursorRulesDir = join(projectPath, '.cursor', 'rules')
+  const cursorCommandsDir = join(projectPath, '.cursor', 'commands')
+  if (existsSync(join(cursorRulesDir, 'buildflow.mdc')) || existsSync(join(cursorCommandsDir, 'buildflow-start-epic.md'))) {
+    writeFileSync(join(cursorRulesDir, 'buildflow.mdc'), cursorRulesContent(commandFiles))
+    mkdirSync(cursorCommandsDir, { recursive: true })
+    for (const [name, content] of Object.entries(commandFiles)) {
+      writeCursorCommand(cursorCommandsDir, name, content)
+    }
     refreshed = true
   }
 
-  const clineRules = join(projectPath, '.clinerules')
-  if (readFileSafe(clineRules).includes('BuildFlow')) {
-    writeFileSync(clineRules, clineRulesContent(commandFiles))
+  const clinerulesPath = join(projectPath, '.clinerules')
+  const clinerulesInstalled = readFileSafe(join(clinerulesPath, 'buildflow.md')).includes('BuildFlow')
+    || readFileSafe(clinerulesPath).includes('BuildFlow')
+  if (clinerulesInstalled) {
+    const clinerulesDir = migrateClineRulesToDirectory(projectPath)
+    mkdirSync(clinerulesDir, { recursive: true })
+    writeFileSync(join(clinerulesDir, 'buildflow.md'), clineRulesContent(commandFiles))
+    const workflowsDir = join(clinerulesDir, 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    for (const [name, content] of Object.entries(commandFiles)) {
+      writeClineWorkflow(workflowsDir, name, content)
+    }
     refreshed = true
   }
 
@@ -830,7 +892,7 @@ function loadCommandTemplates() {
   const templatesDir = join(__dirname, '../../templates/commands')
 
   const commandNames = [
-    'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship',
+    'start-epic', 'think', 'discuss', 'spec', 'plan', 'build', 'test', 'check', 'ship', 'auto',
     'onboard', 'modify', 'refactor', 'hotfix', 'audit',
     'debug', 'perf', 'deploy', 'docker', 'workspace', 'pr', 'migrate', 'observe',
     'status', 'explain', 'back', 'revert', 'help',

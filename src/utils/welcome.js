@@ -18,13 +18,12 @@ export async function showWelcome() {
   }).catch(() => {})
   const isInitialized = existsSync(join(process.cwd(), '.buildflow'))
 
-  const majorVersion = `v${pkg.version.split('.')[0]}.0`
   console.log(
     '\n  ' +
     chalk.bold.hex('#8B5CF6')('Build') +
     chalk.bold.hex('#6366F1')('Flow') +
     ' ' +
-    chalk.bold.hex('#F59E0B')(majorVersion)
+    chalk.bold.hex('#F59E0B')(`v${pkg.version}`)
   )
   console.log(chalk.dim('  From epic to ship — multi-agent, spec-driven AI development\n'))
 
@@ -43,12 +42,11 @@ export async function showWelcome() {
   if (isInitialized) {
     let state = {}
     try {
-      const statePath = join(process.cwd(), '.buildflow', 'core', 'state.md')
+      const statePath = join(process.cwd(), '.buildflow', 'STATE.md')
       const raw = readFileSync(statePath, 'utf8')
       state = {
-        app:   raw.match(/Project:\s*(.+)/)?.[1]?.trim() ?? '?',
-        type:  raw.match(/Type:\s*(.+)/)?.[1]?.trim() ?? '?',
-        phase: raw.match(/Phase:\s*(.+)/)?.[1]?.trim() ?? '0',
+        app:  raw.match(/\|\s*\*\*Project\*\*\s*\|\s*([^|]+?)\s*\|/)?.[1] ?? '?',
+        type: raw.match(/\|\s*\*\*Type\*\*\s*\|\s*([^|]+?)\s*\|/)?.[1] ?? '?',
       }
     } catch {}
 

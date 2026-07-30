@@ -1,7 +1,6 @@
 ﻿# BuildFlow
 
 > From epic to ship — spec-driven, multi-agent AI development with epics, planning, build, test, debug, perf, security audit, and deploy — for Claude Code, Gemini CLI, Codex CLI, OpenCode, Cursor, Cline, and Continue.
-> **v8.0** — Session continuity, epic templates, performance profiling, multi-agent execution, PR generation, database migration management, production observability, and OpenAPI generation from spec.
 
 [![npm version](https://badge.fury.io/js/buildflow-dev.svg)](https://www.npmjs.com/package/buildflow-dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -21,15 +20,17 @@
 - [Git Permission System](#git-permission-system)
 - [No-Git Mode](#no-git-mode)
 - [Spec Governance](#spec-governance)
+- [Docker Integration](#docker-integration)
 - [Post-Ship Feature Advisor](#post-ship-feature-advisor)
 - [How It Works](#how-it-works)
 - [Package Source Structure](#package-source-structure)
 - [The .buildflow/ Scaffold](#the-buildflow-scaffold)
 - [Template System](#template-system)
 - [9 Specialized Agents](#9-specialized-agents)
-- [v7.0: What's New](#v70-whats-new)
+- [Changelog](#changelog)
 - [Contributing](#contributing)
 - [Publishing](#publishing)
+- [License](#license)
 
 ---
 
@@ -48,6 +49,21 @@ Once installed, you work entirely inside your AI tool using `/buildflow-*` comma
 - **Context isolation + resume:** Each agent receives a minimal context packet, and each epic keeps a compact `STATE.md` so fresh sessions can continue cleanly.
 - **Auto-prune:** `MEMORY.md` is automatically compressed at session start and after each ship. Long sessions stay lean.
 - **Cross-project intelligence:** Global learnings written at every milestone completion surface relevant insights in future projects using the same framework.
+
+**Feature highlights:**
+
+| Feature | What it does |
+|---------|---------------|
+| **Autopilot** (`/buildflow-auto`) | Chains discuss → build (all waves) → check → ship unattended; stops only for real deviations, regressions, or a blocked gate |
+| **Multi-repo workspace** | Full spec/build/check/ship workflow across sibling repos in dependency order, from one workspace root |
+| **Parallel multi-agent review** (`/buildflow-review`) | Spec-only gate before build, full code review after — multiple focused reviewers, one lens each |
+| **Session continuity** | `/buildflow-debug`, `/buildflow-hotfix`, and `/buildflow-perf` save state lazily and resume with `--continue` |
+| **Spec governance** | Versioned specs, approval audit trail, amendment gate, spec diff viewer, coverage threshold |
+| **Build telemetry** | Type-check, lint, coverage, and bundle-size gates at every wave; deviations tracked as HARD/SOFT/SCOPE |
+| **Git worktree isolation** | Each Builder works in its own worktree; no-git mode falls back to file snapshots everywhere |
+| **15-language detection** | JS/TS, Python, Rust, Go, Java, Kotlin, C#, Ruby, PHP, Dart/Flutter, Swift, Scala, Elixir, C/C++, Haskell |
+| **Post-ship feature advisor** | Auto competitor + engineering-standards research after every ship |
+| **Cross-project learnings** | Insights extracted at milestone completion surface in future projects using the same framework |
 
 ---
 
@@ -95,12 +111,14 @@ Codebase drift is automatically detected at every session start — schema chang
 | Tool | Auto-detect Method | Global Install Path | Local Install Path | Trigger |
 |------|-------------------|--------------------|--------------------|---------|
 | **Claude Code** | `claude` CLI or `~/.claude/` | `~/.claude/commands/buildflow-*.md` | `.claude/commands/buildflow-*.md` | `/buildflow-*` |
-| **Gemini CLI** | `gemini` CLI | `~/.gemini/commands/*.md` + `GEMINI.md` | `.gemini/commands/*.md` + `GEMINI.md` | `/buildflow-*` |
+| **Gemini CLI** | `gemini` CLI | `~/.gemini/commands/*.toml` + `GEMINI.md` | `.gemini/commands/*.toml` + `GEMINI.md` | `/buildflow-*` |
 | **Codex CLI** | `codex` CLI | `~/.codex/instructions/` + `skills/` | `.codex/instructions/` + `skills/` | `$buildflow-*` |
 | **OpenCode** | `opencode` CLI or `~/.config/opencode/` | `~/.config/opencode/command/` + `AGENTS.md` | `.opencode/command/` + `AGENTS.md` | `/buildflow-*` |
-| **Cursor** | `~/.cursor/` or app dir | (falls back to local) | `.cursor/rules/buildflow.mdc` | `@buildflow-*` |
-| **Cline** | VS Code extension `saoudrizwan.claude-dev` | (falls back to local) | `.clinerules` | `/buildflow-*` |
+| **Cursor** | `~/.cursor/` or app dir | (falls back to local) | `.cursor/rules/buildflow.mdc` + `.cursor/commands/*.md` | `/buildflow-*` |
+| **Cline** | VS Code extension `saoudrizwan.claude-dev` | (falls back to local) | `.clinerules/buildflow.md` + `.clinerules/workflows/*.md` | `/buildflow-*.md` |
 | **Continue** | `~/.continue/config.json` | `~/.continue/buildflow/*.md` + config patch | `.continue/buildflow/*.md` | `/buildflow-*` |
+
+Cline invokes commands as Cline Workflows — the trigger includes the `.md` suffix (e.g. `/buildflow-build.md`), which is how Cline's own Workflows feature works.
 
 ---
 
@@ -114,8 +132,6 @@ Installed into your AI tool and triggered by typing `/buildflow-*`. Each command
 
 ![Workflow](./image.png)
 
-[![BuildFlow v8.0](https://img.shields.io/badge/BuildFlow-v8.0-8B5CF6?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTV6TTIgMTdsOSA1IDktNXYtNUwyIDEyeiIvPjwvc3ZnPg==)](https://www.npmjs.com/package/buildflow-dev)
-
 | Step | Command | Role | When to use |
 |------|---------|------|-------------|
 | 1 | `/buildflow-start-epic` | **required** | Every session — loads state, detects drift, resets token counter |
@@ -127,6 +143,10 @@ Installed into your AI tool and triggered by typing `/buildflow-*`. Each command
 | 7 | `/buildflow-check` | optional | Before shipping — deep spec compliance + coverage audit |
 | 8 | `/buildflow-ship` | optional | Formal release gates — git tag, SHIPPED.md, post-ship advisor |
 | 9 | `/buildflow-complete-epic` | **required** | End of milestone — archives epics, writes global learnings, resets state |
+
+Two commands cut across this sequence instead of owning one step:
+- **`/buildflow-review`** — parallel multi-angle review. `--spec-only` gates the spec before step 5 (build); the default mode reviews implemented code after build, before step 7 (check).
+- **`/buildflow-auto`** — autopilot. From wherever you are, chains discuss → build (all remaining waves) → check → ship unattended, stopping only for a real deviation, regression, or blocked gate.
 
 ---
 
@@ -168,6 +188,8 @@ Runs 3 parallel Researchers on a topic, then Synthesizer combines their findings
 
 Generates `SPEC.md` (requirements + technical design), `ACCEPTANCE.md` (acceptance criteria with `spec_version`), `PLAN.md` (lightweight wave index), per-wave task files (`waves/wave-N.md`), and `CHECK.md` in one pass. All artifacts are versioned and locked. Includes multi-cycle engineering review that loops until all 7 dimensions are APPROVED.
 
+If the spec defines API endpoints, `openapi.yaml` is generated automatically after the spec locks — ready to import into Postman or preview with Redocly.
+
 ```
 /buildflow-spec                  Full spec + wave plan from vision
 /buildflow-spec --fast           Minimal spec for small features (single screen or endpoint)
@@ -198,6 +220,8 @@ Post-spec clarification workshop. Reviews the generated spec and plan for doubts
 
 Executes the plan wave by wave. Each wave loads only its own task file (`waves/wave-N.md`) — other waves are never loaded. Includes git worktree isolation, deviation handling (HARD/SOFT/SCOPE tiers), schema drift checks, build telemetry, and focused post-change tests.
 
+Cross-references every AC in `ACCEPTANCE.md` against the plan's tasks — ACs dropped during planning surface as WARN (1–2 dropped) or BLOCK (3+ or >20%), so scope can't silently shrink between spec and build.
+
 ```
 /buildflow-build                 Execute all waves in sequence from current position
 /buildflow-build wave-2          Execute a specific wave only
@@ -215,6 +239,24 @@ Standalone test + fix loop. Runs the suite, checks UI flow and functionality, au
 /buildflow-test wave-2           Test a specific wave
 /buildflow-test ui               Focus on UI alignment and flow only
 /buildflow-test --full           Run full suite including integration and e2e tests
+```
+
+---
+
+#### `/buildflow-review` · Reviewer × 4 · ~40K tokens
+
+Parallel multi-angle review — one lens per reviewer, no single reviewer tries to catch everything. Two modes:
+
+- **`--spec-only`** (pre-build gate) — 4 reviewers check AC completeness, technical design soundness, security/edge-case coverage, and plan feasibility against `SPEC.md`/`ACCEPTANCE.md`/`PLAN.md`, before any code is written.
+- **default** (post-build gate) — 4 reviewers check correctness, security, pattern/architecture consistency, and test coverage against the implemented code.
+
+Both modes classify findings as BLOCKING / ADVISORY / PASS and end with a verdict. `--fix` applies low-risk findings automatically (vague AC language, missing null checks); structural issues are always flagged for manual resolution.
+
+```
+/buildflow-review --spec-only     Review spec + plan before build starts
+/buildflow-review                 Review implemented code against spec after build
+/buildflow-review --wave <N>      Review a single wave's implementation only
+/buildflow-review --fix           Apply low-risk findings automatically after review
 ```
 
 ---
@@ -256,6 +298,32 @@ Gates:
 | 2a | Current epic tests pass | BLOCK |
 | 2b | Cross-epic regression vs last ship baseline | BLOCK |
 | 3 | Type-check, lint, compile, coverage, bundle size, Docker build | Type/compile/Docker → BLOCK |
+
+---
+
+#### `/buildflow-auto` · Strategist + Builder × N + Reviewer + Security Auditor · progressive, ~stage-by-stage
+
+Autopilot for the rest of the current epic. Chains `/buildflow-discuss` → `/buildflow-build` (all remaining waves) → `/buildflow-check` → `/buildflow-ship` without you re-typing each one or answering every prompt — it auto-resolves the same gates those commands would show you, using their own recommendation logic, and logs every auto-decision so it's reviewable afterward.
+
+```
+/buildflow-auto                  Run autopilot from current epic state through /buildflow-ship
+/buildflow-auto --stop-at build  Auto-lock decisions + build all remaining waves, then stop
+/buildflow-auto --stop-at check  Also run /buildflow-check, then stop before /buildflow-ship
+/buildflow-auto --dry-run        Print the plan (what would run) without executing anything
+```
+
+It never guesses through the gates that need a human:
+
+| Always stops for a human | Why |
+|---|---|
+| HARD/SCOPE deviation, coverage drop ≥15%, bundle size >25% | Real regressions or plan can't be followed as written |
+| Git commit failure | Never auto-retry or auto-park past a real git problem |
+| Low-confidence (1–2/5) discuss recommendation | An unattended architectural guess is worse than asking |
+| Any AC not PASS, or a HIGH/CRITICAL security finding | Ship-blocking by design |
+| Any `/buildflow-ship` gate BLOCK | Never applies `--skip-spec` / `--force` / `--skip-telemetry` itself |
+| `/buildflow-deploy` | Always out of scope, regardless of `--stop-at` |
+
+Stops early → resume with the exact same `/buildflow-auto` call; it picks up from `STATE.md` like every other command.
 
 ---
 
@@ -411,7 +479,6 @@ Full-stack performance profiling across three tracks. Measures baseline metrics 
 
 ---
 
-<!-- Deploy command hidden — triggered via /buildflow-deploy after Docker is initialized.
 #### `/buildflow-deploy` · Strategist · ~15K tokens
 
 Pre-flight checks → build → migrate → smoke test. Docker deployment path is used only if `/buildflow-docker` initialized it. Production has a stricter gate than staging.
@@ -422,11 +489,9 @@ Pre-flight checks → build → migrate → smoke test. Docker deployment path i
 /buildflow-deploy production       Deploy to production (all gates must pass — no skip flags)
 /buildflow-deploy --dry-run        Show what would happen without deploying
 ```
--->
 
 ---
 
-<!-- Docker command hidden — /buildflow-docker is opt-in and initialized on demand, not part of the default workflow.
 #### `/buildflow-docker` · Architect · ~15K tokens
 
 On-demand Docker initialization and management. Docker is opt-in — never assumed until this command runs at least once. Scaffolds for all 15 supported language families.
@@ -443,7 +508,6 @@ On-demand Docker initialization and management. Docker is opt-in — never assum
 /buildflow-docker scan                   CVE scan the built image (docker scout preferred, Trivy fallback)
 /buildflow-docker clean                  Remove dangling images and stopped containers
 ```
--->
 
 ### Security
 
@@ -863,7 +927,6 @@ When below threshold, the prompt is **context-aware** — not a hard block:
 
 ---
 
-<!--
 ## Docker Integration
 
 ### Scaffold a complete Docker setup
@@ -922,7 +985,6 @@ docker:
 ```
 
 ---
--->
 
 ## Post-Ship Feature Advisor
 
@@ -983,7 +1045,7 @@ npx buildflow-dev init
         ├─ ensureGit()             Only if git.permission === 'approved'
         │
         └─ runInstall()            Detects AI tools → writes command files per tool
-                                   Loads all 28 command templates from templates/commands/
+                                   Loads all 34 command templates from templates/commands/
                                    Installs shared update, folder access, and STATE.md rules
 ```
 
@@ -1001,7 +1063,7 @@ Every AI session runs this automatically:
 
 ### Epic resume contract
 
-Every major epic command (`think`, `spec`, `plan`, `build`, `check`, `ship`) reads and updates:
+Every major epic command (`think`, `spec`, `discuss`, `build`, `review`, `check`, `ship`, `auto`) reads and updates:
 
 ```
 .buildflow/epics/[epic]/STATE.md
@@ -1051,7 +1113,7 @@ buildflow-dev/
 │   │   │                         Adds update checks, Folder Access Guard, and STATE.md
 │   │   │                         resume rules to Claude, Gemini, Codex, OpenCode, Cursor,
 │   │   │                         Cline, and Continue command surfaces.
-│   │   │                         loadCommandTemplates() reads all 28 .md files from
+│   │   │                         loadCommandTemplates() reads all 34 .md files from
 │   │   │                         templates/commands/ and returns them as a map.
 │   │   │                         commandNames array drives which templates are installed.
 │   │   │
@@ -1074,43 +1136,17 @@ buildflow-dev/
 │
 ├── templates/
 │   ├── CLAUDE.md                 Written to project root for Claude Code.
-│   │                             Contains: session start checklist (6 steps including
-│   │                             token counter reset), v7.0 workflow, STATE.md resume
-│   │                             contract, context clear recommendation, token cost
-│   │                             tracking explanation, core rules, agents table.
+│   │                             Session start checklist, workflow reference, STATE.md
+│   │                             resume contract, context clear recommendation, core
+│   │                             rules, agents table.
 │   │
-│   └── commands/                 29 markdown files — one per slash command.
-│       ├── start-epic.md         Vision, drift detection, epic history load
-│       ├── think.md              Parallel research + 5 analysis modes + global learnings context
-│       ├── discuss.md            Pre-plan decision workshop — surface, research, lock decisions with confidence scores
-│       ├── spec.md               SPEC.md (requirements + design) + ACs, versioning, approval audit trail, amendment gate; writes per-wave task files
-│       ├── plan.md               AC-traced waves, CHECK.md ledger, thin-slice ordering, file ownership, focused post-change test plan, engineering review
-│       ├── build.md              Wave execution — loads PLAN.md index + single wave file only; worktree isolation, deviation handling, schema drift, focused testing
-│       ├── test.md               Standalone test + fix loop
-│       ├── check.md              4-reviewer parallel check, scope-reduction detection, schema drift, spec coverage
-│       ├── ship.md               4 gates, SHIPPED.md, post-ship advisor, git/no-git tag
-│       ├── hotfix.md             Fast-path fix with dual-mode restore point
-│       ├── onboard.md            5-lens analysis, feature inventory, local/locale support maps, symbol-level import graph, intel.json, drift baseline
-│       ├── modify.md             Symbol-level impact analysis, test coverage, surgical change
-│       ├── refactor.md           Quality improvement without behavior change
-│       ├── audit.md              OWASP Top 10 + container CVE scan + language dependency audit
-│       ├── debug.md              Root-cause analysis, scientific method · --continue, --list, --cleanup
-│       ├── perf.md               Full-stack perf profiling — UI, backend, DB · --continue, --list, --cleanup
-│       ├── deploy.md             Pre-flight, Docker deployment path, migrations, health check
-│       ├── docker.md             Scaffold, build, run, push, scan, shell, clean
-│       ├── workspace.md          Cross-repo orchestration — full workflow (spec/discuss/build/check/ship/complete)
-│       │                         from workspace root; workspace STATE.md + XPLAN.md formats;
-│       │                         per-repo execution with dependency-order sequencing
-│       ├── status.md             Epic, AC bar, token spend with session total, debt, suggestions
-│       ├── explain.md            Plain-language explanation
-│       ├── back.md               Undo with dual-mode restore point
-│       ├── revert.md             Revert current, last, or named epic spec and plan artifacts
-│       ├── switch-epic.md        Pause active epic and switch to another; preserves full context for resume
-│       ├── complete-epic.md      Milestone archival, global learnings write, release tag, state reset
-│       ├── settings.md           13-item interactive settings menu (git, workflow, yolo, coverage, security)
-│       ├── ui-spec.md            UI design contract — color system, typography, spacing, components, a11y
-│       ├── ui-review.md          6-dimension UI audit against design contract (PASS/WARN/FAIL per dimension)
-│       └── help.md               Diagnostic, 12 recovery paths, git recovery, global learnings, feature advisor
+│   └── commands/                 One markdown file per slash command (34 installable,
+│                                  see "AI Slash Commands" above for what each one does),
+│                                  plus a handful of internal modules (build-detect,
+│                                  build-execute, spec-plan, workspace-workflow,
+│                                  workspace-manage, onboard-analyze, check-strict) that
+│                                  get inlined into their parent command at package-build
+│                                  time rather than installed as separate commands.
 │
 ├── .gitignore
 ├── LICENSE                       MIT
@@ -1199,10 +1235,10 @@ The `agent:` / `agents:` field names the specialized persona(s). The `allowed-to
 | Tool | Where templates go | File naming |
 |------|--------------------|-------------|
 | Claude Code | `.claude/commands/` or `~/.claude/commands/` | `buildflow-build.md` |
-| Gemini CLI | `.gemini/commands/` + appended to `GEMINI.md` | `build.md` |
+| Gemini CLI | `.gemini/commands/` + appended to `GEMINI.md` | `buildflow-build.toml` |
 | Codex CLI | `.codex/instructions/` + `.codex/skills/` | `buildflow-build.md` |
-| Cursor | `.cursor/rules/buildflow.mdc` | Single combined file |
-| Cline | `.clinerules` (project root) | Single combined file |
+| Cursor | `.cursor/commands/` (real content) + `.cursor/rules/buildflow.mdc` (context only) | `buildflow-build.md` |
+| Cline | `.clinerules/workflows/` (real content) + `.clinerules/buildflow.md` (context only) | `buildflow-build.md` |
 | Continue | `.continue/buildflow/` + `config.json` patch | `build.md` |
 
 ---
@@ -1213,195 +1249,21 @@ Each agent gets a fresh context window with a minimal context packet — no cont
 
 | Agent | Persona | Commands |
 |-------|---------|----------|
-| 🎯 **Strategist** | Vision, decisions, orientation | `start`, `spec`, `ship`, `deploy`, `status`, `explain`, `back`, `help` |
-| 🔍 **Researcher** | Web research with source trust scores | `think` (parallel × 3), `ship` (post-ship advisor) |
+| 🎯 **Strategist** | Vision, decisions, orientation | `start-epic`, `discuss`, `ship`, `auto`, `pr`, `deploy`, `ui-spec`, `ui-review`, `status`, `explain`, `back`, `revert`, `switch-epic`, `complete-epic`, `settings`, `help` |
+| 🔍 **Researcher** | Web research with source trust scores | `think` (parallel × 3), `discuss`, `ship` (post-ship advisor) |
 | 🔄 **Synthesizer** | Combines parallel research output | `think` |
-| 🏗️ **Architect** | Dependency mapping, wave planning, Docker scaffolding | `plan`, `docker`, `workspace` |
-| ⚒️ **Builder** | Style-matched code generation | `build` (parallel per wave) |
-| 🔬 **Reviewer** | Spec compliance + quality checks | `check` (parallel × 4), `build`, `test` |
+| 🏗️ **Architect** | Dependency mapping, wave planning, Docker scaffolding | `spec`, `docker`, `workspace` |
+| ⚒️ **Builder** | Style-matched code generation | `build` (parallel per wave), `auto` |
+| 🔬 **Reviewer** | Spec compliance + quality checks | `build`, `test`, `review` (parallel × 4), `check` (parallel × 4), `refactor`, `auto` |
 | 🗺️ **Cartographer** | Codebase analysis, symbol graph | `onboard` |
-| 🩺 **Surgeon** | Minimal-footprint code modification | `modify`, `refactor`, `hotfix`, `debug`, `perf` |
-| 🔒 **Security Auditor** | OWASP Top 10 + container CVE scan | `audit`, `ship` (pre-ship gate) |
+| 🩺 **Surgeon** | Minimal-footprint code modification | `modify`, `refactor`, `hotfix`, `debug`, `migrate`, `observe`, `perf` |
+| 🔒 **Security Auditor** | OWASP Top 10 + container CVE scan | `audit`, `ship` (pre-ship gate), `auto` |
 
 ---
 
-## v8.0: What's New
+## Changelog
 
-### Cross-Repo Workflow Orchestration — `/buildflow-workspace spec/build/check/ship`
-
-The workspace command now supports the full development workflow from the workspace root. All workflow commands (`spec`, `discuss`, `build`, `check`, `ship`, `complete`) can be run from the parent folder containing all sibling repos. Each repo's artifacts stay local to that repo. The workspace folder holds only a coordination layer:
-
-- **`XPLAN.md`** — cross-repo contract summary (endpoint shapes, shared types), not a full spec
-- **`STATE.md`** — per-repo status, build order, rollback branches
-- **`STATUS.md`** — quick-glance AC table across all repos
-
-**Build order enforcement:** the contract-defining repo (e.g. `api-module`) is always specced and built first. Consuming repos (e.g. `react-module`) receive the actual implementation output as a constraint — not just the spec — so the contract lock is real.
-
-**Interrupt and resume:** `--resume` reads workspace `STATE.md` and continues from the last incomplete repo. Rollback instructions are provided per completed repo if a later repo fails.
-
-**Cross-repo detection:** `/buildflow-spec` and `/buildflow-build` run from inside a single repo now detect workspace scope automatically and redirect to `workspace spec` / `workspace build` when cross-repo changes are identified.
-
----
-
-### Session Continuity — `--continue` for `/buildflow-debug` and `/buildflow-hotfix`
-
-Both commands now persist session state across invocations. State is saved **lazily** — zero file I/O for fast single-pass sessions that resolve immediately. Files are only created when a session can't complete in one pass (root cause not found, or tests fail after 3 attempts).
-
-Each saved session gets a sequential reference (`DEBUG-001`, `HOTFIX-001`) and is resumable with `--continue`. Resolved/shipped sessions are hidden from `--list` by default but remain resumable with an explicit ref — useful when the same bug resurfaces.
-
-```
-/buildflow-debug --list                   Active + resolved sessions across all epics
-/buildflow-debug --continue               Resume the most recent unresolved session
-/buildflow-debug --continue DEBUG-003     Resume any session, including resolved ones
-/buildflow-hotfix --continue HOTFIX-002   Resume a hotfix after a failed test attempt
-```
-
-### Stale Session Cleanup — `--cleanup`
-
-`/buildflow-debug --cleanup` and `/buildflow-hotfix --cleanup` scan for sessions that are resolved/shipped and older than 30 days, show a confirmation list with age, and move them to an `archive/` subfolder. Keeps `--list` output actionable without permanently deleting history.
-
-### Epic Templates — `/buildflow-start-epic --template <name>`
-
-Six built-in domain templates bootstrap a new epic with a pre-built spec outline and AC hints, skipping the blank-page vision questions. Templates cover the most common development domains:
-
-| Template | Domain | Pre-built AC hints |
-|----------|--------|--------------------|
-| `auth` | Authentication | Login, register, JWT, OAuth, rate limiting, sessions |
-| `payments` | Payments | Checkout, Stripe, receipts, refunds, webhooks |
-| `crud` | Data management | List, create, read, update, delete, pagination, search |
-| `notifications` | Notifications | Email, in-app, push, preferences, read/unread |
-| `api` | REST API | Endpoints, middleware, rate limiting, versioning, errors |
-| `dashboard` | Analytics UI | Charts, filters, date ranges, export, real-time |
-
-Templates are starting points — `/buildflow-spec` expands and refines them with project-specific ACs.
-
-### `/buildflow-pr` — Pull Request Generation
-
-Generates a complete PR description from the completed wave: what was built, which ACs are covered, how to manually test, migration notes if the schema changed, and breaking change warnings. Saves to `.buildflow/epics/[epic]/PR-wave-N.md` and prints a ready-to-paste `gh pr create` one-liner.
-
-### `/buildflow-migrate` — Database Migration Management
-
-Diffs the spec data model against the live schema, classifies every change as SAFE / CAUTION / DESTRUCTIVE, generates migration files for the detected ORM (Prisma, Drizzle, TypeORM, Django, Alembic, Knex, raw SQL), and produces a rollback plan alongside every migration. Destructive operations are blocked until explicitly confirmed with `--allow-destructive`.
-
-### `/buildflow-observe` — Production Observability Setup
-
-Audits the codebase across four production pillars — error tracking (Sentry), structured logging (pino/structlog), health endpoints (`/health`, `/ready`), and APM (OpenTelemetry/Prometheus) — then generates the missing pieces following the project's existing code patterns.
-
-### OpenAPI Generation in `/buildflow-spec`
-
-When the spec defines API endpoints, `/buildflow-spec` now automatically generates `openapi.yaml` after locking the spec. The file is ready to import into Postman or preview with Redocly.
-
-### `/buildflow-perf` — Full-Stack Performance Profiling
-
-Command that profiles UI rendering, backend endpoints, and database queries. Measures baseline metrics before investigating, identifies the highest-impact bottleneck per track, applies a minimal fix, and verifies improvement with before/after numbers.
-
-**Three tracks:**
-- **UI** — JS bundle size, LCP/FCP/CLS vitals, render-blocking resources, lazy loading, memoization, image optimization
-- **Backend** — Endpoint p50/p95 times, sequential awaits, missing caching, N+1 queries in handlers, unbounded caches
-- **DB** — Missing indexes, N+1 ORM queries, `SELECT *` overhead, slow JOINs, connection pool exhaustion
-
-Same lazy session file pattern as debug/hotfix — single-pass perf investigations have zero overhead. Supports `--list`, `--continue`, and `--cleanup`.
-
----
-
-## v7.1: What's New
-
-### Workspace Onboard — Multi-Repo From Root
-
-New `/buildflow-workspace onboard` sub-command. Instead of `cd`-ing into each repo to run onboard individually, you run it once from the workspace root. It scans for sub-repos (by detecting `package.json`, `go.mod`, `Cargo.toml`, `pom.xml`, etc.), shows a **multiselect list** with current onboard status per repo, and runs `/buildflow-onboard` for each selected repo sequentially.
-
-Shortcuts: `A` (all repos), `N` (not-onboarded only), `R` (force full re-onboard). Already-onboarded repos auto-use `--update` mode unless `R` is selected. Each repo's knowledge files land in **that repo's own** `.buildflow/codebase/` directory.
-
-### Multiselect UX Throughout
-
-Three places now support multi-selection instead of one-at-a-time prompts:
-
-- **`/buildflow-settings` main menu** — enter comma-separated numbers (`1,3,7`) to change multiple settings in one pass, processed in order
-- **`/buildflow-settings` Workflow Toggles [13]** — shows all 5 toggles with current values at once; select which to change (e.g. `1,3`) and set each new value inline — one round trip instead of N
-- **`/buildflow-onboard --update`** — classifies detected drift into areas (`structure`, `modules`, `dependencies`, `routes`, `locale`) and presents a multiselect of only affected areas so you re-run only what changed
-
-### One-by-One AC UAT in `/buildflow-check`
-
-Manual UAT is now sequential and actionable. Each use case is shown **one at a time** with `[P]ass / [F]ail / [S]kip`:
-
-- **Pass** → marks the AC, moves to the next immediately
-- **Fail** → asks what went wrong, marks AC as `FAIL`, then offers `[X] Fix now` (pause UAT, apply fix, re-present same case) or `[C] Continue` (record failure, move on)
-- **Skip** → marks AC as `DEFERRED`, moves on
-- After all cases: prints a UAT summary (pass/fail/deferred counts) with a ship readiness verdict
-
-Previously, all use cases were dumped at once with three global options — which made it easy to miss individual failures.
-
-### Multi-Epic Parallel Work (`/buildflow-switch-epic`)
-
-Full context preservation when pausing/resuming epics. `STATE.md` stores `paused_epics[]` with last status, wave, and command per paused epic. `/buildflow-switch-epic` pauses the active epic cleanly and resumes another — or starts a new one — without losing context. Debug and hotfix sessions prompt whether the session belongs to the active epic or is an independent fix before writing the record.
-
----
-
-## v7.0: What's New
-
-### `/buildflow-discuss` — Pre-Plan Decision Workshop
-
-New command that captures key architectural decisions before speccing. Surfaces blocking and high-impact open decisions, optionally spawns parallel Researchers per option, produces a locked decision with confidence score (1–5), and saves it to `.buildflow/epics/[epic]/DECISIONS.md` as a spec constraint. Usage: `/buildflow-discuss`, `/buildflow-discuss "database choice"`, `/buildflow-discuss --review`.
-
-### Scope-Reduction Detection
-
-`/buildflow-build` and `/buildflow-check` now cross-reference every AC in `ACCEPTANCE.md` against tasks in `PLAN.md`. Dropped ACs surface as WARN (1–2 dropped) or BLOCK (3+ or >20%). Prevents the AI from silently shrinking the spec during planning.
-
-### `/buildflow-ui-spec` — UI Design Contract
-
-Generates a locked `.buildflow/epics/[epic]/UI-SPEC.md` before any frontend phase. Detects existing CSS framework (Tailwind, MUI, Chakra, etc.), documents color system, typography scale, spacing, component inventory with variants and states, responsive breakpoints, and accessibility requirements. Builder agents follow this contract automatically.
-
-### `/buildflow-ui-review` — 6-Dimension UI Audit
-
-Retroactive audit of UI implementation against the design contract. Scores 6 dimensions — color consistency, typography, spacing, component coverage, responsive behavior, accessibility — with PASS/WARN/FAIL verdicts and a prioritized fix list. Saves report to `.buildflow/epics/[epic]/AUDIT.md`.
-
-### Global Learnings Store
-
-`/buildflow-complete-epic` now extracts 2–4 cross-project insights at milestone completion and appends them to `~/.buildflow/learnings/global.md`. At every session start, BuildFlow reads this file and surfaces relevant entries (matched by framework/language). `/buildflow-think` includes matching global entries in each Researcher's context packet.
-
-### Workflow Toggles + Yolo Mode
-
-New `workflow` block in `PREFERENCES.md`: `require_think`, `require_check`, `research_depth` (quick/standard/thorough), `auto_wave_retry`, and `skip_prompts`. When `skip_prompts: true` (yolo mode), all non-destructive confirmation gates auto-proceed. Destructive gates still require explicit confirmation.
-
-### Interactive Settings (`/buildflow-settings`)
-
-13-item settings menu covering all preferences without manual markdown editing: experience level, git permission, token tracking, spec coverage threshold, strict mode, parallel agents, security gate, workflow toggles, and yolo mode.
-
-### `/buildflow-complete-epic` — Milestone Archival
-
-Replaces the removed `/buildflow-complete-milestone`. Archives all shipped epics, prompts for milestone name and version, writes `MILESTONE.md`, creates a git tag (`git.permission: approved`), deep-prunes memory, and resets state for the next cycle.
-
-### 15-Language Runtime Support
-
-`npx buildflow-dev init` now detects 15 language families: JavaScript/TypeScript (7 frameworks), Python, Rust, Go, Java (Maven), Kotlin (Gradle), C# / .NET, Ruby, PHP, Dart/Flutter, Swift, Scala, **Elixir** (Phoenix), **C/C++** (CMake/Make), and **Haskell** (Stack/Cabal).
-
-### CI/CD Infrastructure (`.github/`)
-
-Added `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/bug_report.md`, `.github/ISSUE_TEMPLATE/feature_request.md`, and `.github/workflows/ci.yml` (4 jobs: test on Node 18/20/22, lint, template validation, security audit).
-
-### v6.0 Highlights (carried forward)
-
-| Feature | Description |
-|---------|-------------|
-| **Epic STATE.md resume** | Each epic keeps a compact resume file — fresh sessions continue from it without chat history |
-| **Spec governance** | Versioned specs, approval audit trail, amendment gate, spec diff viewer |
-| **Git permission system** | Setup-time prompt, no-git mode with file snapshots, parked changes |
-| **Build telemetry** | Type-check + lint + coverage + bundle size gates at every wave |
-| **File ownership map** | Each file owned by exactly one wave, conflict detection |
-| **Thin-slice ordering** | DB → API → UI enforced in every plan |
-| **Multi-cycle plan review** | 7-dimension engineering review, loops until APPROVED |
-| **Deviation handling** | HARD/SOFT/SCOPE tiers with structured records |
-| **Schema drift detection** | Unapplied migrations flagged at wave commit and check |
-| **Cross-epic regression** | Full suite run at ship, baseline from last ship |
-| **Git worktree isolation** | Each Builder works in an isolated worktree |
-| **5-lens onboarding** | Arch/Quality/Security/Data/Features lenses in parallel |
-| **Queryable intel.json** | Machine-readable codebase index for agent lookups |
-| **Auto-drift detection** | Schema and load-bearing file changes detected at session start |
-| **Multi-repo workspace** | Cross-repo contract detection and blast-radius analysis |
-| **Post-ship feature advisor** | Auto market research + engineering standards gaps after every ship |
-| **SHIPPED.md cross-epic continuity** | ≤500-token epic summary loaded by future epics |
-
----
+Release history — what changed in each version — lives in [CHANGELOG.md](./CHANGELOG.md), not here.
 
 ---
 

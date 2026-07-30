@@ -65,6 +65,8 @@ Before doing anything else at the start of every session:
 /buildflow-deploy   → pre-flight + deploy to staging/production
 ```
 
+Or hand the rest off to autopilot: `/buildflow-auto` auto-locks open discuss decisions, builds every remaining wave back-to-back, then runs check and ship — stopping on its own only for HARD/SCOPE deviations, real quality regressions, or a blocked gate. Never runs `/buildflow-deploy`.
+
 ### Multi-repo (run from workspace root — parent folder of all repos)
 ```
 /buildflow-workspace onboard   → onboard all sibling repos
@@ -92,6 +94,7 @@ Workspace state lives in `[workspace-root]/.buildflow/workspace/`. Repo artifact
 | `/buildflow-check` | Verify all ACs satisfied + code quality |
 | `/buildflow-check --strict` | Structural spec-to-code mirroring: contract names, component map, critical symbol coverage, AC branches |
 | `/buildflow-ship` | Spec gate + security gate + context prune + git tag only when `git.permission: approved` |
+| `/buildflow-auto` | Autopilot — auto-locks discuss decisions, builds all remaining waves, runs check + ship unattended. Stops for HARD/SCOPE deviations, real regressions, or a blocked gate. Never deploys. |
 | `/buildflow-deploy` | Pre-flight checks + deploy staging/production |
 | `/buildflow-hotfix` | Fast-path fix — no planning, no waves · `--continue` resumes interrupted sessions |
 | `/buildflow-debug` | Root-cause analysis when tests fail · `--continue` resumes interrupted sessions |

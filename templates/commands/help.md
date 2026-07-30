@@ -151,6 +151,7 @@ git commit -m "feat: phase [N] wave [W] + phase [M] stacked changes (delayed com
 | `/buildflow-build` | Execute plan — auto-tests, auto-fix |
 | `/buildflow-check` | Verify all ACs satisfied |
 | `/buildflow-ship` | Finalize with all gates |
+| `/buildflow-auto` | Autopilot — chains discuss → build (all waves) → check → ship unattended |
 | `/buildflow-deploy` | Deploy to staging/production |
 
 ### Targeted changes
